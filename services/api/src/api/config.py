@@ -10,5 +10,10 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60
 
+    ldap_url: str = "ldap://localhost:389"
+    ldap_base_dn: str = "dc=collabrains,dc=eu"
+    ldap_bind_dn_template: str = "uid={username},ou=people,dc=collabrains,dc=eu"
+    ldap_admin_group_dn: str = "cn=collabrains-admins,ou=groups,dc=collabrains,dc=eu"
+
 
 settings = Settings()

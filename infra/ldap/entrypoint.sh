@@ -1,0 +1,48 @@
+#!/bin/sh
+set -e
+set -x
+
+: "${LDAP_BASE_DN:?LDAP_BASE_DN is required}"
+: "${LDAP_ADMIN_PASSWORD:?LDAP_ADMIN_PASSWORD is required}"
+
+mkdir -p /var/run/slapd /var/lib/ldap
+chown -R openldap:openldap /var/run/slapd /var/lib/ldap
+
+ADMIN_HASH=$(slappasswd -s "$LDAP_ADMIN_PASSWORD")
+sed -e "s|__BASE_DN__|$LDAP_BASE_DN|g" \
+    -e "s|__ADMIN_PW_HASH__|$ADMIN_HASH|g" \
+    /etc/ldap/slapd.conf.template > /etc/ldap/slapd.conf
+
+FIRST_BOOT=0
+if [ -z "$(ls -A /var/lib/ldap 2>/dev/null)" ]; then
+  FIRST_BOOT=1
+fi
+
+if [ "$FIRST_BOOT" = "1" ]; then
+  echo "[entrypoint] first boot: starting slapd (classic config) to seed data"
+  slapd -h "ldap:///" -u openldap -g openldap -f /etc/ldap/slapd.conf &
+  SLAPD_PID=$!
+
+  for i in $(seq 1 30); do
+    if ldapsearch -x -H ldap:/// -s base -b "" >/dev/null 2>&1; then
+      break
+    fi
+    sleep 0.5
+  done
+
+  if [ -d /ldifs ]; then
+    for f in /ldifs/*.ldif; do
+      [ -e "$f" ] || continue
+      echo "[entrypoint] seeding $f"
+      ldapadd -x -D "cn=admin,$LDAP_BASE_DN" -w "$LDAP_ADMIN_PASSWORD" -H ldap:/// -f "$f" || \
+        echo "[entrypoint] WARNING: $f failed to apply (may already exist)"
+    done
+  fi
+
+  kill "$SLAPD_PID"
+  wait "$SLAPD_PID" 2>/dev/null || true
+  echo "[entrypoint] seeding complete"
+fi
+
+echo "[entrypoint] starting slapd in foreground"
+exec slapd -d 256 -h "ldap:///" -u openldap -g openldap -f /etc/ldap/slapd.conf

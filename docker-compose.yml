@@ -6,6 +6,7 @@ networks:
 
 volumes:
   postgres_data:
+  ldap_data:
   redis_data:
   es_data:
   ollama_data:
@@ -48,6 +49,19 @@ services:
       retries: 10
     networks: [collabrains-net]
 
+  openldap:
+    build: ./infra/ldap
+    restart: unless-stopped
+    environment:
+      LDAP_BASE_DN: dc=collabrains,dc=eu
+      LDAP_ADMIN_PASSWORD: ${LDAP_ADMIN_PASSWORD}
+    volumes:
+      - ldap_data:/var/lib/ldap
+      - ./infra/ldap/bootstrap:/ldifs:ro
+    ports:
+      - "127.0.0.1:389:389"
+    networks: [collabrains-net]
+
   api:
     build: ./services/api
     restart: unless-stopped
@@ -58,6 +72,10 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_ALGORITHM: ${JWT_ALGORITHM}
       JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES}
+      LDAP_URL: ${LDAP_URL}
+      LDAP_BASE_DN: ${LDAP_BASE_DN}
+      LDAP_BIND_DN_TEMPLATE: ${LDAP_BIND_DN_TEMPLATE}
+      LDAP_ADMIN_GROUP_DN: ${LDAP_ADMIN_GROUP_DN}
     ports:
       - "8000:8000"
     volumes:
@@ -67,6 +85,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      openldap:
+        condition: service_started
     networks: [collabrains-net]
 
   web:

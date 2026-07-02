@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from api.auth import router as auth_router
+from api.db import engine
 
 app = FastAPI(title="CollaBrains API", version="0.1.0")
 
@@ -23,5 +25,6 @@ async def health() -> dict:
 
 @app.get("/health/ready")
 async def ready() -> dict:
-    # Phase 1 will add real DB/Redis connectivity checks here.
+    async with engine.connect() as conn:
+        await conn.execute(text("SELECT 1"))
     return {"status": "ok"}

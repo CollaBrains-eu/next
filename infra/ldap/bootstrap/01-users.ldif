@@ -1,0 +1,48 @@
+dn: dc=collabrains,dc=eu
+objectClass: dcObject
+objectClass: organization
+o: CollaBrains
+dc: collabrains
+
+dn: ou=people,dc=collabrains,dc=eu
+objectClass: organizationalUnit
+ou: people
+
+dn: ou=groups,dc=collabrains,dc=eu
+objectClass: organizationalUnit
+ou: groups
+
+dn: uid=alice,ou=people,dc=collabrains,dc=eu
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: alice
+sn: Alice
+givenName: Alice
+cn: Alice Member
+displayName: Alice Member
+uidNumber: 10001
+gidNumber: 10001
+homeDirectory: /home/alice
+mail: alice@collabrains.eu
+userPassword: {SSHA}7FW6HBgvfJYFxzOZGp/f2nryQ6dp6vWW
+
+dn: uid=admin1,ou=people,dc=collabrains,dc=eu
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: admin1
+sn: Admin
+givenName: Ada
+cn: Ada Admin
+displayName: Ada Admin
+uidNumber: 10002
+gidNumber: 10002
+homeDirectory: /home/admin1
+mail: admin1@collabrains.eu
+userPassword: {SSHA}8BfY9eevRppYL3K4fXNzCKGUSTtWIdg6
+
+dn: cn=collabrains-admins,ou=groups,dc=collabrains,dc=eu
+objectClass: groupOfNames
+cn: collabrains-admins
+member: uid=admin1,ou=people,dc=collabrains,dc=eu
