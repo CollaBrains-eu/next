@@ -44,3 +44,45 @@ async def test_login_rejects_bad_ldap_credentials(client):
 async def test_me_rejects_missing_token(client):
     response = await client.get("/auth/me")
     assert response.status_code == 401
+
+
+async def _get_token(client, username: str) -> str:
+    identity = LdapIdentity(username=username, display_name=username, email=f"{username}@collabrains.eu", is_admin=False)
+    with patch("api.auth.ldap_authenticate", return_value=identity):
+        response = await client.post("/auth/token", data={"username": username, "password": "whatever"})
+    return response.json()["access_token"]
+
+
+async def test_link_phone_number_succeeds_and_shows_up_on_me(client):
+    token = await _get_token(client, "phoneuser1")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = await client.put("/auth/me/phone", headers=headers, json={"phone_number": "+15551230001"})
+    assert response.status_code == 200
+    assert response.json()["phone_number"] == "+15551230001"
+
+    me = await client.get("/auth/me", headers=headers)
+    assert me.json()["phone_number"] == "+15551230001"
+
+
+async def test_link_phone_number_rejects_non_e164_format(client):
+    token = await _get_token(client, "phoneuser2")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = await client.put("/auth/me/phone", headers=headers, json={"phone_number": "0491511234567"})
+    assert response.status_code == 400
+
+
+async def test_link_phone_number_rejects_duplicate(client):
+    token1 = await _get_token(client, "phoneuser3")
+    token2 = await _get_token(client, "phoneuser4")
+
+    first = await client.put(
+        "/auth/me/phone", headers={"Authorization": f"Bearer {token1}"}, json={"phone_number": "+15551230099"}
+    )
+    assert first.status_code == 200
+
+    second = await client.put(
+        "/auth/me/phone", headers={"Authorization": f"Bearer {token2}"}, json={"phone_number": "+15551230099"}
+    )
+    assert second.status_code == 409

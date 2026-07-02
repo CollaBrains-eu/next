@@ -3,12 +3,12 @@
 Privacy-first AI knowledge platform. AI is the central orchestration layer;
 users interact via Web, Admin, Signal (chat-first), and later Mobile.
 
-## Status: Phase 3a — Signal bot (text chat bridge)
+## Status: Phase 3b — Signal identity linking
 
 See `docs/adr/` for the architecture decisions behind this build
 (0001: scaffold, 0002: document pipeline, 0003: AI Gateway/Orchestrator,
-0004: Legal/Planner agents + workflow, 0005: Signal bot), and the phase
-plan below for what's next.
+0004: Legal/Planner agents + workflow, 0005: Signal bot, 0006: Signal
+identity linking), and the phase plan below for what's next.
 
 ## Repo layout
 
@@ -51,12 +51,14 @@ inside `services/api` (see ADR 0003 and ADR 0004).
   and a minimal in-process workflow trigger (document ready → auto
   task-extraction). See ADR 0004.
 
-`apps/signal-bot` (Phase 3a) bridges Signal to `/chat`: polls
+`apps/signal-bot` bridges Signal to `/chat`: polls
 `signal-cli-rest-api` for incoming messages on the registered number
-(`+4949534254784`), forwards them to the orchestrator, replies on Signal.
-One shared service identity for now — per-sender identity, document
-upload via attachments, and proactive notifications are Phase 3b. See ADR
-0005.
+(`+4949534254784`), forwards them to the orchestrator, replies on Signal
+(Phase 3a, ADR 0005). Each sender's phone number is resolved and matched
+against `users.phone_number` — only senders who've linked their number
+via `PUT /auth/me/phone` get answered, attributed to their own account for
+rate limiting and audit (Phase 3b, ADR 0006). Document upload via
+attachments and proactive notifications are Phase 3c.
 
 ## Local development
 
@@ -89,8 +91,9 @@ docker compose --profile signal up -d
    - 2b: Legal Agent, Planner Agent, workflow trigger
 3. Signal bot & communication — split into:
    - 3a (done): registration, text-chat bridge to /chat
-   - 3b: per-sender identity mapping, document upload via attachments,
-     proactive/outbound notifications
+   - 3b (done): per-sender identity mapping by linked phone number
+   - 3c: document upload via Signal attachments, proactive/outbound
+     notifications
 4. Case intelligence & entity graph
 5. Frontend integration — full UI, chat, graph view, real-time updates
 6. Production readiness — load testing, hardening, monitoring

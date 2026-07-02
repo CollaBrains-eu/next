@@ -6,14 +6,19 @@ its `role` governs permissions from then on. LDAP admin-group membership
 only sets the *initial* role on first provisioning -- it is not re-checked
 on every login, so role changes made in-app (or future non-LDAP accounts,
 e.g. Signal guests in Phase 3) aren't silently overwritten.
+
+`get_effective_user` (ADR 0006) additionally lets the trusted `signal-bot`
+service account act on behalf of a specific user, identified by a linked
+phone number -- see docs/adr/0006-phase3b-signal-identity-linking.md.
 """
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from pydantic import BaseModel
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.config import settings
@@ -35,6 +40,7 @@ class UserOut(BaseModel):
     display_name: str
     email: str | None
     role: str
+    phone_number: str | None
 
 
 def create_access_token(username: str, role: str) -> str:
@@ -99,6 +105,32 @@ async def get_current_user(
     return user
 
 
+async def get_effective_user(
+    current_user: User = Depends(get_current_user),
+    on_behalf_of_phone: str | None = Header(None, alias="X-On-Behalf-Of-Phone"),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    """Resolve the user an action should be attributed to.
+
+    For every normal caller this is just `current_user`. The
+    `X-On-Behalf-Of-Phone` header is only honored for the `signal-bot`
+    service account (ADR 0006) -- any other caller sending it is ignored
+    outright, so a regular LDAP-authenticated request can never impersonate
+    another user by guessing at the header.
+    """
+    if current_user.role != "service" or not on_behalf_of_phone:
+        return current_user
+
+    result = await db.execute(select(User).where(User.phone_number == on_behalf_of_phone))
+    linked_user = result.scalar_one_or_none()
+    if linked_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This phone number is not linked to a CollaBrains account",
+        )
+    return linked_user
+
+
 @router.get("/me", response_model=UserOut)
 async def me(current_user: User = Depends(get_current_user)) -> UserOut:
     return UserOut(
@@ -106,4 +138,38 @@ async def me(current_user: User = Depends(get_current_user)) -> UserOut:
         display_name=current_user.display_name,
         email=current_user.email,
         role=current_user.role,
+        phone_number=current_user.phone_number,
+    )
+
+
+class PhoneNumberUpdate(BaseModel):
+    phone_number: str
+
+
+@router.put("/me/phone", response_model=UserOut)
+async def link_phone_number(
+    update: PhoneNumberUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> UserOut:
+    phone = update.phone_number.strip()
+    if not phone.startswith("+") or not phone[1:].isdigit() or len(phone) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="phone_number must be in E.164 format, e.g. +491511234567"
+        )
+
+    current_user.phone_number = phone
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This phone number is already linked to another account")
+
+    await db.refresh(current_user)
+    return UserOut(
+        username=current_user.username,
+        display_name=current_user.display_name,
+        email=current_user.email,
+        role=current_user.role,
+        phone_number=current_user.phone_number,
     )

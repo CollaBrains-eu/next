@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.ai_gateway import chat_completion
-from api.auth import get_current_user
+from api.auth import get_effective_user
 from api.db import get_db
 from api.models import Document, User
 from api.search_service import hybrid_search
@@ -55,7 +55,7 @@ async def chat(
     request: ChatRequest,
     context_chunks: int = Query(5, le=20),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_effective_user),
 ) -> ChatResponse:
     hits = await hybrid_search(db, request.message, limit=context_chunks)
 
