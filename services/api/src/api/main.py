@@ -6,6 +6,8 @@ from api.auth import router as auth_router
 from api.chat import router as chat_router
 from api.db import engine
 from api.documents import router as documents_router, search_router
+from api.legal import router as legal_router
+from api.tasks import router as tasks_router
 
 app = FastAPI(title="CollaBrains API", version="0.1.0")
 
@@ -21,6 +23,8 @@ app.include_router(auth_router)
 app.include_router(documents_router)
 app.include_router(search_router)
 app.include_router(chat_router)
+app.include_router(legal_router)
+app.include_router(tasks_router)
 
 
 @app.get("/health")

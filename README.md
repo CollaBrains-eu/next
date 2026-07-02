@@ -3,11 +3,12 @@
 Privacy-first AI knowledge platform. AI is the central orchestration layer;
 users interact via Web, Admin, Signal (chat-first), and later Mobile.
 
-## Status: Phase 2a — AI Gateway, Orchestrator, Document & Search agents
+## Status: Phase 2b — Legal Agent, Planner Agent, workflow trigger
 
 See `docs/adr/` for the architecture decisions behind this build
-(0001: scaffold, 0002: document pipeline, 0003: AI Gateway/Orchestrator),
-and the phase plan below for what's next.
+(0001: scaffold, 0002: document pipeline, 0003: AI Gateway/Orchestrator,
+0004: Legal/Planner agents + workflow), and the phase plan below for
+what's next.
 
 ## Repo layout
 
@@ -22,8 +23,9 @@ and the phase plan below for what's next.
 
 Only `services/api` and `apps/web` have working code so far. Everything
 else is scaffolded with a README stub and gets built out phase by phase —
-including `services/ai-gateway`/`services/ai-orchestrator`, whose actual
-implementation currently lives inside `services/api` (see ADR 0003).
+including `services/ai-gateway`, `services/ai-orchestrator`, and
+`services/workflow`, whose actual implementation currently lives inside
+`services/api` (see ADR 0003 and ADR 0004).
 
 `services/api` covers:
 
@@ -39,9 +41,15 @@ implementation currently lives inside `services/api` (see ADR 0003).
   document chunks with citations; a Document Agent
   (`POST /documents/{id}/summarize`); and a Search Agent
   (`api/search_service.hybrid_search`, shared by `/search` and `/chat`).
-  No autonomous multi-step planning or persisted conversation memory yet —
-  see ADR 0003 for what's deferred to Phase 2b (Legal Agent, Planner
-  Agent).
+  See ADR 0003.
+- **Phase 2b** — a Legal Agent (`POST /legal/draft`) that drafts documents
+  grounded only in retrieved context, never inventing case law or citing
+  facts not present in the source documents — every response is marked as
+  a draft requiring attorney review; a Planner Agent
+  (`POST /documents/{id}/extract-tasks`, `GET /tasks`,
+  `PATCH /tasks/{id}`) that extracts actionable items from document text;
+  and a minimal in-process workflow trigger (document ready → auto
+  task-extraction), deliberately not Celery yet — see ADR 0004 for why.
 
 ## Local development
 
@@ -63,9 +71,9 @@ docker compose --profile full up
 1. Core backend & document pipeline (done) — split into:
    - 1a: LDAP auth + Postgres-backed authorization
    - 1b: document upload, OCR, chunking, embeddings, hybrid search
-2. AI orchestration & agents — split into:
-   - 2a (done): AI Gateway, Orchestrator (RAG chat), Document Agent, Search Agent
-   - 2b: Legal Agent, Planner Agent, workflow engine
+2. AI orchestration & agents (done) — split into:
+   - 2a: AI Gateway, Orchestrator (RAG chat), Document Agent, Search Agent
+   - 2b: Legal Agent, Planner Agent, workflow trigger
 3. Signal bot & communication — real Signal integration, proactive notifications
 4. Case intelligence & entity graph
 5. Frontend integration — full UI, chat, graph view, real-time updates

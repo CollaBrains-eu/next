@@ -3,11 +3,14 @@
 Upload flow: bytes are forwarded straight to Paperless-ngx for OCR (no
 intermediate disk write here -- Paperless owns file storage). A background
 task polls Paperless until text is ready, then chunks and embeds it via
-Ollama. See docs/adr/0002-phase1b-document-pipeline.md for why Paperless,
-Ollama, and Postgres-native search (not Elasticsearch) were chosen, and
+Ollama, then (if enabled) triggers the Planner Agent to extract tasks --
+the workflow trigger from docs/adr/0004-phase2b-legal-planner-workflow.md.
+See docs/adr/0002-phase1b-document-pipeline.md for why Paperless, Ollama,
+and Postgres-native search (not Elasticsearch) were chosen, and
 docs/adr/0003-phase2a-ai-gateway-orchestrator.md for the Document Agent
 (summarization) and Search Agent (hybrid_search, in search_service.py).
 """
+import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -19,14 +22,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.ai_gateway import chat_completion
 from api.auth import get_current_user
 from api.chunking import chunk_text
+from api.config import settings
 from api.db import async_session, get_db
 from api.embeddings import embed_text
 from api.models import Document, DocumentChunk, User
 from api.paperless_client import delete_document as paperless_delete, fetch_document_text, \
     submit_document, wait_for_paperless_id
+from api.planner_agent import extract_tasks
 from api.search_service import hybrid_search
 
 router = APIRouter(prefix="/documents", tags=["documents"])
+logger = logging.getLogger(__name__)
 
 
 class DocumentOut(BaseModel):
@@ -71,6 +77,14 @@ async def _process_document(document_id: UUID, filename: str, content: bytes, mi
             document.status = "ready"
             document.processed_at = datetime.now(timezone.utc)
             await db.commit()
+
+            if settings.auto_extract_tasks_on_ready:
+                try:
+                    await extract_tasks(
+                        db, document_id=document.id, text=text, user_id=document.owner_id, source="planner_agent"
+                    )
+                except Exception:  # noqa: BLE001 - the workflow trigger must never fail the ingest pipeline
+                    logger.exception("auto task-extraction failed for document %s", document.id)
         except Exception as exc:  # noqa: BLE001 - pipeline must never crash the worker
             document.status = "failed"
             document.error = str(exc)[:2000]

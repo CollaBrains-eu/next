@@ -29,6 +29,7 @@ class Settings(BaseSettings):
 
     ai_rate_limit_per_minute: int = 30
     ai_max_context_chunks: int = 5
+    auto_extract_tasks_on_ready: bool = True
 
 
 settings = Settings()
