@@ -1,11 +1,15 @@
 # signal-bot
 
-First-class Signal client for CollaBrains — upload documents, ask questions,
-manage cases, and receive proactive notifications via Signal chat.
+First-class Signal client for CollaBrains — upload documents, ask
+questions, manage cases, and receive proactive notifications via Signal
+chat.
 
-Not yet implemented. Requires:
-- A dedicated phone number capable of SMS/voice verification for
-  `signal-cli` registration.
-- `services/ai-gateway` (Phase 2) to route messages to.
+**Phase 3a (done)**: text-chat bridge. Polls `signal-cli-rest-api` for
+incoming Signal messages, forwards each to the CollaBrains `/chat`
+orchestrator (Phase 2a), and sends the answer back. All senders currently
+share one service identity (Postgres user `signal-bot`, role `service`) —
+per-sender identity mapping, document upload via attachments, and
+proactive/outbound notifications are Phase 3b. See
+`docs/adr/0005-phase3a-signal-bot.md`.
 
-See root README phase plan — this is Phase 3 scope.
+Registered number: `+4949534254784` (env `SIGNAL_PHONE_NUMBER`).

@@ -27,3 +27,6 @@ dist/
 # TS build artifacts
 *.tsbuildinfo
 vite.config.d.ts
+
+# Signal registration data (identity/session keys — never commit)
+infra/signal-cli/

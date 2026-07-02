@@ -182,7 +182,7 @@ services:
     volumes:
       - ./infra/signal-cli:/home/.local/share/signal-cli
     ports:
-      - "8011:8080"
+      - "127.0.0.1:8011:8080"
     networks: [collabrains-net]
 
   signal-bot:
