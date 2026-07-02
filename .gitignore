@@ -23,3 +23,7 @@ dist/
 # IDE
 .vscode/
 .idea/
+
+# TS build artifacts
+*.tsbuildinfo
+vite.config.d.ts
