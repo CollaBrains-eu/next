@@ -56,6 +56,7 @@ async def extract_tasks(
         [{"role": "user", "content": prompt}],
         user_id=user_id,
         endpoint="planner.extract_tasks",
+        json_mode=True,
     )
 
     try:

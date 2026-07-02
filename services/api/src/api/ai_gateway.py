@@ -37,16 +37,26 @@ async def chat_completion(
     user_id: UUID,
     endpoint: str,
     model: str | None = None,
+    json_mode: bool = False,
 ) -> str:
+    """Set json_mode=True for prompts that require valid JSON output.
+
+    Uses Ollama's grammar-constrained JSON decoding ("format": "json") rather
+    than relying on prompt instructions alone -- a small model asked only in
+    the prompt to "return JSON" can and does occasionally produce malformed
+    output (mismatched braces, missing closing brackets) on more complex
+    structures. Confirmed directly: the Entity Agent's extraction prompt
+    (docs/adr/0008-phase4-entity-graph.md) hit this on its first live test.
+    """
     await _check_rate_limit(user_id)
 
     chosen_model = model or settings.chat_model
     start = time.monotonic()
     async with httpx.AsyncClient(base_url=settings.ollama_url, timeout=120.0) as client:
-        response = await client.post(
-            "/api/chat",
-            json={"model": chosen_model, "messages": messages, "stream": False},
-        )
+        request_body = {"model": chosen_model, "messages": messages, "stream": False}
+        if json_mode:
+            request_body["format"] = "json"
+        response = await client.post("/api/chat", json=request_body)
         response.raise_for_status()
         payload = response.json()
 

@@ -29,6 +29,7 @@ from api.chunking import chunk_text
 from api.config import settings
 from api.db import async_session, get_db
 from api.embeddings import embed_text
+from api.entity_agent import extract_entities
 from api.models import Document, DocumentChunk, User
 from api.paperless_client import delete_document as paperless_delete, fetch_document_text, \
     submit_document, wait_for_paperless_id
@@ -104,6 +105,12 @@ async def _process_document(document_id: UUID, filename: str, content: bytes, mi
                     )
                 except Exception:  # noqa: BLE001 - the workflow trigger must never fail the ingest pipeline
                     logger.exception("auto task-extraction failed for document %s", document.id)
+
+            if settings.auto_extract_entities_on_ready:
+                try:
+                    await extract_entities(db, document_id=document.id, text=text, user_id=document.owner_id)
+                except Exception:  # noqa: BLE001 - the workflow trigger must never fail the ingest pipeline
+                    logger.exception("auto entity-extraction failed for document %s", document.id)
 
             await _notify_owner(db, document)
         except Exception as exc:  # noqa: BLE001 - pipeline must never crash the worker

@@ -3,14 +3,13 @@
 Privacy-first AI knowledge platform. AI is the central orchestration layer;
 users interact via Web, Admin, Signal (chat-first), and later Mobile.
 
-## Status: Phase 3c — Signal attachments & proactive notifications
+## Status: Phase 4 — Case intelligence & entity graph
 
 See `docs/adr/` for the architecture decisions behind this build
 (0001: scaffold, 0002: document pipeline, 0003: AI Gateway/Orchestrator,
 0004: Legal/Planner agents + workflow, 0005: Signal bot, 0006: Signal
-identity linking, 0007: Signal attachments & notifications), and the
-phase plan below for what's next. Phase 3 (Signal bot & communication) is
-now fully done.
+identity linking, 0007: Signal attachments & notifications, 0008: entity
+graph), and the phase plan below for what's next. Phases 0-4 are done.
 
 ## Repo layout
 
@@ -65,6 +64,16 @@ uploads it into the same document pipeline as a web upload, and
 finishes — no polling, the bot just acknowledges receipt (Phase 3c, ADR
 0007).
 
+A Document Ready trigger also runs the Entity Agent
+(`api/entity_agent.py`): extracts people/organizations/locations and
+relationships between them via `qwen2.5:3b-instruct` in Ollama's
+grammar-constrained JSON mode (needed — the model occasionally produces
+malformed JSON on more complex extractions when only prompted to "return
+JSON," a real failure caught in live testing), deduplicated by exact
+case-insensitive name+type match. `GET /entities/{id}/graph` returns an
+entity's one-hop neighborhood (itself, direct neighbors, edges) — the
+shape a graph visualization (Phase 5) needs (Phase 4, ADR 0008).
+
 ## Local development
 
 ```bash
@@ -99,6 +108,8 @@ docker compose --profile signal up -d
    - 3b (done): per-sender identity mapping by linked phone number
    - 3c (done): document upload via Signal attachments, proactive
      notifications on document completion
-4. Case intelligence & entity graph
+4. Case intelligence & entity graph (done) — entity/relationship
+   extraction (Entity Agent), one-hop graph query API. The visual graph
+   view itself is Phase 5 scope.
 5. Frontend integration — full UI, chat, graph view, real-time updates
 6. Production readiness — load testing, hardening, monitoring
