@@ -138,3 +138,132 @@ async def test_summarize_caches_result_and_skips_second_llm_call(client):
     assert first.json()["summary"] == "A short summary."
     assert second.json()["summary"] == "A short summary."
     mock_completion.assert_called_once()
+
+
+async def test_process_document_notifies_owner_on_ready_when_phone_linked(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    await client.put("/auth/me/phone", headers=headers, json={"phone_number": "+15559990010"})
+
+    with (
+        patch("api.documents.submit_document", return_value="task-notify-1"),
+        patch("api.documents.wait_for_paperless_id", return_value=101),
+        patch("api.documents.fetch_document_text", return_value="Some content."),
+        patch("api.documents.embed_text", return_value=FAKE_EMBEDDING),
+        patch("api.documents.settings.auto_extract_tasks_on_ready", False),
+        patch("api.documents.send_signal_message") as mock_send,
+    ):
+        upload = await client.post(
+            "/documents", headers=headers, files={"file": ("note.txt", b"content", "text/plain")}
+        )
+
+    assert upload.status_code == 202
+    mock_send.assert_called_once()
+    call_args = mock_send.call_args.args
+    assert call_args[0] == "+15559990010"
+    assert "ready" in call_args[1]
+
+
+async def test_process_document_skips_notification_when_no_phone_linked(client):
+    from unittest.mock import patch as _patch
+    from api.ldap_auth import LdapIdentity as _LdapIdentity
+
+    identity = _LdapIdentity(
+        username="nophoneuser", display_name="No Phone User", email="nophoneuser@collabrains.eu", is_admin=False
+    )
+    with _patch("api.auth.ldap_authenticate", return_value=identity):
+        login = await client.post("/auth/token", data={"username": "nophoneuser", "password": "whatever"})
+    token = login.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    with (
+        patch("api.documents.submit_document", return_value="task-notify-2"),
+        patch("api.documents.wait_for_paperless_id", return_value=102),
+        patch("api.documents.fetch_document_text", return_value="Some content."),
+        patch("api.documents.embed_text", return_value=FAKE_EMBEDDING),
+        patch("api.documents.settings.auto_extract_tasks_on_ready", False),
+        patch("api.documents.send_signal_message") as mock_send,
+    ):
+        await client.post("/documents", headers=headers, files={"file": ("note.txt", b"content", "text/plain")})
+
+    mock_send.assert_not_called()
+
+
+async def test_process_document_notifies_owner_on_failure(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    await client.put("/auth/me/phone", headers=headers, json={"phone_number": "+15559990011"})
+
+    with (
+        patch("api.documents.submit_document", side_effect=RuntimeError("paperless down")),
+        patch("api.documents.send_signal_message") as mock_send,
+    ):
+        await client.post("/documents", headers=headers, files={"file": ("note.txt", b"content", "text/plain")})
+
+    mock_send.assert_called_once()
+    call_args = mock_send.call_args.args
+    assert call_args[0] == "+15559990011"
+    assert "failed" in call_args[1]
+
+
+async def test_upload_document_on_behalf_of_linked_phone_number(client):
+    """Signal attachment uploads use get_effective_user the same way /chat does (ADR 0007)."""
+    from api.auth import create_access_token
+    from api.db import async_session
+    from api.models import User
+
+    await _login(client)  # ensures docuser exists
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    await client.put("/auth/me/phone", headers=headers, json={"phone_number": "+15559990012"})
+
+    async with async_session() as db:
+        db.add(User(username="test-signal-bot-upload", display_name="bot", role="service"))
+        await db.commit()
+    service_token = create_access_token("test-signal-bot-upload", "service")
+
+    with (
+        patch("api.documents.submit_document", return_value="task-notify-3"),
+        patch("api.documents.wait_for_paperless_id", return_value=103),
+        patch("api.documents.fetch_document_text", return_value="Some content."),
+        patch("api.documents.embed_text", return_value=FAKE_EMBEDDING),
+        patch("api.documents.settings.auto_extract_tasks_on_ready", False),
+        patch("api.documents.send_signal_message"),
+    ):
+        upload = await client.post(
+            "/documents",
+            headers={"Authorization": f"Bearer {service_token}", "X-On-Behalf-Of-Phone": "+15559990012"},
+            files={"file": ("scan.pdf", b"content", "application/pdf")},
+        )
+
+    assert upload.status_code == 202
+
+    from sqlalchemy import select
+    from api.models import Document
+
+    async with async_session() as db:
+        result = await db.execute(select(Document).where(Document.id == upload.json()["id"]))
+        document = result.scalar_one()
+        result = await db.execute(select(User).where(User.username == "docuser"))
+        docuser = result.scalar_one()
+    assert document.owner_id == docuser.id
+
+
+async def test_upload_document_on_behalf_of_rejects_unlinked_phone_number(client):
+    from api.auth import create_access_token
+    from api.db import async_session
+    from api.models import User
+
+    async with async_session() as db:
+        db.add(User(username="test-signal-bot-upload-2", display_name="bot", role="service"))
+        await db.commit()
+    service_token = create_access_token("test-signal-bot-upload-2", "service")
+
+    response = await client.post(
+        "/documents",
+        headers={"Authorization": f"Bearer {service_token}", "X-On-Behalf-Of-Phone": "+15559990099"},
+        files={"file": ("scan.pdf", b"content", "application/pdf")},
+    )
+    assert response.status_code == 403

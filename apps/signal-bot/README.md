@@ -13,10 +13,16 @@ number (via `sourceNumber`, or a `/v1/contacts` lookup when Signal's
 sealed-sender behavior only gives a UUID) and answers on behalf of
 whichever CollaBrains user has linked that number
 (`PUT /auth/me/phone`). Unlinked numbers get a clear explanation instead
-of an answer — only linked users get access. See
-`docs/adr/0006-phase3b-signal-identity-linking.md`.
+of an answer.
 
-Document upload via attachments and proactive/outbound notifications are
-Phase 3c.
+**Phase 3c (done)**: document upload via attachments, and proactive
+notifications. Send the bot a file (with an optional caption used as the
+title) and it's forwarded straight into the existing document pipeline
+(OCR → chunk → embed) on behalf of the linked sender — the bot
+acknowledges receipt immediately and does not poll for completion.
+Instead, `services/api` itself messages the document's owner directly on
+Signal once processing finishes (ready or failed), reusing the same
+"linked phone number" identity as everything else. See
+`docs/adr/0007-phase3c-signal-attachments-notifications.md`.
 
 Registered number: `+4949534254784` (env `SIGNAL_PHONE_NUMBER`).

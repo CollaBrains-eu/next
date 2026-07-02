@@ -49,6 +49,46 @@ def test_extract_message_skips_attachment_only_messages():
     assert main.extract_message(envelope) is None
 
 
+def test_extract_message_skips_messages_that_have_attachments_even_with_text():
+    """Attachment messages route through extract_attachments instead, even with a caption."""
+    envelope = {
+        "envelope": {
+            "sourceNumber": "+15559998888",
+            "dataMessage": {"message": "here's the file", "attachments": [{"id": "a1"}]},
+        }
+    }
+    assert main.extract_message(envelope) is None
+
+
+def test_extract_attachments_returns_sender_attachments_and_caption():
+    envelope = {
+        "envelope": {
+            "sourceNumber": "+15559998888",
+            "dataMessage": {
+                "message": "invoice for June",
+                "attachments": [{"id": "a1", "filename": "invoice.pdf", "contentType": "application/pdf"}],
+            },
+        }
+    }
+    sender, attachments, caption = main.extract_attachments(envelope)
+    assert sender == "+15559998888"
+    assert attachments == [{"id": "a1", "filename": "invoice.pdf", "contentType": "application/pdf"}]
+    assert caption == "invoice for June"
+
+
+def test_extract_attachments_returns_none_caption_when_no_text():
+    envelope = {
+        "envelope": {"sourceNumber": "+15559998888", "dataMessage": {"attachments": [{"id": "a1"}]}}
+    }
+    sender, attachments, caption = main.extract_attachments(envelope)
+    assert caption is None
+
+
+def test_extract_attachments_skips_text_only_messages():
+    envelope = {"envelope": {"sourceNumber": "+1555", "dataMessage": {"message": "hi"}}}
+    assert main.extract_attachments(envelope) is None
+
+
 def test_resolve_phone_number_passes_through_a_real_number():
     client = MagicMock()
     assert main.resolve_phone_number(client, "+15559998888") == "+15559998888"
@@ -85,3 +125,53 @@ def test_ask_collabrains_treats_403_as_unlinked():
     answer, forbidden = main.ask_collabrains(client, "hi", "+15559998888")
     assert forbidden is True
     assert answer == main.UNLINKED_REPLY
+
+
+def test_handle_attachment_message_uploads_each_attachment_and_acks(monkeypatch):
+    client = MagicMock()
+    monkeypatch.setattr(main, "resolve_phone_number", lambda c, sender: "+15559998888")
+    monkeypatch.setattr(main, "download_attachment", lambda c, attachment_id: b"filebytes")
+    upload_calls = []
+
+    def fake_upload(c, phone_number, filename, content, content_type):
+        upload_calls.append((phone_number, filename, content, content_type))
+        return 202
+
+    monkeypatch.setattr(main, "upload_document", fake_upload)
+    sent = []
+    monkeypatch.setattr(main, "send_reply", lambda c, recipient, text: sent.append((recipient, text)))
+
+    main.handle_attachment_message(
+        client, "+15559998888", [{"id": "a1", "filename": "invoice.pdf", "contentType": "application/pdf"}], "June"
+    )
+
+    assert len(upload_calls) == 1
+    phone_number, filename, content, content_type = upload_calls[0]
+    assert phone_number == "+15559998888"
+    assert filename == "June - invoice.pdf"
+    assert content == b"filebytes"
+    assert sent == [("+15559998888", main.UPLOAD_ACK_REPLY)]
+
+
+def test_handle_attachment_message_sends_unlinked_reply_when_upload_forbidden(monkeypatch):
+    client = MagicMock()
+    monkeypatch.setattr(main, "resolve_phone_number", lambda c, sender: "+15559998888")
+    monkeypatch.setattr(main, "download_attachment", lambda c, attachment_id: b"filebytes")
+    monkeypatch.setattr(main, "upload_document", lambda *a, **kw: 403)
+    sent = []
+    monkeypatch.setattr(main, "send_reply", lambda c, recipient, text: sent.append((recipient, text)))
+
+    main.handle_attachment_message(client, "+15559998888", [{"id": "a1", "filename": "x.pdf"}], None)
+
+    assert sent == [("+15559998888", main.UNLINKED_REPLY)]
+
+
+def test_handle_attachment_message_replies_unlinked_when_sender_unresolved(monkeypatch):
+    client = MagicMock()
+    monkeypatch.setattr(main, "resolve_phone_number", lambda c, sender: None)
+    sent = []
+    monkeypatch.setattr(main, "send_reply", lambda c, recipient, text: sent.append((recipient, text)))
+
+    main.handle_attachment_message(client, "some-uuid", [{"id": "a1"}], None)
+
+    assert sent == [("some-uuid", main.UNLINKED_REPLY)]

@@ -3,12 +3,16 @@
 Upload flow: bytes are forwarded straight to Paperless-ngx for OCR (no
 intermediate disk write here -- Paperless owns file storage). A background
 task polls Paperless until text is ready, then chunks and embeds it via
-Ollama, then (if enabled) triggers the Planner Agent to extract tasks --
-the workflow trigger from docs/adr/0004-phase2b-legal-planner-workflow.md.
-See docs/adr/0002-phase1b-document-pipeline.md for why Paperless, Ollama,
-and Postgres-native search (not Elasticsearch) were chosen, and
+Ollama, then (if enabled) triggers the Planner Agent to extract tasks and
+notifies the owner on Signal if they've linked a phone number -- the
+workflow triggers from docs/adr/0004-phase2b-legal-planner-workflow.md and
+docs/adr/0007-phase3c-signal-attachments-notifications.md. See
+docs/adr/0002-phase1b-document-pipeline.md for why Paperless, Ollama, and
+Postgres-native search (not Elasticsearch) were chosen, and
 docs/adr/0003-phase2a-ai-gateway-orchestrator.md for the Document Agent
 (summarization) and Search Agent (hybrid_search, in search_service.py).
+Uploads are authenticated via `get_effective_user` (ADR 0006) so Signal
+attachment uploads (ADR 0007) work the same way `/chat` does.
 """
 import logging
 from datetime import datetime, timezone
@@ -20,7 +24,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.ai_gateway import chat_completion
-from api.auth import get_current_user
+from api.auth import get_effective_user
 from api.chunking import chunk_text
 from api.config import settings
 from api.db import async_session, get_db
@@ -30,6 +34,7 @@ from api.paperless_client import delete_document as paperless_delete, fetch_docu
     submit_document, wait_for_paperless_id
 from api.planner_agent import extract_tasks
 from api.search_service import hybrid_search
+from api.signal_client import send_signal_message
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 logger = logging.getLogger(__name__)
@@ -50,6 +55,20 @@ class DocumentDetailOut(DocumentOut):
     ocr_text: str | None
     chunk_count: int
     summary: str | None
+
+
+async def _notify_owner(db: AsyncSession, document: Document) -> None:
+    owner = await db.get(User, document.owner_id)
+    if owner is None or not owner.phone_number:
+        return
+    try:
+        if document.status == "ready":
+            text = f'Your document "{document.title}" has finished processing and is ready to search.'
+        else:
+            text = f'Your document "{document.title}" failed to process. Check the CollaBrains app for details.'
+        await send_signal_message(owner.phone_number, text)
+    except Exception:  # noqa: BLE001 - notification failure must never affect the pipeline
+        logger.exception("failed to send Signal notification for document %s", document.id)
 
 
 async def _process_document(document_id: UUID, filename: str, content: bytes, mime_type: str) -> None:
@@ -85,10 +104,13 @@ async def _process_document(document_id: UUID, filename: str, content: bytes, mi
                     )
                 except Exception:  # noqa: BLE001 - the workflow trigger must never fail the ingest pipeline
                     logger.exception("auto task-extraction failed for document %s", document.id)
+
+            await _notify_owner(db, document)
         except Exception as exc:  # noqa: BLE001 - pipeline must never crash the worker
             document.status = "failed"
             document.error = str(exc)[:2000]
             await db.commit()
+            await _notify_owner(db, document)
 
 
 @router.post("", response_model=DocumentOut, status_code=status.HTTP_202_ACCEPTED)
@@ -96,7 +118,7 @@ async def upload_document(
     background_tasks: BackgroundTasks,
     file: UploadFile,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_effective_user),
 ) -> Document:
     content = await file.read()
     if not content:
@@ -122,7 +144,7 @@ async def list_documents(
     limit: int = Query(50, le=200),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_effective_user),
 ) -> list[Document]:
     result = await db.execute(
         select(Document).order_by(Document.created_at.desc()).limit(limit).offset(offset)
@@ -134,7 +156,7 @@ async def list_documents(
 async def get_document(
     document_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_effective_user),
 ) -> DocumentDetailOut:
     document = await db.get(Document, document_id)
     if document is None:
@@ -162,7 +184,7 @@ async def get_document(
 async def delete_document(
     document_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_effective_user),
 ) -> None:
     document = await db.get(Document, document_id)
     if document is None:
@@ -192,7 +214,7 @@ async def summarize_document(
     document_id: UUID,
     force: bool = Query(False, description="Regenerate even if a summary is already cached"),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_effective_user),
 ) -> SummaryOut:
     document = await db.get(Document, document_id)
     if document is None:
@@ -233,7 +255,7 @@ async def search(
     q: str = Query(..., min_length=1),
     limit: int = Query(10, le=50),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_effective_user),
 ) -> list[SearchResult]:
     hits = await hybrid_search(db, q, limit=limit)
     if not hits:

@@ -3,12 +3,14 @@
 Privacy-first AI knowledge platform. AI is the central orchestration layer;
 users interact via Web, Admin, Signal (chat-first), and later Mobile.
 
-## Status: Phase 3b — Signal identity linking
+## Status: Phase 3c — Signal attachments & proactive notifications
 
 See `docs/adr/` for the architecture decisions behind this build
 (0001: scaffold, 0002: document pipeline, 0003: AI Gateway/Orchestrator,
 0004: Legal/Planner agents + workflow, 0005: Signal bot, 0006: Signal
-identity linking), and the phase plan below for what's next.
+identity linking, 0007: Signal attachments & notifications), and the
+phase plan below for what's next. Phase 3 (Signal bot & communication) is
+now fully done.
 
 ## Repo layout
 
@@ -57,8 +59,11 @@ inside `services/api` (see ADR 0003 and ADR 0004).
 (Phase 3a, ADR 0005). Each sender's phone number is resolved and matched
 against `users.phone_number` — only senders who've linked their number
 via `PUT /auth/me/phone` get answered, attributed to their own account for
-rate limiting and audit (Phase 3b, ADR 0006). Document upload via
-attachments and proactive notifications are Phase 3c.
+rate limiting and audit (Phase 3b, ADR 0006). Sending the bot a file
+uploads it into the same document pipeline as a web upload, and
+`services/api` messages the owner back on Signal directly once processing
+finishes — no polling, the bot just acknowledges receipt (Phase 3c, ADR
+0007).
 
 ## Local development
 
@@ -89,11 +94,11 @@ docker compose --profile signal up -d
 2. AI orchestration & agents (done) — split into:
    - 2a: AI Gateway, Orchestrator (RAG chat), Document Agent, Search Agent
    - 2b: Legal Agent, Planner Agent, workflow trigger
-3. Signal bot & communication — split into:
+3. Signal bot & communication (done) — split into:
    - 3a (done): registration, text-chat bridge to /chat
    - 3b (done): per-sender identity mapping by linked phone number
-   - 3c: document upload via Signal attachments, proactive/outbound
-     notifications
+   - 3c (done): document upload via Signal attachments, proactive
+     notifications on document completion
 4. Case intelligence & entity graph
 5. Frontend integration — full UI, chat, graph view, real-time updates
 6. Production readiness — load testing, hardening, monitoring

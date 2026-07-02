@@ -31,5 +31,8 @@ class Settings(BaseSettings):
     ai_max_context_chunks: int = 5
     auto_extract_tasks_on_ready: bool = True
 
+    signal_cli_url: str = ""
+    signal_phone_number: str = ""
+
 
 settings = Settings()
