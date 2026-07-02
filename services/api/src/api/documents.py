@@ -1,10 +1,12 @@
-"""Document ingestion pipeline and hybrid search.
+"""Document ingestion pipeline, summarization, and hybrid search.
 
 Upload flow: bytes are forwarded straight to Paperless-ngx for OCR (no
 intermediate disk write here -- Paperless owns file storage). A background
 task polls Paperless until text is ready, then chunks and embeds it via
 Ollama. See docs/adr/0002-phase1b-document-pipeline.md for why Paperless,
-Ollama, and Postgres-native search (not Elasticsearch) were chosen.
+Ollama, and Postgres-native search (not Elasticsearch) were chosen, and
+docs/adr/0003-phase2a-ai-gateway-orchestrator.md for the Document Agent
+(summarization) and Search Agent (hybrid_search, in search_service.py).
 """
 from datetime import datetime, timezone
 from uuid import UUID
@@ -14,6 +16,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.ai_gateway import chat_completion
 from api.auth import get_current_user
 from api.chunking import chunk_text
 from api.db import async_session, get_db
@@ -21,6 +24,7 @@ from api.embeddings import embed_text
 from api.models import Document, DocumentChunk, User
 from api.paperless_client import delete_document as paperless_delete, fetch_document_text, \
     submit_document, wait_for_paperless_id
+from api.search_service import hybrid_search
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -39,6 +43,7 @@ class DocumentOut(BaseModel):
 class DocumentDetailOut(DocumentOut):
     ocr_text: str | None
     chunk_count: int
+    summary: str | None
 
 
 async def _process_document(document_id: UUID, filename: str, content: bytes, mime_type: str) -> None:
@@ -135,6 +140,7 @@ async def get_document(
         processed_at=document.processed_at,
         ocr_text=document.ocr_text,
         chunk_count=count_result.scalar_one(),
+        summary=document.summary,
     )
 
 
@@ -157,6 +163,46 @@ async def delete_document(
     await db.commit()
 
 
+class SummaryOut(BaseModel):
+    summary: str
+
+
+SUMMARY_PROMPT = (
+    "Summarize the following document in 3-5 sentences. Be factual and concise, "
+    "and do not add information that isn't in the text.\n\nDocument:\n{text}"
+)
+
+
+@router.post("/{document_id}/summarize", response_model=SummaryOut)
+async def summarize_document(
+    document_id: UUID,
+    force: bool = Query(False, description="Regenerate even if a summary is already cached"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> SummaryOut:
+    document = await db.get(Document, document_id)
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    if document.status != "ready" or not document.ocr_text:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=f"Document is not ready yet (status: {document.status})"
+        )
+
+    if document.summary and not force:
+        return SummaryOut(summary=document.summary)
+
+    prompt = SUMMARY_PROMPT.format(text=document.ocr_text[:8000])
+    summary = await chat_completion(
+        [{"role": "user", "content": prompt}],
+        user_id=current_user.id,
+        endpoint="documents.summarize",
+    )
+
+    document.summary = summary
+    await db.commit()
+    return SummaryOut(summary=summary)
+
+
 class SearchResult(BaseModel):
     chunk_id: UUID
     document_id: UUID
@@ -175,49 +221,21 @@ async def search(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[SearchResult]:
-    candidate_pool = max(limit * 3, 20)
-    rrf_k = 60
-
-    query_vector = await embed_text(q)
-    semantic_result = await db.execute(
-        select(DocumentChunk)
-        .order_by(DocumentChunk.embedding.cosine_distance(query_vector))
-        .limit(candidate_pool)
-    )
-    semantic_hits = list(semantic_result.scalars().all())
-
-    tsquery = func.plainto_tsquery("english", q)
-    keyword_result = await db.execute(
-        select(DocumentChunk)
-        .where(DocumentChunk.content_tsv.op("@@")(tsquery))
-        .order_by(func.ts_rank(DocumentChunk.content_tsv, tsquery).desc())
-        .limit(candidate_pool)
-    )
-    keyword_hits = list(keyword_result.scalars().all())
-
-    scores: dict[UUID, float] = {}
-    chunks_by_id: dict[UUID, DocumentChunk] = {}
-    for rank_list in (semantic_hits, keyword_hits):
-        for rank, chunk in enumerate(rank_list):
-            scores[chunk.id] = scores.get(chunk.id, 0.0) + 1.0 / (rrf_k + rank + 1)
-            chunks_by_id[chunk.id] = chunk
-
-    ranked_ids = sorted(scores, key=lambda cid: scores[cid], reverse=True)[:limit]
-    if not ranked_ids:
+    hits = await hybrid_search(db, q, limit=limit)
+    if not hits:
         return []
 
-    documents_result = await db.execute(
-        select(Document).where(Document.id.in_({chunks_by_id[cid].document_id for cid in ranked_ids}))
-    )
+    document_ids = {hit.chunk.document_id for hit in hits}
+    documents_result = await db.execute(select(Document).where(Document.id.in_(document_ids)))
     titles = {doc.id: doc.title for doc in documents_result.scalars().all()}
 
     return [
         SearchResult(
-            chunk_id=cid,
-            document_id=chunks_by_id[cid].document_id,
-            document_title=titles.get(chunks_by_id[cid].document_id, ""),
-            content=chunks_by_id[cid].content,
-            score=scores[cid],
+            chunk_id=hit.chunk.id,
+            document_id=hit.chunk.document_id,
+            document_title=titles.get(hit.chunk.document_id, ""),
+            content=hit.chunk.content,
+            score=hit.score,
         )
-        for cid in ranked_ids
+        for hit in hits
     ]

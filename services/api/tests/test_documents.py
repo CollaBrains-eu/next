@@ -73,7 +73,7 @@ async def test_search_ranks_matching_document_first(client):
             "/documents", headers=headers, files={"file": ("fox.txt", b"fox", "text/plain")}
         )
 
-    with patch("api.documents.embed_text", return_value=FAKE_EMBEDDING):
+    with patch("api.search_service.embed_text", return_value=FAKE_EMBEDDING):
         results = await client.get("/search", params={"q": "fox"}, headers=headers)
 
     assert results.status_code == 200
@@ -113,3 +113,28 @@ async def test_upload_rejects_missing_token(client):
 async def test_search_rejects_missing_token(client):
     response = await client.get("/search", params={"q": "anything"})
     assert response.status_code == 401
+
+
+async def test_summarize_caches_result_and_skips_second_llm_call(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    with (
+        patch("api.documents.submit_document", return_value="task-c"),
+        patch("api.documents.wait_for_paperless_id", return_value=3),
+        patch("api.documents.fetch_document_text", return_value="Some long policy text to summarize."),
+        patch("api.documents.embed_text", return_value=FAKE_EMBEDDING),
+    ):
+        upload = await client.post(
+            "/documents", headers=headers, files={"file": ("policy.txt", b"policy", "text/plain")}
+        )
+    document_id = upload.json()["id"]
+
+    with patch("api.documents.chat_completion", return_value="A short summary.") as mock_completion:
+        first = await client.post(f"/documents/{document_id}/summarize", headers=headers)
+        second = await client.post(f"/documents/{document_id}/summarize", headers=headers)
+
+    assert first.status_code == 200
+    assert first.json()["summary"] == "A short summary."
+    assert second.json()["summary"] == "A short summary."
+    mock_completion.assert_called_once()

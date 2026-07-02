@@ -22,9 +22,13 @@ class Settings(BaseSettings):
     ollama_url: str = "http://ollama:11434"
     embedding_model: str = "nomic-embed-text"
     embedding_dim: int = 768
+    chat_model: str = "qwen2.5:3b-instruct"
 
     chunk_size: int = 800
     chunk_overlap: int = 100
+
+    ai_rate_limit_per_minute: int = 30
+    ai_max_context_chunks: int = 5
 
 
 settings = Settings()

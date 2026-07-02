@@ -1,5 +1,9 @@
 # ai-orchestrator
 
-Planning, memory, tool routing, agent selection. Phase 2.
+Planning, memory, tool routing, agent selection. Phase 2a.
 
-Not yet implemented — see root README for phase plan.
+Implemented inside `services/api` (`api/chat.py`, `POST /chat`) as a
+retrieval-augmented chat endpoint — see
+`docs/adr/0003-phase2a-ai-gateway-orchestrator.md`. No autonomous
+multi-step planning or persisted conversation memory yet; that's scoped
+to the Planner Agent (Phase 2b).
