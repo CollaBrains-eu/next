@@ -15,5 +15,16 @@ class Settings(BaseSettings):
     ldap_bind_dn_template: str = "uid={username},ou=people,dc=collabrains,dc=eu"
     ldap_admin_group_dn: str = "cn=collabrains-admins,ou=groups,dc=collabrains,dc=eu"
 
+    paperless_url: str = "http://paperless:8000"
+    paperless_admin_user: str = "admin"
+    paperless_admin_password: str = "changeme"
+
+    ollama_url: str = "http://ollama:11434"
+    embedding_model: str = "nomic-embed-text"
+    embedding_dim: int = 768
+
+    chunk_size: int = 800
+    chunk_overlap: int = 100
+
 
 settings = Settings()

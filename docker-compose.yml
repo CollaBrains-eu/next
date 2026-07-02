@@ -155,7 +155,8 @@ services:
     profiles: ["full"]
     environment:
       PAPERLESS_REDIS: redis://redis:6379/1
-      PAPERLESS_OCR_LANGUAGE: eng+nld
+      PAPERLESS_OCR_LANGUAGE: eng+nld+deu
+      PAPERLESS_OCR_LANGUAGES: nld deu
       PAPERLESS_SECRET_KEY: ${PAPERLESS_SECRET_KEY}
       PAPERLESS_URL: ${PAPERLESS_URL}
       PAPERLESS_ADMIN_USER: ${PAPERLESS_ADMIN_USER}

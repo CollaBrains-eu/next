@@ -1,0 +1,115 @@
+from unittest.mock import patch
+
+from api.ldap_auth import LdapIdentity
+
+FAKE_EMBEDDING = [0.1] * 768
+
+
+async def _login(client) -> str:
+    identity = LdapIdentity(
+        username="docuser", display_name="Doc User", email="docuser@collabrains.eu", is_admin=False
+    )
+    with patch("api.auth.ldap_authenticate", return_value=identity):
+        response = await client.post("/auth/token", data={"username": "docuser", "password": "whatever"})
+    return response.json()["access_token"]
+
+
+async def test_upload_processes_document_end_to_end(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    with (
+        patch("api.documents.submit_document", return_value="fake-task-id"),
+        patch("api.documents.wait_for_paperless_id", return_value=42),
+        patch("api.documents.fetch_document_text", return_value="Hello world, this is a test document."),
+        patch("api.documents.embed_text", return_value=FAKE_EMBEDDING),
+    ):
+        upload = await client.post(
+            "/documents",
+            headers=headers,
+            files={"file": ("note.txt", b"Hello world, this is a test document.", "text/plain")},
+        )
+        assert upload.status_code == 202
+        document_id = upload.json()["id"]
+
+        detail = await client.get(f"/documents/{document_id}", headers=headers)
+
+    assert detail.status_code == 200
+    body = detail.json()
+    assert body["status"] == "ready"
+    assert body["chunk_count"] == 1
+    assert "test document" in body["ocr_text"]
+
+
+async def test_upload_marks_document_failed_on_paperless_error(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    with patch("api.documents.submit_document", side_effect=RuntimeError("paperless unreachable")):
+        upload = await client.post(
+            "/documents",
+            headers=headers,
+            files={"file": ("note.txt", b"content", "text/plain")},
+        )
+        document_id = upload.json()["id"]
+
+        detail = await client.get(f"/documents/{document_id}", headers=headers)
+
+    assert detail.json()["status"] == "failed"
+    assert "paperless unreachable" in detail.json()["error"]
+
+
+async def test_search_ranks_matching_document_first(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    with (
+        patch("api.documents.submit_document", return_value="task-a"),
+        patch("api.documents.wait_for_paperless_id", return_value=1),
+        patch("api.documents.fetch_document_text", return_value="The quick brown fox jumps over the lazy dog."),
+        patch("api.documents.embed_text", return_value=FAKE_EMBEDDING),
+    ):
+        await client.post(
+            "/documents", headers=headers, files={"file": ("fox.txt", b"fox", "text/plain")}
+        )
+
+    with patch("api.documents.embed_text", return_value=FAKE_EMBEDDING):
+        results = await client.get("/search", params={"q": "fox"}, headers=headers)
+
+    assert results.status_code == 200
+    hits = results.json()
+    assert len(hits) >= 1
+    assert "fox" in hits[0]["content"]
+
+
+async def test_delete_document_removes_it_from_listing(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    with (
+        patch("api.documents.submit_document", return_value="task-b"),
+        patch("api.documents.wait_for_paperless_id", return_value=2),
+        patch("api.documents.fetch_document_text", return_value="Disposable content."),
+        patch("api.documents.embed_text", return_value=FAKE_EMBEDDING),
+    ):
+        upload = await client.post(
+            "/documents", headers=headers, files={"file": ("temp.txt", b"temp", "text/plain")}
+        )
+    document_id = upload.json()["id"]
+
+    with patch("api.documents.paperless_delete", return_value=None):
+        delete_response = await client.delete(f"/documents/{document_id}", headers=headers)
+    assert delete_response.status_code == 204
+
+    missing = await client.get(f"/documents/{document_id}", headers=headers)
+    assert missing.status_code == 404
+
+
+async def test_upload_rejects_missing_token(client):
+    response = await client.post("/documents", files={"file": ("x.txt", b"x", "text/plain")})
+    assert response.status_code == 401
+
+
+async def test_search_rejects_missing_token(client):
+    response = await client.get("/search", params={"q": "anything"})
+    assert response.status_code == 401

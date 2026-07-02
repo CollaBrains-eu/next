@@ -4,6 +4,7 @@ from sqlalchemy import text
 
 from api.auth import router as auth_router
 from api.db import engine
+from api.documents import router as documents_router, search_router
 
 app = FastAPI(title="CollaBrains API", version="0.1.0")
 
@@ -16,6 +17,8 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(documents_router)
+app.include_router(search_router)
 
 
 @app.get("/health")
