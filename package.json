@@ -1,0 +1,8 @@
+{
+  "name": "collabrains",
+  "private": true,
+  "packageManager": "pnpm@11.9.0",
+  "scripts": {
+    "dev:web": "pnpm --filter web dev"
+  }
+}

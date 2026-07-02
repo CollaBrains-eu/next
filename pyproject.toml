@@ -1,0 +1,13 @@
+[project]
+name = "collabrains"
+version = "0.1.0"
+requires-python = ">=3.12"
+
+[tool.uv.workspace]
+# Explicit list, not a glob: services/*, agents/* still hold unimplemented
+# stubs (README only, no pyproject.toml) until later phases build them out.
+members = ["services/api"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
