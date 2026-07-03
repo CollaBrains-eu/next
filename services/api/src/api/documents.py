@@ -1,12 +1,17 @@
 """Document ingestion pipeline, summarization, and hybrid search.
 
 Upload flow: bytes are forwarded straight to Paperless-ngx for OCR (no
-intermediate disk write here -- Paperless owns file storage). A background
-task polls Paperless until text is ready, then chunks and embeds it via
-Ollama, then (if enabled) triggers the Planner Agent to extract tasks and
-notifies the owner on Signal if they've linked a phone number -- the
-workflow triggers from docs/adr/0004-phase2b-legal-planner-workflow.md and
-docs/adr/0007-phase3c-signal-attachments-notifications.md. See
+intermediate disk write here -- Paperless owns file storage). The upload
+endpoint only persists the `Document` row and publishes `DocumentUploaded`
+(ADR 0017, Phase 8a) -- OCR, chunking/embedding, task/entity extraction, and
+owner notification are event handlers reacting to that event and the ones it
+chains into (`OCRCompleted` -> `EmbeddingsCreated` -> `TasksCreated` /
+`EntitiesExtracted` -> `NotificationRequested` -> `WorkflowCompleted`), not
+functions called directly from the endpoint. See
+docs/adr/0004-phase2b-legal-planner-workflow.md and
+docs/adr/0007-phase3c-signal-attachments-notifications.md for why each step
+exists, and docs/adr/0017-phase8a-event-bus.md for why they're wired via the
+event bus now instead of one sequential function. See
 docs/adr/0002-phase1b-document-pipeline.md for why Paperless, Ollama, and
 Postgres-native search (not Elasticsearch) were chosen, and
 docs/adr/0003-phase2a-ai-gateway-orchestrator.md for the Document Agent
@@ -18,7 +23,6 @@ attachment uploads (ADR 0007) work the same way `/chat` does.
 plain function, not inlined in the endpoint, so the Planning Engine
 (Phase 8c, ADR 0019) can call the same code the HTTP endpoint does.
 """
-import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -34,6 +38,7 @@ from api.config import settings
 from api.db import async_session, get_db
 from api.embeddings import embed_text
 from api.entity_agent import extract_entities
+from api.events import Event, EventType, publish, subscribe
 from api.models import Document, DocumentChunk, User
 from api.paperless_client import delete_document as paperless_delete, fetch_document_text, \
     submit_document, wait_for_paperless_id
@@ -42,7 +47,6 @@ from api.search_service import hybrid_search
 from api.signal_client import send_signal_message
 
 router = APIRouter(prefix="/documents", tags=["documents"])
-logger = logging.getLogger(__name__)
 
 
 class DocumentOut(BaseModel):
@@ -66,17 +70,22 @@ async def _notify_owner(db: AsyncSession, document: Document) -> None:
     owner = await db.get(User, document.owner_id)
     if owner is None or not owner.phone_number:
         return
-    try:
-        if document.status == "ready":
-            text = f'Your document "{document.title}" has finished processing and is ready to search.'
-        else:
-            text = f'Your document "{document.title}" failed to process. Check the CollaBrains app for details.'
-        await send_signal_message(owner.phone_number, text)
-    except Exception:  # noqa: BLE001 - notification failure must never affect the pipeline
-        logger.exception("failed to send Signal notification for document %s", document.id)
+    if document.status == "ready":
+        text = f'Your document "{document.title}" has finished processing and is ready to search.'
+    else:
+        text = f'Your document "{document.title}" failed to process. Check the CollaBrains app for details.'
+    await send_signal_message(owner.phone_number, text)
 
 
-async def _process_document(document_id: UUID, filename: str, content: bytes, mime_type: str) -> None:
+@subscribe(EventType.DOCUMENT_UPLOADED)
+async def _handle_document_uploaded(event: Event) -> None:
+    document_id: UUID = event.payload["document_id"]
+    filename: str = event.payload["filename"]
+    mime_type: str = event.payload["mime_type"]
+    content: bytes = event.payload["content"]
+
+    await publish(EventType.WORKFLOW_STARTED, {"document_id": document_id})
+
     async with async_session() as db:
         document = await db.get(Document, document_id)
         if document is None:
@@ -93,34 +102,74 @@ async def _process_document(document_id: UUID, filename: str, content: bytes, mi
             document.ocr_text = text
             document.status = "embedding"
             await db.commit()
+            await publish(EventType.OCR_COMPLETED, {"document_id": document_id, "text_length": len(text)})
 
-            for index, chunk in enumerate(chunk_text(text)):
+            chunk_count = 0
+            for chunk_count, chunk in enumerate(chunk_text(text), start=1):
                 vector = await embed_text(chunk)
-                db.add(DocumentChunk(document_id=document.id, chunk_index=index, content=chunk, embedding=vector))
+                db.add(
+                    DocumentChunk(
+                        document_id=document.id, chunk_index=chunk_count - 1, content=chunk, embedding=vector
+                    )
+                )
 
             document.status = "ready"
             document.processed_at = datetime.now(timezone.utc)
             await db.commit()
 
-            if settings.auto_extract_tasks_on_ready:
-                try:
-                    await extract_tasks(
-                        db, document_id=document.id, text=text, user_id=document.owner_id, source="planner_agent"
-                    )
-                except Exception:  # noqa: BLE001 - the workflow trigger must never fail the ingest pipeline
-                    logger.exception("auto task-extraction failed for document %s", document.id)
-
-            if settings.auto_extract_entities_on_ready:
-                try:
-                    await extract_entities(db, document_id=document.id, text=text, user_id=document.owner_id)
-                except Exception:  # noqa: BLE001 - the workflow trigger must never fail the ingest pipeline
-                    logger.exception("auto entity-extraction failed for document %s", document.id)
-
-            await _notify_owner(db, document)
+            await publish(
+                EventType.EMBEDDINGS_CREATED,
+                {
+                    "document_id": document_id,
+                    "owner_id": document.owner_id,
+                    "text": text,
+                    "chunk_count": chunk_count,
+                },
+            )
+            await publish(EventType.NOTIFICATION_REQUESTED, {"document_id": document_id, "outcome": "ready"})
+            await publish(EventType.WORKFLOW_COMPLETED, {"document_id": document_id, "outcome": "ready"})
         except Exception as exc:  # noqa: BLE001 - pipeline must never crash the worker
             document.status = "failed"
             document.error = str(exc)[:2000]
             await db.commit()
+            await publish(EventType.NOTIFICATION_REQUESTED, {"document_id": document_id, "outcome": "failed"})
+            await publish(EventType.WORKFLOW_COMPLETED, {"document_id": document_id, "outcome": "failed"})
+
+
+@subscribe(EventType.EMBEDDINGS_CREATED)
+async def _handle_extract_tasks(event: Event) -> None:
+    if not settings.auto_extract_tasks_on_ready:
+        return
+    document_id = event.payload["document_id"]
+    async with async_session() as db:
+        tasks = await extract_tasks(
+            db,
+            document_id=document_id,
+            text=event.payload["text"],
+            user_id=event.payload["owner_id"],
+            source="planner_agent",
+        )
+    await publish(EventType.TASKS_CREATED, {"document_id": document_id, "task_count": len(tasks)})
+
+
+@subscribe(EventType.EMBEDDINGS_CREATED)
+async def _handle_extract_entities(event: Event) -> None:
+    if not settings.auto_extract_entities_on_ready:
+        return
+    document_id = event.payload["document_id"]
+    async with async_session() as db:
+        entities = await extract_entities(
+            db, document_id=document_id, text=event.payload["text"], user_id=event.payload["owner_id"]
+        )
+    await publish(EventType.ENTITIES_EXTRACTED, {"document_id": document_id, "entity_count": len(entities)})
+
+
+@subscribe(EventType.NOTIFICATION_REQUESTED)
+async def _handle_notification_requested(event: Event) -> None:
+    document_id = event.payload["document_id"]
+    async with async_session() as db:
+        document = await db.get(Document, document_id)
+        if document is not None:
             await _notify_owner(db, document)
 
 
@@ -146,7 +195,16 @@ async def upload_document(
     await db.commit()
     await db.refresh(document)
 
-    background_tasks.add_task(_process_document, document.id, document.filename, content, document.mime_type)
+    background_tasks.add_task(
+        publish,
+        EventType.DOCUMENT_UPLOADED,
+        {
+            "document_id": document.id,
+            "filename": document.filename,
+            "mime_type": document.mime_type,
+            "content": content,
+        },
+    )
     return document
 
 
@@ -239,6 +297,7 @@ async def _generate_summary(db: AsyncSession, document: Document, *, user_id: UU
 
     document.summary = summary
     await db.commit()
+    await publish(EventType.SUMMARY_CREATED, {"document_id": document.id, "summary_length": len(summary)})
     return summary
 
 

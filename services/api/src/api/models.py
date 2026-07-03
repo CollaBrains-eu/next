@@ -168,6 +168,35 @@ class EntityRelationship(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class Memory(Base):
+    """Persistent AI memory (Phase 8b, ADR 0018).
+
+    `memory_type` is one of `episodic` (conversation summaries), `semantic`
+    (facts about users/entities/cases), or `procedural` (reusable
+    workflows/plans) -- enforced in application code (api/memory.py), not a
+    DB enum, the same choice ADR 0008 made for `Entity.entity_type`.
+    `json_data` holds type-specific structured extras a summary string can't
+    carry (e.g. a structured entity/document reference). Retrieval is by
+    `embedding` similarity (HNSW cosine index, same strategy as
+    `DocumentChunk`), scoped to `user_id` and non-expired rows.
+    """
+
+    __tablename__ = "memories"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    memory_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    importance: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(Vector(settings.embedding_dim), nullable=False)
+    json_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class Plan(Base):
     """A goal decomposed into an ordered sequence of steps (Phase 8c, ADR 0019).
 
