@@ -265,3 +265,45 @@ class PlanStep(Base):
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Decision(Base):
+    """A recorded decision -- the first Phase 10 knowledge-graph node type
+    beyond Entity (Phase 4, ADR 0008). Created when a human approves a
+    Plan whose output leaves the system (ADR 0025): approving is
+    deciding, so this is a side effect of `planning_engine.approve_plan`,
+    not a separate user-facing action.
+    """
+
+    __tablename__ = "decisions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    plan_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("plans.id", ondelete="SET NULL"), nullable=True
+    )
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class GraphEdge(Base):
+    """A directed, typed relationship between two knowledge-graph nodes of
+    possibly different types (Phase 10, ADR 0025).
+
+    Deliberately polymorphic and generalized beyond ADR 0008's
+    Entity-to-Entity-only `entity_relationships`: `source_id`/`target_id`
+    have no DB-level foreign key (a single column can't reference two
+    different tables) -- a real trade-off accepted for extensibility.
+    `source_type`/`target_type` are plain strings (e.g. "decision",
+    "document"), the same choice ADR 0008 made for `Entity.entity_type`.
+    """
+
+    __tablename__ = "graph_edges"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    source_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    source_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    target_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    target_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    relationship_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
