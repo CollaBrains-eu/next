@@ -1,5 +1,12 @@
 # Phase 9 — AI Platform
 
+> **Status: done.** Built as 9a Tool Registry (ADR 0021), 9b MCP
+> Platform (ADR 0022), 9c Permissions (ADR 0023), 9d Tool Discovery
+> (ADR 0024) — see `README.md` for the summary and those ADRs for what
+> actually shipped vs. what this spec originally proposed. Kept here as
+> historical context for how the open design questions below got
+> resolved.
+
 ## Goal
 
 Stop hardcoding which tools exist into each agent. Every capability the

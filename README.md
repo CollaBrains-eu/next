@@ -3,7 +3,7 @@
 Privacy-first AI knowledge platform. AI is the central orchestration layer;
 users interact via Web, Mobile, Signal (chat-first), and later Admin.
 
-## Status: Phase 8 — Cognitive Engine
+## Status: Phase 9 — AI Platform
 
 See `docs/adr/` for the architecture decisions behind this build
 (0001: scaffold, 0002: document pipeline, 0003: AI Gateway/Orchestrator,
@@ -13,15 +13,17 @@ graph, 0009: frontend auth & documents, 0010: chat/legal/tasks UI, 0011:
 entity graph UI, 0012: TLS & reverse proxy, 0013: backups, 0014:
 monitoring & alerting, 0015: load testing, 0016: mobile app foundation,
 0017: event bus, 0018: long-term memory, 0019: planning engine, 0020:
-reflection engine).
+reflection engine, 0021: tool registry, 0022: MCP platform, 0023:
+permissions, 0024: tool discovery).
 Phases 0-4, all of Phase 5 (5a, 5b, 5c), all of Phase 6 (6a, 6b, 6c, 6d),
-Phase 7, and all of Phase 8 (8a, 8b, 8c, 8d) are done — every phase in
-the original 7-phase plan, the mobile phase, and the Cognitive Engine
-roadmap that followed it.
+Phase 7, all of Phase 8 (8a, 8b, 8c, 8d), and all of Phase 9 (9a, 9b, 9c,
+9d) are done — every phase in the original 7-phase plan, the mobile
+phase, the Cognitive Engine roadmap, and the AI Platform roadmap that
+followed it.
 
-This README covers what's built, frozen at Phase 8 — it does not grow a
-new section per future phase. Phase 9 onward (AI Platform, Knowledge
-Graph 2, Multi-Agent System, and beyond) is specified in
+This README covers what's built, frozen at Phase 9 — it does not grow a
+new section per future phase. Phase 10 onward (Knowledge Graph 2,
+Multi-Agent System, and beyond) is specified in
 [`docs/roadmap/`](docs/roadmap/), one file per phase, written before
 implementation starts.
 
@@ -104,6 +106,27 @@ ADR 0004).
   get the same hallucination check as direct API calls. Results are
   logged to a `reflection_log` audit table; a reflection failure never
   blocks or alters the response actually returned. See ADR 0020.
+- **Phase 9a** — a Tool Registry (`api/tool_registry.py`, `api/tools.py`,
+  `GET /tools`): five existing capabilities (search, document
+  summarization, legal drafting, task/entity extraction) registered as
+  self-describing tools (name, description, permissions,
+  input/output schema) rather than hardcoded into each agent — no
+  capability logic rewritten, thin wrappers only. See ADR 0021.
+- **Phase 9b** — an MCP Platform (`api/mcp_server.py`,
+  `POST /mcp`): the tool registry exposed over the Model Context
+  Protocol (Streamable HTTP transport, non-streaming). Authenticated the
+  same way as every other endpoint; `user_id` always comes from the
+  session, never from the request body. See ADR 0022.
+- **Phase 9c** — Permissions (`api/permissions.py`): a static
+  role → permission mapping (reusing `User.role`, no new tables)
+  enforced inside `dispatch()` itself, the one chokepoint every tool
+  call already goes through. See ADR 0023.
+- **Phase 9d** — Tool Discovery: `api/tool_registry.py`'s
+  `to_ollama_tools()` exports every registered tool as an
+  Ollama-native function-calling definition, and
+  `api/ai_gateway.py`'s `chat_completion_with_tools()` offers them to
+  the model and returns any requested tool call — without executing
+  it; that loop is Phase 11/12 territory. See ADR 0024.
 
 `apps/signal-bot` bridges Signal to `/chat`: polls
 `signal-cli-rest-api` for incoming messages on the registered number
@@ -334,5 +357,17 @@ reachable from the public internet on this host, on 80 (redirects to
      `/legal/draft` answer against its retrieved context, retrying
      retrieval once if the evidence looks insufficient, and logging the
      verdict to an audit table. See ADR 0020.
+9. AI Platform (done) — split into four independently-scoped
+   sub-phases (9a and 9b/9c/9d were built as a stack, each on the
+   previous, not independently from `main` like Phase 8 — see ADR 0022
+   for why):
+   - 9a (done): a Tool Registry -- self-describing, discoverable
+     capabilities instead of hardcoded agent imports. See ADR 0021.
+   - 9b (done): an MCP Platform exposing the registry over the Model
+     Context Protocol. See ADR 0022.
+   - 9c (done): Permissions -- tool access enforced against `User.role`
+     inside `dispatch()` itself. See ADR 0023.
+   - 9d (done): Tool Discovery -- registered tools exported as
+     Ollama-native function-calling definitions. See ADR 0024.
 
-See [`docs/roadmap/`](docs/roadmap/) for Phase 9 onward.
+See [`docs/roadmap/`](docs/roadmap/) for Phase 10 onward.
