@@ -207,10 +207,29 @@ AGENT_DISPATCH = {
 }
 
 
+async def _resolve_case_id(db: AsyncSession, goal_type: str, goal_params: dict[str, Any]) -> dict[str, Any]:
+    """If summarize_case is given a case_id, resolve it to that case's
+    document_ids (Phase 16) -- case_id takes precedence over any
+    document_ids also provided, since a caller giving both is ambiguous
+    and case_id is the more specific signal.
+    """
+    if goal_type != "summarize_case" or "case_id" not in goal_params:
+        return goal_params
+
+    case_id = goal_params["case_id"]
+    if isinstance(case_id, str):
+        case_id = UUID(case_id)
+
+    result = await db.execute(select(Document.id).where(Document.case_id == case_id))
+    document_ids = [str(doc_id) for doc_id in result.scalars().all()]
+    return {**goal_params, "document_ids": document_ids}
+
+
 async def create_plan(db: AsyncSession, *, user_id: UUID, goal_type: str, goal_params: dict[str, Any]) -> Plan:
     if goal_type not in GOAL_TYPES:
         raise ValueError(f"unknown goal_type: {goal_type!r}")
 
+    goal_params = await _resolve_case_id(db, goal_type, goal_params)
     step_specs = build_steps(goal_type, goal_params)
     # Not wrapped in try/except: approval gating is security-relevant, so a
     # lookup failure should fail create_plan() loudly rather than silently
