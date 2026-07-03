@@ -1,5 +1,13 @@
 # Phase 10 — Knowledge Graph 2
 
+> **Status: done.** Built as one `Decision` node type and a generalized
+> `GraphEdge` table (ADR 0025) -- scoped to this doc's own acceptance
+> criteria (one new node/relationship, one real answerable question),
+> not all ten node types proposed below. See `README.md` for the
+> summary and ADR 0025 for what actually shipped vs. what this spec
+> originally proposed. Kept here as historical context for how the
+> open design questions got resolved.
+
 ## Goal
 
 Grow the entity graph (ADR 0008: `Entity`, `EntityMention`,

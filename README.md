@@ -3,7 +3,7 @@
 Privacy-first AI knowledge platform. AI is the central orchestration layer;
 users interact via Web, Mobile, Signal (chat-first), and later Admin.
 
-## Status: Phase 9 — AI Platform
+## Status: Phase 10 — Knowledge Graph 2
 
 See `docs/adr/` for the architecture decisions behind this build
 (0001: scaffold, 0002: document pipeline, 0003: AI Gateway/Orchestrator,
@@ -14,18 +14,17 @@ entity graph UI, 0012: TLS & reverse proxy, 0013: backups, 0014:
 monitoring & alerting, 0015: load testing, 0016: mobile app foundation,
 0017: event bus, 0018: long-term memory, 0019: planning engine, 0020:
 reflection engine, 0021: tool registry, 0022: MCP platform, 0023:
-permissions, 0024: tool discovery).
+permissions, 0024: tool discovery, 0025: knowledge graph 2).
 Phases 0-4, all of Phase 5 (5a, 5b, 5c), all of Phase 6 (6a, 6b, 6c, 6d),
-Phase 7, all of Phase 8 (8a, 8b, 8c, 8d), and all of Phase 9 (9a, 9b, 9c,
-9d) are done — every phase in the original 7-phase plan, the mobile
-phase, the Cognitive Engine roadmap, and the AI Platform roadmap that
-followed it.
+Phase 7, all of Phase 8 (8a, 8b, 8c, 8d), all of Phase 9 (9a, 9b, 9c,
+9d), and Phase 10 are done — every phase in the original 7-phase plan,
+the mobile phase, the Cognitive Engine roadmap, and the AI Platform
+roadmap that followed it.
 
-This README covers what's built, frozen at Phase 9 — it does not grow a
-new section per future phase. Phase 10 onward (Knowledge Graph 2,
-Multi-Agent System, and beyond) is specified in
-[`docs/roadmap/`](docs/roadmap/), one file per phase, written before
-implementation starts.
+This README covers what's built, frozen at Phase 10 — it does not grow
+a new section per future phase. Phase 11 onward (Multi-Agent System and
+beyond) is specified in [`docs/roadmap/`](docs/roadmap/), one file per
+phase, written before implementation starts.
 
 The app is live at **https://v78281.1blu.de** (real Let's Encrypt
 certificate, auto-renewing). `api` and the Vite dev server are no longer
@@ -127,6 +126,13 @@ ADR 0004).
   `api/ai_gateway.py`'s `chat_completion_with_tools()` offers them to
   the model and returns any requested tool call — without executing
   it; that loop is Phase 11/12 territory. See ADR 0024.
+- **Phase 10** — Knowledge Graph 2 (`api/knowledge_graph.py`,
+  `GET /decisions/{id}`): a `Decision` node (the first knowledge-graph
+  type beyond `Entity`, ADR 0008) created as a side effect of approving
+  a Plan whose output leaves the system — approving is deciding — and a
+  generalized, polymorphic `GraphEdge` table connecting it to the
+  documents it was derived from, answering "which documents support
+  this decision?" See ADR 0025.
 
 `apps/signal-bot` bridges Signal to `/chat`: polls
 `signal-cli-rest-api` for incoming messages on the registered number
@@ -369,5 +375,10 @@ reachable from the public internet on this host, on 80 (redirects to
      inside `dispatch()` itself. See ADR 0023.
    - 9d (done): Tool Discovery -- registered tools exported as
      Ollama-native function-calling definitions. See ADR 0024.
+10. Knowledge Graph 2 (done) — a `Decision` node type (the first beyond
+    `Entity`) and a generalized, polymorphic `GraphEdge` table, scoped
+    to the roadmap's own acceptance bar (one new node type, one new
+    relationship, one real answerable question) rather than all ten
+    node types the roadmap originally proposed. See ADR 0025.
 
-See [`docs/roadmap/`](docs/roadmap/) for Phase 10 onward.
+See [`docs/roadmap/`](docs/roadmap/) for Phase 11 onward.
