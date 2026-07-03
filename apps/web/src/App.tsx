@@ -4,11 +4,15 @@ import Login from "./routes/Login";
 import Workspace from "./routes/Workspace";
 import DocumentDetail from "./routes/DocumentDetail";
 import Chat from "./routes/Chat";
+import Legal from "./routes/Legal";
+import Tasks from "./routes/Tasks";
 import NotFound from "./routes/NotFound";
 
 const NAV_ITEMS = [
   { to: "/", label: "Documents" },
   { to: "/chat", label: "AI Chat" },
+  { to: "/legal", label: "Legal Draft" },
+  { to: "/tasks", label: "Tasks" },
 ];
 
 function HeaderUser() {
@@ -73,6 +77,22 @@ function Layout() {
             element={
               <ProtectedRoute>
                 <Chat />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/legal"
+            element={
+              <ProtectedRoute>
+                <Legal />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tasks"
+            element={
+              <ProtectedRoute>
+                <Tasks />
               </ProtectedRoute>
             }
           />

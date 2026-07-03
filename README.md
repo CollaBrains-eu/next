@@ -3,14 +3,14 @@
 Privacy-first AI knowledge platform. AI is the central orchestration layer;
 users interact via Web, Admin, Signal (chat-first), and later Mobile.
 
-## Status: Phase 5a — Frontend auth & document library
+## Status: Phase 5b — Chat, Legal Draft & Task UI
 
 See `docs/adr/` for the architecture decisions behind this build
 (0001: scaffold, 0002: document pipeline, 0003: AI Gateway/Orchestrator,
 0004: Legal/Planner agents + workflow, 0005: Signal bot, 0006: Signal
 identity linking, 0007: Signal attachments & notifications, 0008: entity
-graph, 0009: frontend auth & documents), and the phase plan below for
-what's next. Phases 0-4 and 5a are done.
+graph, 0009: frontend auth & documents, 0010: chat/legal/tasks UI), and
+the phase plan below for what's next. Phases 0-4, 5a, and 5b are done.
 
 ## Repo layout
 
@@ -75,13 +75,15 @@ case-insensitive name+type match. `GET /entities/{id}/graph` returns an
 entity's one-hop neighborhood (itself, direct neighbors, edges) — the
 shape a graph visualization (Phase 5c) needs (Phase 4, ADR 0008).
 
-`apps/web` is now a real (not stub) React app: LDAP-backed login
-(`POST /auth/token`, JWT in `localStorage`, `AuthContext` +
-`ProtectedRoute` guarding all routes), a document library (list with
-status badges, upload, delete, detail view with OCR text/summary,
-keyword+semantic search), and a typed `src/lib/api.ts` client used by
-every screen. AI Chat, Legal draft, and Task UI land in Phase 5b; the
-entity graph visualization lands in Phase 5c (Phase 5a, ADR 0009).
+`apps/web` is a real (not stub) React app. Auth (LDAP login, JWT,
+protected routes) and the document library (list, upload, delete, detail
+view, keyword+semantic search) shipped in Phase 5a (ADR 0009). Phase 5b
+(ADR 0010) adds: AI Chat (`/chat` route — full-history RAG chat with
+inline citation links back to source documents), Legal Draft (`/legal`
+route — one-shot grounded drafting scoped to selected documents, always
+shows the attorney-review disclaimer), and Tasks (`/tasks` route — list
+with open/done/all filter, checkbox toggle calling `PATCH /tasks/{id}`).
+The entity graph visualization is Phase 5c.
 
 ## Local development
 
@@ -129,7 +131,6 @@ cd apps/web && pnpm test
 5. Frontend integration — split into:
    - 5a (done): auth (login, JWT, protected routes), document library
      (list, upload, detail, search)
-   - 5b: AI chat UI (citations, multi-turn history), Legal draft UI,
-     Task list UI
+   - 5b (done): AI chat UI, Legal draft UI, Task list UI
    - 5c: entity graph visualization
 6. Production readiness — load testing, hardening, monitoring

@@ -119,3 +119,64 @@ export interface SearchResult {
 export function search(query: string): Promise<SearchResult[]> {
   return request<SearchResult[]>(`/search?q=${encodeURIComponent(query)}`);
 }
+
+export interface Citation {
+  marker: number;
+  document_id: string;
+  document_title: string;
+  chunk_id: string;
+}
+
+export interface ChatTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface ChatResponse {
+  answer: string;
+  citations: Citation[];
+}
+
+export function chat(message: string, history: ChatTurn[]): Promise<ChatResponse> {
+  return request<ChatResponse>("/chat", {
+    method: "POST",
+    body: JSON.stringify({ message, history }),
+  });
+}
+
+export interface DraftResponse {
+  draft: string;
+  citations: Citation[];
+  disclaimer: string;
+}
+
+export function legalDraft(instruction: string, documentIds: string[]): Promise<DraftResponse> {
+  return request<DraftResponse>("/legal/draft", {
+    method: "POST",
+    body: JSON.stringify({ instruction, document_ids: documentIds }),
+  });
+}
+
+export interface TaskOut {
+  id: string;
+  document_id: string | null;
+  title: string;
+  description: string | null;
+  due_date: string | null;
+  assignee: string | null;
+  status: string;
+  source: string;
+  created_at: string;
+}
+
+export function listTasks(statusFilter?: string): Promise<TaskOut[]> {
+  const query = statusFilter ? `?status=${encodeURIComponent(statusFilter)}` : "";
+  return request<TaskOut[]>(`/tasks${query}`);
+}
+
+export function updateTaskStatus(id: string, status: "open" | "done"): Promise<TaskOut> {
+  return request<TaskOut>(`/tasks/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+}
