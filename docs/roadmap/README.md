@@ -1,18 +1,18 @@
-# Roadmap: Phase 12 onward
+# Roadmap: Phase 13 onward
 
-Phases 0-11 are documented in the top-level `README.md` and their ADRs
-(`docs/adr/0001` through `0026`). That README is now frozen as a
+Phases 0-12 are documented in the top-level `README.md` and their ADRs
+(`docs/adr/0001` through `0027`). That README is now frozen as a
 "what's done" overview — it does not grow a new paragraph per future
-phase. Everything past Phase 11 lives here instead, one file per phase,
+phase. Everything past Phase 12 lives here instead, one file per phase,
 written before implementation starts so each phase is a self-contained
 spec to build against (and, once built, gets its own ADR the same way
 every phase so far has).
 
-`phase-09.md`, `phase-10.md`, and `phase-11.md` are kept here as the
-historical specs Phase 9 (ADRs 0021-0024), Phase 10 (ADR 0025), and
-Phase 11 (ADR 0026) were actually built against -- useful context for
-how the design questions they raised got resolved, even though all
-three phases are done.
+`phase-09.md` through `phase-12.md` are kept here as the historical
+specs Phase 9 (ADRs 0021-0024), Phase 10 (ADR 0025), Phase 11 (ADR
+0026), and Phase 12 (ADR 0027) were actually built against -- useful
+context for how the design questions they raised got resolved, even
+though all four phases are done.
 
 ## Why the roadmap changes shape here
 
@@ -23,8 +23,10 @@ started checking and sequencing its *own* work rather than just
 answering a single request. Phase 9 (done) made the AI's capabilities
 self-describing and discoverable; Phase 10 (done) gave it a real
 knowledge graph beyond entities; Phase 11 (done) let the model itself
-choose which tool to use for a free-form request. Phase 12 onward keeps
-going:
+choose which tool to use for a free-form request; Phase 12 (done)
+closed the "learn" gap in the observe/plan/execute/verify/learn cycle
+-- the other four steps already existed, scattered across earlier
+phases. Phase 13 onward keeps going:
 
 - **9 — AI Platform** (done): tools become self-describing and
   discoverable instead of hardcoded into each agent.
@@ -32,8 +34,8 @@ going:
   generalized graph-edge table.
 - **11 — Multi-Agent System** (done): the model is the Manager,
   choosing which registered tool to call for a free-form request.
-- **12 — Autonomous Workflows**: observe → plan → execute → verify →
-  learn loops that run without a human triggering each step.
+- **12 — Autonomous Workflows** (done): the "learn" step -- memories
+  that contributed to a verified-sufficient answer get reinforced.
 - **13 — Personal AI**: the AI carries context about a specific user
   across sessions (preferences, style, active cases), not just
   per-conversation memory.
@@ -48,16 +50,16 @@ going:
 - ~~[Phase 9 — AI Platform](phase-09.md)~~ — done, see `README.md` and ADRs 0021-0024
 - ~~[Phase 10 — Knowledge Graph 2](phase-10.md)~~ — done, see `README.md` and ADR 0025
 - ~~[Phase 11 — Multi-Agent System](phase-11.md)~~ — done, see `README.md` and ADR 0026
-- [Phase 12 — Autonomous Workflows](phase-12.md)
+- ~~[Phase 12 — Autonomous Workflows](phase-12.md)~~ — done, see `README.md` and ADR 0027
 - [Phase 13 — Personal AI](phase-13.md)
 - [Phase 14 — Enterprise](phase-14.md)
 - [Phase 15 — Learning Platform](phase-15.md)
 
 ## Status
 
-Phase 9 (ADRs 0021-0024), Phase 10 (ADR 0025), and Phase 11 (ADR 0026)
-are done. Phase 12-15 are vision documents only — none has started.
-Each still gets scoped down to a "smallest safe slice" the way Phase
-8's, 9's, 10's, and 11's actual implementations were before any code is
-written; these files describe the target shape, not a locked
-implementation plan.
+Phase 9 (ADRs 0021-0024), Phase 10 (ADR 0025), Phase 11 (ADR 0026), and
+Phase 12 (ADR 0027) are done. Phase 13-15 are vision documents only —
+none has started. Each still gets scoped down to a "smallest safe
+slice" the way Phase 8's through 12's actual implementations were
+before any code is written; these files describe the target shape, not
+a locked implementation plan.

@@ -3,7 +3,7 @@
 Privacy-first AI knowledge platform. AI is the central orchestration layer;
 users interact via Web, Mobile, Signal (chat-first), and later Admin.
 
-## Status: Phase 11 — Multi-Agent System
+## Status: Phase 12 — Autonomous Workflows
 
 See `docs/adr/` for the architecture decisions behind this build
 (0001: scaffold, 0002: document pipeline, 0003: AI Gateway/Orchestrator,
@@ -15,17 +15,17 @@ monitoring & alerting, 0015: load testing, 0016: mobile app foundation,
 0017: event bus, 0018: long-term memory, 0019: planning engine, 0020:
 reflection engine, 0021: tool registry, 0022: MCP platform, 0023:
 permissions, 0024: tool discovery, 0025: knowledge graph 2, 0026:
-multi-agent system).
+multi-agent system, 0027: autonomous workflows).
 Phases 0-4, all of Phase 5 (5a, 5b, 5c), all of Phase 6 (6a, 6b, 6c, 6d),
 Phase 7, all of Phase 8 (8a, 8b, 8c, 8d), all of Phase 9 (9a, 9b, 9c,
-9d), Phase 10, and Phase 11 are done — every phase in the original
-7-phase plan, the mobile phase, the Cognitive Engine roadmap, and the
-AI Platform roadmap that followed it.
+9d), Phase 10, Phase 11, and Phase 12 are done — every phase in the
+original 7-phase plan, the mobile phase, the Cognitive Engine roadmap,
+and the AI Platform roadmap that followed it.
 
-This README covers what's built, frozen at Phase 11 — it does not grow
-a new section per future phase. Phase 12 onward (Autonomous Workflows
-and beyond) is specified in [`docs/roadmap/`](docs/roadmap/), one file
-per phase, written before implementation starts.
+This README covers what's built, frozen at Phase 12 — it does not grow
+a new section per future phase. Phase 13 onward (Personal AI and
+beyond) is specified in [`docs/roadmap/`](docs/roadmap/), one file per
+phase, written before implementation starts.
 
 The app is live at **https://v78281.1blu.de** (real Let's Encrypt
 certificate, auto-renewing). `api` and the Vite dev server are no longer
@@ -141,6 +141,13 @@ ADR 0004).
   one, the tool is dispatched and the result fed back for a final
   answer. One round only; Planning Engine (8c) is untouched, this is a
   new, separate single-turn capability alongside it. See ADR 0026.
+- **Phase 12** — Autonomous Workflows: the "learn" step
+  (`api/memory.reinforce_memories`) closing the one part of the
+  observe/plan/execute/verify/learn cycle that didn't already exist
+  (Phase 8a already runs the document pipeline unattended; 8c plans;
+  agents execute; 8d verifies). A memory that contributed to a
+  Reflection-verified-sufficient `/chat` answer gets its importance
+  reinforced -- reward only, no decay. See ADR 0027.
 
 `apps/signal-bot` bridges Signal to `/chat`: polls
 `signal-cli-rest-api` for incoming messages on the registered number
@@ -393,5 +400,10 @@ reachable from the public internet on this host, on 80 (redirects to
     `dispatch()` is called and the result fed back for a final answer.
     One round only; no new Agent-descriptor abstraction, no cost/
     priority fields nothing differentiates on yet. See ADR 0026.
+12. Autonomous Workflows (done) — the "learn" step: memories that
+    contributed to a verified-sufficient `/chat` answer get reinforced.
+    Observe/plan/execute/verify already existed elsewhere in this
+    codebase (event bus, Planning Engine, agents, Reflection Engine);
+    this closes the one missing piece. See ADR 0027.
 
-See [`docs/roadmap/`](docs/roadmap/) for Phase 12 onward.
+See [`docs/roadmap/`](docs/roadmap/) for Phase 13 onward.

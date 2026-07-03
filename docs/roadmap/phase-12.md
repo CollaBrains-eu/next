@@ -1,5 +1,15 @@
 # Phase 12 — Autonomous Workflows
 
+> **Status: done.** Observe/plan/execute/verify already existed
+> (Phase 8a/8c/8d) -- built as just the missing "learn" step:
+> `api/memory.reinforce_memories`, reward-only reinforcement of memories
+> that contributed to a Reflection-verified-sufficient `/chat` answer
+> (ADR 0027). See `README.md` for the summary and ADR 0027 for what
+> actually shipped vs. what this spec originally proposed (the example
+> end-to-end letter → OCR → ... → reminder workflow was not built; see
+> the ADR for why). Kept here as historical context for how the open
+> design questions got resolved.
+
 ## Goal
 
 Close the loop from "the AI executes a task when asked" to a full
