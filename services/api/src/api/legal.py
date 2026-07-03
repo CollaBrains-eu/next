@@ -3,7 +3,14 @@
 Deliberately NOT a general legal-reasoning chatbot -- see the ADR. Every
 response is a draft requiring attorney review, grounded only in retrieved
 document context, never the model's own "knowledge" of law.
+
+After drafting, a Reflection step (ADR 0020) checks whether the context
+actually supported the draft, retrying retrieval once with a wider net if
+not -- the same hallucination-risk check applied to /chat, wired in here
+too since drafting is the higher-stakes of the two. Reflection failures
+never affect the returned draft; see api.reflection and ADR 0020.
 """
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
@@ -15,9 +22,14 @@ from api.ai_gateway import chat_completion
 from api.auth import get_current_user
 from api.db import get_db
 from api.models import Document, User
+from api.reflection import log_reflection, reflect
 from api.search_service import hybrid_search
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/legal", tags=["legal"])
+
+REFLECTION_RETRY_CAP = 20
 
 DISCLAIMER = (
     "This is an AI-generated draft grounded only in the documents provided to it. "
@@ -54,14 +66,10 @@ class DraftResponse(BaseModel):
     disclaimer: str = DISCLAIMER
 
 
-@router.post("/draft", response_model=DraftResponse)
-async def draft(
-    request: DraftRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-) -> DraftResponse:
-    scope = set(request.document_ids) or None
-    hits = await hybrid_search(db, request.instruction, limit=request.context_chunks, document_ids=scope)
+async def _retrieve(
+    db: AsyncSession, instruction: str, limit: int, scope: set[UUID] | None
+) -> tuple[list[Citation], str]:
+    hits = await hybrid_search(db, instruction, limit=limit, document_ids=scope)
 
     citations: list[Citation] = []
     context_blocks: list[str] = []
@@ -82,11 +90,44 @@ async def draft(
             context_blocks.append(f"[{marker}] {hit.chunk.content}")
 
     context_text = "\n\n".join(context_blocks) if context_blocks else "(no relevant documents found)"
+    return citations, context_text
+
+
+@router.post("/draft", response_model=DraftResponse)
+async def draft(
+    request: DraftRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DraftResponse:
+    scope = set(request.document_ids) or None
+    citations, context_text = await _retrieve(db, request.instruction, request.context_chunks, scope)
 
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": f"Context:\n{context_text}\n\nDrafting instruction: {request.instruction}"},
     ]
     draft_text = await chat_completion(messages, user_id=current_user.id, endpoint="legal.draft")
+
+    try:
+        result = await reflect(
+            question=request.instruction, answer=draft_text, context_text=context_text,
+            user_id=current_user.id, endpoint="legal.draft",
+        )
+        retried = False
+        if not result.sufficient_evidence and request.context_chunks < REFLECTION_RETRY_CAP:
+            retry_limit = min(request.context_chunks * 2, REFLECTION_RETRY_CAP)
+            citations, context_text = await _retrieve(db, request.instruction, retry_limit, scope)
+            messages = [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": f"Context:\n{context_text}\n\nDrafting instruction: {request.instruction}"},
+            ]
+            draft_text = await chat_completion(messages, user_id=current_user.id, endpoint="legal.draft")
+            retried = True
+        await log_reflection(
+            db, user_id=current_user.id, endpoint="legal.draft", question=request.instruction,
+            result=result, retried=retried,
+        )
+    except Exception:  # noqa: BLE001 - reflection is a quality check, must never fail the draft response
+        logger.exception("reflection failed for legal draft request from user %s", current_user.id)
 
     return DraftResponse(draft=draft_text, citations=citations)
