@@ -145,6 +145,62 @@ async def test_create_plan_honors_an_organization_level_approval_override(client
             await set_organization_policies(db, organization_id=DEFAULT_ORGANIZATION_ID, policies={})
 
 
+async def test_create_plan_resolves_case_id_to_its_documents_for_summarize_case(client):
+    from api.cases import attach_document_to_case, create_case
+
+    token, username = await _login(client, "plan-case-user")
+    user_id = await _user_id_for(username)
+
+    async with async_session() as db:
+        document_a = Document(
+            owner_id=user_id, title="a", filename="a.pdf", mime_type="application/pdf", status="ready",
+        )
+        document_b = Document(
+            owner_id=user_id, title="b", filename="b.pdf", mime_type="application/pdf", status="ready",
+        )
+        db.add_all([document_a, document_b])
+        await db.commit()
+        await db.refresh(document_a)
+        await db.refresh(document_b)
+
+        case = await create_case(db, user_id=user_id, name="A case")
+        await attach_document_to_case(db, document_id=document_a.id, case_id=case.id)
+        await attach_document_to_case(db, document_id=document_b.id, case_id=case.id)
+
+    async with async_session() as db:
+        plan = await create_plan(db, user_id=user_id, goal_type="summarize_case", goal_params={"case_id": str(case.id)})
+
+    assert plan.status == "running"
+    resolved_document_ids = set(plan.goal_params["document_ids"])
+    assert resolved_document_ids == {str(document_a.id), str(document_b.id)}
+
+
+async def test_create_plan_prefers_case_id_over_document_ids_when_both_given(client):
+    from api.cases import attach_document_to_case, create_case
+
+    token, username = await _login(client, "plan-case-precedence-user")
+    user_id = await _user_id_for(username)
+
+    async with async_session() as db:
+        document = Document(
+            owner_id=user_id, title="a", filename="a.pdf", mime_type="application/pdf", status="ready",
+        )
+        db.add(document)
+        await db.commit()
+        await db.refresh(document)
+
+        case = await create_case(db, user_id=user_id, name="A case")
+        await attach_document_to_case(db, document_id=document.id, case_id=case.id)
+
+    async with async_session() as db:
+        plan = await create_plan(
+            db, user_id=user_id, goal_type="summarize_case",
+            goal_params={"case_id": str(case.id), "document_ids": ["ignored-value"]},
+        )
+
+    assert plan.goal_params["document_ids"] == [str(document.id)]
+
+
 async def test_approve_plan_executes_and_completes():
     async with async_session() as db:
         from api.models import User

@@ -81,6 +81,9 @@ class Document(Base):
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     ocr_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    case_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("cases.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
@@ -355,3 +358,23 @@ class UserPreference(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class Case(Base):
+    """A persistent case/matter that documents, tasks, and decisions can
+    belong to (Phase 16). Membership is optional everywhere -- a document,
+    task, or decision can exist with no case at all, same as before this
+    phase. Documents link via a direct `case_id` FK (the most central,
+    most-queried relationship); tasks and decisions link via the existing
+    polymorphic `GraphEdge` table (Phase 10, ADR 0025) instead of new
+    columns on their own tables.
+    """
+
+    __tablename__ = "cases"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String(500), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="open")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
