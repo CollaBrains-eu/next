@@ -7,12 +7,12 @@ from api.db import async_session
 from api.legal import DraftResponse
 from api.models import Document, Entity, Task, User
 from api.search_service import SearchHit
-from api.tool_registry import dispatch
+from api.tool_registry import ToolPermissionError, dispatch
 
 
-async def _create_user(username: str) -> User:
+async def _create_user(username: str, *, role: str = "member") -> User:
     async with async_session() as db:
-        user = User(username=username, display_name=username)
+        user = User(username=username, display_name=username, role=role)
         db.add(user)
         await db.commit()
         await db.refresh(user)
@@ -42,8 +42,9 @@ async def test_search_tool_returns_documents():
     user = await _create_user(f"tooluser-{uuid4().hex[:8]}")
     fake_hit = SearchHit(chunk=_FakeChunk(), score=0.9)
 
-    with patch("api.tools.hybrid_search", return_value=[fake_hit]):
-        result = await dispatch("search", db=None, user_id=user.id, query="hello")
+    async with async_session() as db:
+        with patch("api.tools.hybrid_search", return_value=[fake_hit]):
+            result = await dispatch("search", db=db, user_id=user.id, query="hello")
 
     assert result["documents"][0]["content"] == "hello"
     assert result["documents"][0]["score"] == 0.9
@@ -81,8 +82,9 @@ async def test_draft_legal_document_tool_returns_draft_dict():
     user = await _create_user(f"tooluser-{uuid4().hex[:8]}")
     fake_draft = DraftResponse(draft="a draft", citations=[])
 
-    with patch("api.tools._generate_draft", return_value=fake_draft):
-        result = await dispatch("draft_legal_document", db=None, user_id=user.id, instruction="draft something")
+    async with async_session() as db:
+        with patch("api.tools._generate_draft", return_value=fake_draft):
+            result = await dispatch("draft_legal_document", db=db, user_id=user.id, instruction="draft something")
 
     assert result["draft"] == "a draft"
     assert "disclaimer" in result
@@ -93,10 +95,11 @@ async def test_extract_tasks_tool_returns_tasks():
     document = await _create_document(user.id)
     fake_task = Task(id=uuid4(), title="Do the thing", document_id=document.id)
 
-    with patch("api.tools.extract_tasks", return_value=[fake_task]):
-        result = await dispatch(
-            "extract_tasks", db=None, user_id=user.id, document_id=document.id, text="do the thing by friday",
-        )
+    async with async_session() as db:
+        with patch("api.tools.extract_tasks", return_value=[fake_task]):
+            result = await dispatch(
+                "extract_tasks", db=db, user_id=user.id, document_id=document.id, text="do the thing by friday",
+            )
 
     assert result["tasks"][0]["title"] == "Do the thing"
 
@@ -106,10 +109,19 @@ async def test_extract_entities_tool_returns_entities():
     document = await _create_document(user.id)
     fake_entity = Entity(id=uuid4(), name="Jane Doe", entity_type="person")
 
-    with patch("api.tools.extract_entities", return_value=[fake_entity]):
-        result = await dispatch(
-            "extract_entities", db=None, user_id=user.id, document_id=document.id,
-            text="Jane Doe signed the contract",
-        )
+    async with async_session() as db:
+        with patch("api.tools.extract_entities", return_value=[fake_entity]):
+            result = await dispatch(
+                "extract_entities", db=db, user_id=user.id, document_id=document.id,
+                text="Jane Doe signed the contract",
+            )
 
     assert result["entities"][0]["name"] == "Jane Doe"
+
+
+async def test_search_tool_denies_a_role_with_no_permissions():
+    user = await _create_user(f"tooluser-{uuid4().hex[:8]}", role="service")
+
+    async with async_session() as db:
+        with pytest.raises(ToolPermissionError):
+            await dispatch("search", db=db, user_id=user.id, query="hello")

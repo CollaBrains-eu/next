@@ -2,11 +2,22 @@ from uuid import uuid4
 
 import pytest
 
-from api.tool_registry import ToolDescriptor, dispatch, get_tool, list_tools, register_tool
+from api.db import async_session
+from api.models import User
+from api.tool_registry import ToolDescriptor, ToolPermissionError, dispatch, get_tool, list_tools, register_tool
 
 
 def _unique(base: str) -> str:
     return f"{base}-{uuid4().hex[:8]}"
+
+
+async def _create_user(username: str, *, role: str = "member") -> User:
+    async with async_session() as db:
+        user = User(username=username, display_name=username, role=role)
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        return user
 
 
 async def test_register_and_get_tool():
@@ -77,3 +88,69 @@ async def test_dispatch_calls_the_registered_handler():
 async def test_dispatch_unknown_tool_raises_key_error():
     with pytest.raises(KeyError):
         await dispatch(_unique("does-not-exist"))
+
+
+async def test_dispatch_allows_a_role_with_the_required_permission():
+    name = _unique("gated")
+    user = await _create_user(_unique("registryuser"), role="member")
+
+    async def handler(*, db, user_id):
+        return {"ok": True}
+
+    register_tool(ToolDescriptor(
+        name=name, description="d", permissions=["documents.read"],
+        input_schema={}, output_schema={}, handler=handler,
+    ))
+
+    async with async_session() as db:
+        result = await dispatch(name, db=db, user_id=user.id)
+
+    assert result == {"ok": True}
+
+
+async def test_dispatch_denies_a_role_without_the_required_permission():
+    name = _unique("gated")
+    user = await _create_user(_unique("registryuser"), role="service")
+
+    async def handler(*, db, user_id):
+        return {"ok": True}
+
+    register_tool(ToolDescriptor(
+        name=name, description="d", permissions=["documents.read"],
+        input_schema={}, output_schema={}, handler=handler,
+    ))
+
+    async with async_session() as db:
+        with pytest.raises(ToolPermissionError):
+            await dispatch(name, db=db, user_id=user.id)
+
+
+async def test_dispatch_denies_a_permission_requiring_tool_with_no_db_or_user_id():
+    name = _unique("gated-no-context")
+
+    async def handler(**kwargs):
+        return {"ok": True}
+
+    register_tool(ToolDescriptor(
+        name=name, description="d", permissions=["documents.read"],
+        input_schema={}, output_schema={}, handler=handler,
+    ))
+
+    with pytest.raises(ToolPermissionError):
+        await dispatch(name)
+
+
+async def test_dispatch_denies_an_unknown_user_id():
+    name = _unique("gated-unknown-user")
+
+    async def handler(**kwargs):
+        return {"ok": True}
+
+    register_tool(ToolDescriptor(
+        name=name, description="d", permissions=["documents.read"],
+        input_schema={}, output_schema={}, handler=handler,
+    ))
+
+    async with async_session() as db:
+        with pytest.raises(ToolPermissionError):
+            await dispatch(name, db=db, user_id=uuid4())
