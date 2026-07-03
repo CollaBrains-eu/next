@@ -3,15 +3,16 @@
 Privacy-first AI knowledge platform. AI is the central orchestration layer;
 users interact via Web, Admin, Signal (chat-first), and later Mobile.
 
-## Status: Phase 6a — TLS & Reverse Proxy
+## Status: Phase 6b — Automated Backups
 
 See `docs/adr/` for the architecture decisions behind this build
 (0001: scaffold, 0002: document pipeline, 0003: AI Gateway/Orchestrator,
 0004: Legal/Planner agents + workflow, 0005: Signal bot, 0006: Signal
 identity linking, 0007: Signal attachments & notifications, 0008: entity
 graph, 0009: frontend auth & documents, 0010: chat/legal/tasks UI, 0011:
-entity graph UI, 0012: TLS & reverse proxy), and the phase plan below for
-what's next. Phases 0-4, all of Phase 5 (5a, 5b, 5c), and 6a are done.
+entity graph UI, 0012: TLS & reverse proxy, 0013: backups), and the phase
+plan below for what's next. Phases 0-4, all of Phase 5 (5a, 5b, 5c), and
+6a-6b are done.
 
 The app is live at **https://v78281.1blu.de** (real Let's Encrypt
 certificate, auto-renewing). `api` and the Vite dev server are no longer
@@ -113,6 +114,22 @@ Phase 1b) for the same reason: Docker's own port-publishing writes
 iptables rules UFW doesn't filter by default, so UFW rules alone weren't
 actually blocking anything. UFW now only allows 22/80/443.
 
+Phase 6b (ADR 0013) added automated daily backups (`infra/backup/backup.sh`,
+root cron at 03:00, 14-day retention) of the three things on this host
+that would be genuinely costly or impossible to reconstruct if lost:
+Postgres (`pg_dump -Fc`), LDAP (`slapcat`), and the registered Signal
+number's encryption/session keys (`infra/signal-cli/`, a plain tarball —
+losing this means redoing Phase 3a's human-in-the-loop registration from
+scratch). Backups live in `/opt/collabrains-backups/`, deliberately
+outside the git working tree. All three were verified as genuinely
+restorable via real round-trips, not just "a file got created" — see
+`docs/runbooks/backup-restore.md`, which also documents a real bug found
+while testing the LDAP restore: the container's normal bootstrap flow
+seeds via `ldapadd` (an online LDAP operation) which silently rejects
+the operational attributes a `slapcat` dump contains, so restoring that
+way *looks* like it worked but restores nothing — the runbook's
+procedure uses an offline `slapadd` instead.
+
 ## Local development
 
 ```bash
@@ -183,7 +200,8 @@ reachable from the public internet on this host, on 80 (redirects to
 6. Production readiness — split into:
    - 6a (done): TLS + reverse proxy (Caddy, automatic HTTPS), production
      frontend build, close direct public access to `api`/dev server
-   - 6b: automated Postgres backups + documented restore procedure
+   - 6b (done): automated Postgres/LDAP/Signal-key backups + verified
+     restore procedure (`docs/runbooks/backup-restore.md`)
    - 6c: monitoring/alerting on `/health`+`/health/ready`, reusing the
      Signal bot as the alert channel
    - 6d: load testing to document real capacity limits on this
