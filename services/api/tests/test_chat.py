@@ -36,6 +36,38 @@ async def test_chat_rejects_missing_token(client):
     assert response.status_code == 401
 
 
+async def test_chat_includes_preferred_language_in_system_prompt(client):
+    token = await _login_as(client, "chatprefuser1")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    await client.put("/preferences/me", headers=headers, json={"preferred_language": "de"})
+
+    with (
+        patch("api.chat.hybrid_search", return_value=[]),
+        patch("api.chat.chat_completion", return_value="ok") as mock_completion,
+    ):
+        await client.post("/chat", headers=headers, json={"message": "hello"})
+
+    sent_messages = mock_completion.call_args.args[0]
+    system_message = sent_messages[0]["content"]
+    assert "Respond in de." in system_message
+
+
+async def test_chat_omits_language_instruction_when_no_preference_set(client):
+    token = await _login_as(client, "chatprefuser2")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    with (
+        patch("api.chat.hybrid_search", return_value=[]),
+        patch("api.chat.chat_completion", return_value="ok") as mock_completion,
+    ):
+        await client.post("/chat", headers=headers, json={"message": "hello"})
+
+    sent_messages = mock_completion.call_args.args[0]
+    system_message = sent_messages[0]["content"]
+    assert "Respond in" not in system_message
+
+
 async def test_chat_retries_retrieval_when_reflection_flags_insufficient_evidence(client):
     token = await _login(client)
     headers = {"Authorization": f"Bearer {token}"}
