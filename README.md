@@ -3,16 +3,16 @@
 Privacy-first AI knowledge platform. AI is the central orchestration layer;
 users interact via Web, Admin, Signal (chat-first), and later Mobile.
 
-## Status: Phase 6b — Automated Backups
+## Status: Phase 6c — Monitoring & Alerting
 
 See `docs/adr/` for the architecture decisions behind this build
 (0001: scaffold, 0002: document pipeline, 0003: AI Gateway/Orchestrator,
 0004: Legal/Planner agents + workflow, 0005: Signal bot, 0006: Signal
 identity linking, 0007: Signal attachments & notifications, 0008: entity
 graph, 0009: frontend auth & documents, 0010: chat/legal/tasks UI, 0011:
-entity graph UI, 0012: TLS & reverse proxy, 0013: backups), and the phase
-plan below for what's next. Phases 0-4, all of Phase 5 (5a, 5b, 5c), and
-6a-6b are done.
+entity graph UI, 0012: TLS & reverse proxy, 0013: backups, 0014:
+monitoring & alerting), and the phase plan below for what's next. Phases
+0-4, all of Phase 5 (5a, 5b, 5c), and 6a-6c are done.
 
 The app is live at **https://v78281.1blu.de** (real Let's Encrypt
 certificate, auto-renewing). `api` and the Vite dev server are no longer
@@ -130,6 +130,29 @@ the operational attributes a `slapcat` dump contains, so restoring that
 way *looks* like it worked but restores nothing — the runbook's
 procedure uses an offline `slapadd` instead.
 
+Phase 6c (ADR 0014) added a health watchdog (`infra/monitoring/watchdog.sh`,
+root cron every 5 minutes) — no new monitoring stack, just HTTP checks
+against `/health`/`/health/ready` (both the internal `127.0.0.1:8000`
+path and the public `https://v78281.1blu.de` path — deliberately both,
+since a Caddy routing bug in Phase 6a's own testing would only ever have
+shown up in the public-path check), every container's running state, and
+disk usage. Alerts over Signal — reusing the bot from Phase 3 rather than
+standing up a second notification channel — to whichever number is set
+as `ALERT_PHONE_NUMBER` in `.env`, and only on healthy↔unhealthy
+*transitions*, not every failed check, so an ongoing outage doesn't page
+every 5 minutes for its duration. Verified with a real drill: stopped a
+container, confirmed the down-alert actually reached signal-cli (`201`
+from `POST /v2/send`, not just that the script attempted it), confirmed
+no duplicate alert on a second unhealthy check, restarted the container,
+and confirmed a distinct recovery alert fired. That drill also caught a
+real bug in the first version of the container-state check: it derived
+its "expected" service list from `docker compose ps --services` without
+realizing this Compose version defaults that to *running* services only
+— making the down-detection tautological, since a stopped container
+would silently drop out of both the expected and running lists at once
+and never be flagged. Fixed using `docker compose ps -a` (all states)
+instead.
+
 ## Local development
 
 ```bash
@@ -202,7 +225,7 @@ reachable from the public internet on this host, on 80 (redirects to
      frontend build, close direct public access to `api`/dev server
    - 6b (done): automated Postgres/LDAP/Signal-key backups + verified
      restore procedure (`docs/runbooks/backup-restore.md`)
-   - 6c: monitoring/alerting on `/health`+`/health/ready`, reusing the
-     Signal bot as the alert channel
+   - 6c (done): health watchdog (containers, internal+public
+     `/health`, disk usage) alerting over Signal on state transitions
    - 6d: load testing to document real capacity limits on this
      CPU-only host
