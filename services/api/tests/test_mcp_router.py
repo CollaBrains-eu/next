@@ -81,3 +81,31 @@ async def test_mcp_unknown_method_returns_json_rpc_error(client):
 async def test_mcp_rejects_missing_token(client):
     response = await client.post("/mcp", json={"jsonrpc": "2.0", "id": 5, "method": "initialize"})
     assert response.status_code == 401
+
+
+async def _create_service_account_token(username: str) -> str:
+    from api.auth import create_access_token
+    from api.db import async_session
+    from api.models import User
+
+    async with async_session() as db:
+        db.add(User(username=username, display_name=username, role="service"))
+        await db.commit()
+    return create_access_token(username, "service")
+
+
+async def test_mcp_tools_call_denies_a_role_without_the_required_permission(client):
+    token = await _create_service_account_token(f"mcp-service-{uuid4().hex[:8]}")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = await client.post(
+        "/mcp",
+        headers=headers,
+        json={
+            "jsonrpc": "2.0", "id": 6, "method": "tools/call",
+            "params": {"name": "search", "arguments": {"query": "hello"}},
+        },
+    )
+
+    assert response.status_code == 200  # still a valid JSON-RPC call, just a failed tool execution
+    assert response.json()["result"]["isError"] is True

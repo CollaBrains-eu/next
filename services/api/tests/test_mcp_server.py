@@ -9,12 +9,23 @@ from api.mcp_server import (
     handle_tools_call,
     handle_tools_list,
 )
+from api.db import async_session
+from api.models import User
 from api.search_service import SearchHit
 from api.tool_registry import ToolDescriptor, get_tool, register_tool
 
 
 def _unique(base: str) -> str:
     return f"{base}-{uuid4().hex[:8]}"
+
+
+async def _create_user(username: str, *, role: str = "member") -> User:
+    async with async_session() as db:
+        user = User(username=username, display_name=username, role=role)
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        return user
 
 
 def test_field_to_json_schema_maps_real_tool_field_types():
@@ -65,6 +76,8 @@ def test_handle_tools_list_includes_all_built_in_tools_with_json_schema():
 
 
 async def test_handle_tools_call_dispatches_a_real_tool_end_to_end():
+    user = await _create_user(_unique("mcpserveruser"))
+
     class _FakeChunk:
         def __init__(self):
             self.id = uuid4()
@@ -73,13 +86,25 @@ async def test_handle_tools_call_dispatches_a_real_tool_end_to_end():
 
     fake_hit = SearchHit(chunk=_FakeChunk(), score=0.5)
 
-    with patch("api.tools.hybrid_search", return_value=[fake_hit]):
-        result = await handle_tools_call(
-            {"name": "search", "arguments": {"query": "hello"}}, db=None, user_id=uuid4(),
-        )
+    async with async_session() as db:
+        with patch("api.tools.hybrid_search", return_value=[fake_hit]):
+            result = await handle_tools_call(
+                {"name": "search", "arguments": {"query": "hello"}}, db=db, user_id=user.id,
+            )
 
     assert result["isError"] is False
     assert "hello from mcp" in result["content"][0]["text"]
+
+
+async def test_handle_tools_call_reports_permission_denial_as_error_not_exception():
+    user = await _create_user(_unique("mcpserveruser"), role="service")
+
+    async with async_session() as db:
+        result = await handle_tools_call(
+            {"name": "search", "arguments": {"query": "hello"}}, db=db, user_id=user.id,
+        )
+
+    assert result["isError"] is True
 
 
 async def test_handle_tools_call_reports_unknown_tool_as_error_not_exception():

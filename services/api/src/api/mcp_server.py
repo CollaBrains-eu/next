@@ -12,7 +12,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.tool_registry import ToolDescriptor, dispatch, list_tools
+from api.tool_registry import ToolDescriptor, ToolPermissionError, dispatch, list_tools
 
 PROTOCOL_VERSION = "2024-11-05"
 SERVER_NAME = "collabrains-mcp"
@@ -88,7 +88,7 @@ async def handle_tools_call(params: dict[str, Any], *, db: AsyncSession, user_id
 
     try:
         result = await dispatch(name, db=db, user_id=user_id, **arguments)
-    except (KeyError, ValueError) as exc:
+    except (KeyError, ValueError, ToolPermissionError) as exc:
         return {"content": [{"type": "text", "text": str(exc)}], "isError": True}
 
     return {"content": [{"type": "text", "text": json.dumps(result)}], "isError": False}
