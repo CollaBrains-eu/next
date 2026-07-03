@@ -19,6 +19,12 @@ Phase 7, and all of Phase 8 (8a, 8b, 8c, 8d) are done — every phase in
 the original 7-phase plan, the mobile phase, and the Cognitive Engine
 roadmap that followed it.
 
+This README covers what's built, frozen at Phase 8 — it does not grow a
+new section per future phase. Phase 9 onward (AI Platform, Knowledge
+Graph 2, Multi-Agent System, and beyond) is specified in
+[`docs/roadmap/`](docs/roadmap/), one file per phase, written before
+implementation starts.
+
 The app is live at **https://v78281.1blu.de** (real Let's Encrypt
 certificate, auto-renewing). `api` and the Vite dev server are no longer
 reachable from the public internet — see "Production deployment" below.
@@ -328,3 +334,5 @@ reachable from the public internet on this host, on 80 (redirects to
      `/legal/draft` answer against its retrieved context, retrying
      retrieval once if the evidence looks insufficient, and logging the
      verdict to an audit table. See ADR 0020.
+
+See [`docs/roadmap/`](docs/roadmap/) for Phase 9 onward.
