@@ -1,5 +1,16 @@
 # Phase 15 — Learning Platform
 
+> **Status: dataset export done, pipeline stops there.** Built:
+> `GET /learning/dataset` (admin-only), exporting real Plan-approval
+> and Reflection-verdict signal, no synthetic data (ADR 0030).
+> Deliberately NOT built: Synthetic Data, Fine Tune, Benchmark, Deploy
+> -- this environment has no training framework and the production
+> host is already CPU-bound at low concurrency (ADR 0015). This is the
+> last phase of the original roadmap; see `README.md` for the summary.
+> Kept here as historical context and as the spec a future phase
+> picking this back up (once real training infrastructure exists)
+> should start from.
+
 ## Goal
 
 Build a complete **feedback → evaluation → synthetic data → dataset →

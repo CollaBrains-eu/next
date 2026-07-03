@@ -1,63 +1,48 @@
-# Roadmap: Phase 15 onward
+# Roadmap: all phases done, this is now historical reference
 
-Phases 0-14 are documented in the top-level `README.md` and their ADRs
-(`docs/adr/0001` through `0029`). That README is now frozen as a
-"what's done" overview — it does not grow a new paragraph per future
-phase. Everything past Phase 14 lives here instead, one file per phase,
-written before implementation starts so each phase is a self-contained
-spec to build against (and, once built, gets its own ADR the same way
-every phase so far has).
+**All 15 phases of the original roadmap are done.** This directory's
+files (`phase-09.md` through `phase-15.md`) are kept as the historical
+specs each phase was actually built against -- useful context for how
+the design questions they raised got resolved, not a queue of
+remaining work. `README.md` at the repo root is the authoritative
+"what's done" record and is now frozen; ADRs `0001` through `0030`
+cover every design decision behind it.
 
-`phase-09.md` through `phase-14.md` are kept here as the historical
-specs Phase 9 (ADRs 0021-0024) through Phase 14 (ADR 0029) were
-actually built against -- useful context for how the design questions
-they raised got resolved, even though all six phases are done.
+**Two phases were deliberately scoped down and stay open on purpose**
+-- read their status notes and ADRs before assuming either is
+"finished" in the sense the original spec described:
 
-**Phase 14 is only a foundation slice**, not the roadmap's full
-Enterprise vision -- see `phase-14.md`'s status note and ADR 0029 for
-exactly what's still missing (per-table tenant isolation, Teams, shared
-memory, AI governance, RBAC 2.0) before treating "Enterprise" as
-finished.
+- **Phase 14 (Enterprise)** -- foundation only. `Organization` and one
+  policy override exist; per-table tenant isolation, Teams, shared
+  memory, AI governance, and RBAC 2.0 do not (ADR 0029). The
+  adversarial cross-org isolation test the original spec's acceptance
+  criteria demanded was never attempted -- the migration risk of
+  touching every existing table at once was judged too large for one
+  slice, on a live production system with real user data.
+- **Phase 15 (Learning Platform)** -- dataset export only. Feedback,
+  Evaluation, and Dataset are built from real Reflection/approval
+  signal; Synthetic Data, Fine Tune, Benchmark, and Deploy are not,
+  because this environment has no training framework and the
+  production host is already CPU-bound at low concurrency (ADR 0015).
 
-## Why the roadmap changes shape here
+## If there's a Phase 16
 
-Phases 0-8 were about giving the AI more things it could do: search,
-draft, extract entities, remember, plan, reflect. Phase 8c (Planning
-Engine) and 8d (Reflection Engine) are the first phases where the AI
-started checking and sequencing its *own* work rather than just
-answering a single request. Phases 9-13 (all done) made the AI's
-capabilities discoverable, gave it a knowledge graph, let it choose its
-own tools, closed the "learn" loop, and gave it durable per-user
-knowledge. Phase 14 (foundation done) started -- but did not finish --
-turning the platform into a multi-tenant product. Phase 15 onward:
+There's no Phase 16 spec yet -- none is needed until there's a concrete
+next goal. When one exists, the discipline that got Phases 9-15 built
+should carry forward: write the spec here first (goal, why now, open
+design questions, acceptance criteria), scope it down to a smallest
+safe slice before writing code, and give it its own ADR once built.
+The two open threads above (finishing Phase 14's tenant isolation, or
+picking Phase 15 back up once real training infrastructure exists) are
+the most obvious starting points, but neither is a foregone conclusion
+-- a genuinely new goal is just as valid a Phase 16.
 
-- **9 — AI Platform** (done)
-- **10 — Knowledge Graph 2** (done)
-- **11 — Multi-Agent System** (done)
-- **12 — Autonomous Workflows** (done)
-- **13 — Personal AI** (done)
-- **14 — Enterprise** (foundation done; full tenant isolation, Teams,
-  RBAC 2.0 still open -- see ADR 0029)
-- **15 — Learning Platform**: a full feedback → evaluation → dataset →
-  fine-tune → benchmark → deploy cycle, built *before* any custom model
-  training, not instead of it.
+## Phases (all done, historical)
 
-## Phases
-
-- ~~[Phase 9 — AI Platform](phase-09.md)~~ — done, see `README.md` and ADRs 0021-0024
-- ~~[Phase 10 — Knowledge Graph 2](phase-10.md)~~ — done, see `README.md` and ADR 0025
-- ~~[Phase 11 — Multi-Agent System](phase-11.md)~~ — done, see `README.md` and ADR 0026
-- ~~[Phase 12 — Autonomous Workflows](phase-12.md)~~ — done, see `README.md` and ADR 0027
-- ~~[Phase 13 — Personal AI](phase-13.md)~~ — done, see `README.md` and ADR 0028
-- [Phase 14 — Enterprise](phase-14.md) — foundation done, full scope still open, see ADR 0029
-- [Phase 15 — Learning Platform](phase-15.md)
-
-## Status
-
-Phase 9 (ADRs 0021-0024), Phase 10 (ADR 0025), Phase 11 (ADR 0026),
-Phase 12 (ADR 0027), and Phase 13 (ADR 0028) are done. Phase 14 is a
-foundation slice (ADR 0029) with real, named remaining work (per-table
-tenant isolation and its adversarial test, Teams, RBAC 2.0). Phase 15
-is a vision document only -- not started. Each phase gets scoped down
-to a "smallest safe slice" before any code is written; these files
-describe the target shape, not a locked implementation plan.
+- [Phase 9 — AI Platform](phase-09.md) — ADRs 0021-0024
+- [Phase 10 — Knowledge Graph 2](phase-10.md) — ADR 0025
+- [Phase 11 — Multi-Agent System](phase-11.md) — ADR 0026
+- [Phase 12 — Autonomous Workflows](phase-12.md) — ADR 0027
+- [Phase 13 — Personal AI](phase-13.md) — ADR 0028
+- [Phase 14 — Enterprise](phase-14.md) — foundation only, ADR 0029
+- [Phase 15 — Learning Platform](phase-15.md) — dataset export only, ADR 0030

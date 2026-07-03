@@ -3,7 +3,7 @@
 Privacy-first AI knowledge platform. AI is the central orchestration layer;
 users interact via Web, Mobile, Signal (chat-first), and later Admin.
 
-## Status: Phase 14 — Enterprise (foundation)
+## Status: Phase 15 — Learning Platform (dataset export)
 
 See `docs/adr/` for the architecture decisions behind this build
 (0001: scaffold, 0002: document pipeline, 0003: AI Gateway/Orchestrator,
@@ -16,20 +16,30 @@ monitoring & alerting, 0015: load testing, 0016: mobile app foundation,
 reflection engine, 0021: tool registry, 0022: MCP platform, 0023:
 permissions, 0024: tool discovery, 0025: knowledge graph 2, 0026:
 multi-agent system, 0027: autonomous workflows, 0028: personal AI,
-0029: enterprise foundation).
-Phases 0-4, all of Phase 5 (5a, 5b, 5c), all of Phase 6 (6a, 6b, 6c, 6d),
-Phase 7, all of Phase 8 (8a, 8b, 8c, 8d), all of Phase 9 (9a, 9b, 9c,
-9d), Phase 10, Phase 11, Phase 12, Phase 13, and Phase 14 are done —
-every phase in the original 7-phase plan, the mobile phase, the
-Cognitive Engine roadmap, and the AI Platform roadmap that followed it.
-Phase 14 is a foundation slice, not the full roadmap vision -- see its
-ADR (0029) for exactly what's still missing (full tenant isolation,
-Teams, RBAC 2.0).
+0029: enterprise foundation, 0030: learning platform).
+**All 15 phases of the original roadmap are now done** -- Phases 0-4,
+all of Phase 5 (5a, 5b, 5c), all of Phase 6 (6a, 6b, 6c, 6d), Phase 7,
+all of Phase 8 (8a, 8b, 8c, 8d), all of Phase 9 (9a, 9b, 9c, 9d), Phase
+10, Phase 11, Phase 12, Phase 13, Phase 14, and Phase 15 -- every phase
+in the original 7-phase plan, the mobile phase, the Cognitive Engine
+roadmap, and the AI Platform roadmap that followed it.
 
-This README covers what's built, frozen at Phase 14 — it does not grow
-a new section per future phase. Phase 15 onward (Learning Platform and
-beyond) is specified in [`docs/roadmap/`](docs/roadmap/), one file per
-phase, written before implementation starts.
+Two phases were deliberately scoped down from their original proposal
+rather than fully built, and stay that way on purpose: **Phase 14**
+(Enterprise) is a foundation only -- organizations and one policy
+override exist, but there's no per-table tenant isolation yet (ADR
+0029). **Phase 15** (Learning Platform) exports a real dataset from
+existing feedback signal, but stops before fine-tuning, benchmarking,
+or deploying a model -- this environment has no training
+infrastructure to do that safely (ADR 0030). Both are the natural
+starting points for whatever comes next.
+
+This README covers what's built and is now frozen as a complete
+"what's done" record of the original roadmap. Any future phase beyond
+this point needs its own new spec written first, the same way every
+phase from 9 onward was -- see [`docs/roadmap/`](docs/roadmap/) for
+that discipline and for the two phases' own notes on what's still
+open.
 
 The app is live at **https://v78281.1blu.de** (real Let's Encrypt
 certificate, auto-renewing). `api` and the Vite dev server are no longer
@@ -167,6 +177,15 @@ ADR 0004).
   override (`approval_required_goals`, overriding Planning Engine's
   hardcoded default). Deliberately a foundation slice, not full
   multi-tenancy -- no per-table data isolation yet. See ADR 0029.
+- **Phase 15** — Learning Platform (`api/learning_dataset.py`,
+  `GET /learning/dataset`, admin-only): exports two real feedback
+  signals already sitting in the database -- approved/unapproved Legal
+  Agent drafts (a genuine instruction->draft pair with human sign-off
+  as the label) and Reflection Engine quality verdicts. Deliberately
+  stops at Dataset -- no Synthetic Data, Fine Tune, Benchmark, or
+  Deploy stage, since this environment has no training infrastructure
+  and the production host is already CPU-bound at low concurrency
+  (ADR 0015). See ADR 0030.
 
 `apps/signal-bot` bridges Signal to `/chat`: polls
 `signal-cli-rest-api` for incoming messages on the registered number
@@ -436,5 +455,16 @@ reachable from the public internet on this host, on 80 (redirects to
     tenant isolation, no Teams, no RBAC 2.0 yet -- see ADR 0029 for
     exactly what's still missing and why the full retrofit is its own
     future phase.
+15. Learning Platform (dataset export done) — `GET /learning/dataset`
+    (admin-only) exports approved/unapproved Legal Agent drafts and
+    Reflection Engine verdicts as real training/evaluation signal, no
+    synthetic data. Deliberately stops there: no Fine Tune, Benchmark,
+    or Deploy stage -- this environment has no training infrastructure
+    and the production host is already CPU-bound at low concurrency
+    (ADR 0015). See ADR 0030 for why faking those stages would be worse
+    than not building them.
 
-See [`docs/roadmap/`](docs/roadmap/) for Phase 15 onward.
+This is every phase of the original roadmap. See
+[`docs/roadmap/`](docs/roadmap/) for what a Phase 16 would need to
+start with, and for exactly what Phase 14 and Phase 15 deliberately
+left open.
