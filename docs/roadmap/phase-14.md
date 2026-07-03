@@ -1,5 +1,17 @@
 # Phase 14 — Enterprise
 
+> **Status: foundation done, full scope still open.** Built:
+> `Organization` + `User.organization_id` (safe migration, backfilled
+> against live production data) and one real per-organization policy
+> override (`approval_required_goals`). Explicitly NOT built: per-table
+> `organization_id` retrofit, the adversarial cross-org isolation test
+> this doc's own acceptance criteria demand, Teams, shared memory, AI
+> governance, RBAC 2.0 (ADR 0029) -- the migration risk of touching
+> every existing table at once was judged too large for one slice. See
+> `README.md` for the summary and ADR 0029 for the full reasoning. Kept
+> here as historical context and as the spec the follow-up phase should
+> pick up from.
+
 ## Goal
 
 Turn CollaBrains from a single-tenant application into a platform:

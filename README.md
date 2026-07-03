@@ -3,7 +3,7 @@
 Privacy-first AI knowledge platform. AI is the central orchestration layer;
 users interact via Web, Mobile, Signal (chat-first), and later Admin.
 
-## Status: Phase 13 — Personal AI
+## Status: Phase 14 — Enterprise (foundation)
 
 See `docs/adr/` for the architecture decisions behind this build
 (0001: scaffold, 0002: document pipeline, 0003: AI Gateway/Orchestrator,
@@ -15,15 +15,19 @@ monitoring & alerting, 0015: load testing, 0016: mobile app foundation,
 0017: event bus, 0018: long-term memory, 0019: planning engine, 0020:
 reflection engine, 0021: tool registry, 0022: MCP platform, 0023:
 permissions, 0024: tool discovery, 0025: knowledge graph 2, 0026:
-multi-agent system, 0027: autonomous workflows, 0028: personal AI).
+multi-agent system, 0027: autonomous workflows, 0028: personal AI,
+0029: enterprise foundation).
 Phases 0-4, all of Phase 5 (5a, 5b, 5c), all of Phase 6 (6a, 6b, 6c, 6d),
 Phase 7, all of Phase 8 (8a, 8b, 8c, 8d), all of Phase 9 (9a, 9b, 9c,
-9d), Phase 10, Phase 11, Phase 12, and Phase 13 are done — every phase
-in the original 7-phase plan, the mobile phase, the Cognitive Engine
-roadmap, and the AI Platform roadmap that followed it.
+9d), Phase 10, Phase 11, Phase 12, Phase 13, and Phase 14 are done —
+every phase in the original 7-phase plan, the mobile phase, the
+Cognitive Engine roadmap, and the AI Platform roadmap that followed it.
+Phase 14 is a foundation slice, not the full roadmap vision -- see its
+ADR (0029) for exactly what's still missing (full tenant isolation,
+Teams, RBAC 2.0).
 
-This README covers what's built, frozen at Phase 13 — it does not grow
-a new section per future phase. Phase 14 onward (Enterprise and
+This README covers what's built, frozen at Phase 14 — it does not grow
+a new section per future phase. Phase 15 onward (Learning Platform and
 beyond) is specified in [`docs/roadmap/`](docs/roadmap/), one file per
 phase, written before implementation starts.
 
@@ -155,6 +159,14 @@ ADR 0004).
   Scoped to one preference, `preferred_language`, wired into `/chat`'s
   system prompt so it changes behavior across future conversations
   without being restated. See ADR 0028.
+- **Phase 14** — Enterprise foundation (`api/organizations.py`,
+  `GET`/`PUT /organizations/me/policies`): an `Organization` every user
+  belongs to (all pre-existing users backfilled into one "Default
+  Organization" via a safe nullable-then-NOT-NULL migration, verified
+  against the live users table), and one real per-organization policy
+  override (`approval_required_goals`, overriding Planning Engine's
+  hardcoded default). Deliberately a foundation slice, not full
+  multi-tenancy -- no per-table data isolation yet. See ADR 0029.
 
 `apps/signal-bot` bridges Signal to `/chat`: polls
 `signal-cli-rest-api` for incoming messages on the registered number
@@ -417,5 +429,12 @@ reachable from the public internet on this host, on 80 (redirects to
     never expires), wired into `/chat`'s system prompt. Scoped to the
     roadmap's own testable example rather than the three services
     (profile/preferences/context) it proposed. See ADR 0028.
+14. Enterprise (foundation done) — `Organization` + `User.organization_id`
+    (safe nullable-then-NOT-NULL migration, backfilled against 845 live
+    users with zero test breakage), and one real per-organization
+    policy override. Deliberately not the full roadmap: no per-table
+    tenant isolation, no Teams, no RBAC 2.0 yet -- see ADR 0029 for
+    exactly what's still missing and why the full retrofit is its own
+    future phase.
 
-See [`docs/roadmap/`](docs/roadmap/) for Phase 14 onward.
+See [`docs/roadmap/`](docs/roadmap/) for Phase 15 onward.
