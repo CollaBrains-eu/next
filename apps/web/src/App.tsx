@@ -6,6 +6,8 @@ import DocumentDetail from "./routes/DocumentDetail";
 import Chat from "./routes/Chat";
 import Legal from "./routes/Legal";
 import Tasks from "./routes/Tasks";
+import Entities from "./routes/Entities";
+import EntityGraph from "./routes/EntityGraph";
 import NotFound from "./routes/NotFound";
 
 const NAV_ITEMS = [
@@ -13,6 +15,7 @@ const NAV_ITEMS = [
   { to: "/chat", label: "AI Chat" },
   { to: "/legal", label: "Legal Draft" },
   { to: "/tasks", label: "Tasks" },
+  { to: "/entities", label: "Entities" },
 ];
 
 function HeaderUser() {
@@ -93,6 +96,22 @@ function Layout() {
             element={
               <ProtectedRoute>
                 <Tasks />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/entities"
+            element={
+              <ProtectedRoute>
+                <Entities />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/entities/:id"
+            element={
+              <ProtectedRoute>
+                <EntityGraph />
               </ProtectedRoute>
             }
           />

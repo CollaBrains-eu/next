@@ -3,14 +3,15 @@
 Privacy-first AI knowledge platform. AI is the central orchestration layer;
 users interact via Web, Admin, Signal (chat-first), and later Mobile.
 
-## Status: Phase 5b — Chat, Legal Draft & Task UI
+## Status: Phase 5c — Entity Graph Visualization
 
 See `docs/adr/` for the architecture decisions behind this build
 (0001: scaffold, 0002: document pipeline, 0003: AI Gateway/Orchestrator,
 0004: Legal/Planner agents + workflow, 0005: Signal bot, 0006: Signal
 identity linking, 0007: Signal attachments & notifications, 0008: entity
-graph, 0009: frontend auth & documents, 0010: chat/legal/tasks UI), and
-the phase plan below for what's next. Phases 0-4, 5a, and 5b are done.
+graph, 0009: frontend auth & documents, 0010: chat/legal/tasks UI, 0011:
+entity graph UI), and the phase plan below for what's next. Phases 0-4
+and all of Phase 5 (5a, 5b, 5c) are done.
 
 ## Repo layout
 
@@ -83,7 +84,17 @@ inline citation links back to source documents), Legal Draft (`/legal`
 route — one-shot grounded drafting scoped to selected documents, always
 shows the attorney-review disclaimer), and Tasks (`/tasks` route — list
 with open/done/all filter, checkbox toggle calling `PATCH /tasks/{id}`).
-The entity graph visualization is Phase 5c.
+Phase 5c (ADR 0011) adds the entity graph explorer: a searchable/
+type-filterable `/entities` list backed by `GET /entities`, and
+`/entities/:id`, a hand-written SVG radial layout of that entity's
+one-hop neighborhood (`GET /entities/{id}/graph`) — center node in the
+middle, direct relationships arranged around it with labeled edges.
+Clicking any neighbor node re-centers the graph on it, which is how
+multi-hop exploration works given the backend only ever returns one hop
+at a time (a deliberate Phase 4 design choice, not a limitation worked
+around). No graph-layout library was added — for an always-small
+hub-and-spoke shape, a circular placement is simpler than pulling in
+d3-force or similar.
 
 ## Local development
 
@@ -128,9 +139,10 @@ cd apps/web && pnpm test
 4. Case intelligence & entity graph (done) — entity/relationship
    extraction (Entity Agent), one-hop graph query API. The visual graph
    view itself is Phase 5c scope.
-5. Frontend integration — split into:
+5. Frontend integration (done) — split into:
    - 5a (done): auth (login, JWT, protected routes), document library
      (list, upload, detail, search)
    - 5b (done): AI chat UI, Legal draft UI, Task list UI
-   - 5c: entity graph visualization
+   - 5c (done): entity graph explorer (searchable list + one-hop SVG
+     radial view, click-to-recenter for multi-hop exploration)
 6. Production readiness — load testing, hardening, monitoring

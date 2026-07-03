@@ -180,3 +180,41 @@ export function updateTaskStatus(id: string, status: "open" | "done"): Promise<T
     body: JSON.stringify({ status }),
   });
 }
+
+export interface EntityOut {
+  id: string;
+  name: string;
+  entity_type: string;
+  created_at: string;
+}
+
+export function listEntities(q?: string, entityType?: string): Promise<EntityOut[]> {
+  const params = new URLSearchParams();
+  if (q) params.set("q", q);
+  if (entityType) params.set("entity_type", entityType);
+  const query = params.toString();
+  return request<EntityOut[]>(`/entities${query ? `?${query}` : ""}`);
+}
+
+export interface GraphNode {
+  id: string;
+  name: string;
+  entity_type: string;
+}
+
+export interface GraphEdge {
+  source: string;
+  target: string;
+  relationship_type: string;
+  document_id: string | null;
+}
+
+export interface EntityGraphOut {
+  center: GraphNode;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+export function getEntityGraph(id: string): Promise<EntityGraphOut> {
+  return request<EntityGraphOut>(`/entities/${id}/graph`);
+}
