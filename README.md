@@ -1,9 +1,9 @@
 # CollaBrains
 
 Privacy-first AI knowledge platform. AI is the central orchestration layer;
-users interact via Web, Admin, Signal (chat-first), and later Mobile.
+users interact via Web, Mobile, Signal (chat-first), and later Admin.
 
-## Status: All planned phases complete (0-6)
+## Status: Phase 7 — Mobile App
 
 See `docs/adr/` for the architecture decisions behind this build
 (0001: scaffold, 0002: document pipeline, 0003: AI Gateway/Orchestrator,
@@ -11,8 +11,10 @@ See `docs/adr/` for the architecture decisions behind this build
 identity linking, 0007: Signal attachments & notifications, 0008: entity
 graph, 0009: frontend auth & documents, 0010: chat/legal/tasks UI, 0011:
 entity graph UI, 0012: TLS & reverse proxy, 0013: backups, 0014:
-monitoring & alerting, 0015: load testing). Phases 0-4, all of Phase 5
-(5a, 5b, 5c), and all of Phase 6 (6a, 6b, 6c, 6d) are done.
+monitoring & alerting, 0015: load testing, 0016: mobile app foundation).
+Phases 0-4, all of Phase 5 (5a, 5b, 5c), all of Phase 6 (6a, 6b, 6c, 6d),
+and Phase 7 are done — every phase in both the original 7-phase plan and
+the subsequent mobile phase.
 
 The app is live at **https://v78281.1blu.de** (real Let's Encrypt
 certificate, auto-renewing). `api` and the Vite dev server are no longer
@@ -30,11 +32,12 @@ reachable from the public internet — see "Production deployment" below.
   server, signal-cli registration data)
 - `docs/adr/` — architecture decision records
 
-`services/api`, `apps/web`, and `apps/signal-bot` have working code.
-Everything else is scaffolded with a README stub and gets built out phase
-by phase — including `services/ai-gateway`, `services/ai-orchestrator`,
-and `services/workflow`, whose actual implementation currently lives
-inside `services/api` (see ADR 0003 and ADR 0004).
+`services/api`, `apps/web`, `apps/signal-bot`, and `apps/mobile` have
+working code. Everything else (`apps/admin`) is scaffolded with a README
+stub and gets built out phase by phase — including `services/ai-gateway`,
+`services/ai-orchestrator`, and `services/workflow`, whose actual
+implementation currently lives inside `services/api` (see ADR 0003 and
+ADR 0004).
 
 `services/api` covers:
 
@@ -169,6 +172,26 @@ usable but slow (worst case ~85s) at 8. The test users were provisioned
 and torn down completely afterward (LDAP + Postgres), same cleanup
 discipline as every other phase's live testing.
 
+Phase 7 (ADR 0016) added `apps/mobile` — a React Native / Expo app
+covering document browsing/search, AI chat, tasks, and the entity graph,
+read-mostly by design (no upload, no Legal Draft, no App/Play Store
+distribution yet — see the ADR for why). Reuses the same
+`lib/api.ts`/`lib/auth.tsx` shape as `apps/web`, talks directly to
+`https://v78281.1blu.de` (Phase 6a's public HTTPS made this
+straightforward — no tunnel or CORS concerns for a native app), and
+ports the entity graph's radial SVG layout to `react-native-svg` with
+the Phase 5c click-target fix built in from the start rather than
+re-discovered. Verified with a real device over Expo's tunnel mode, not
+just `tsc`/`vitest` — which is what caught two real bugs neither of
+those would have: the project was initially scaffolded against Expo SDK
+57, one release ahead of what the currently-published Expo Go app
+actually supports (confirmed via Expo's own version API, not assumed),
+requiring a downgrade to SDK 54; and React Native's `fetch` doesn't
+reliably serialize a `URLSearchParams` body the way browser `fetch`
+does, which silently sent an empty login request and got rejected by
+the backend — fixed by building the encoded string directly, with a
+regression test added.
+
 ## Local development
 
 ```bash
@@ -247,3 +270,7 @@ reachable from the public internet on this host, on 80 (redirects to
      up to ~2 concurrent chat/draft users on this CPU-only host, usable
      but slow up to ~8; Ollama's `NUM_PARALLEL:1` is the bottleneck, not
      the database
+7. Mobile app (done) — React Native/Expo, `apps/mobile`. Document
+   browsing/search, AI chat, tasks, entity graph. Read-mostly (no
+   upload, no Legal Draft); testable build only, no store distribution
+   yet. See ADR 0016.
