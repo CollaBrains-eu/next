@@ -4,8 +4,15 @@ Per ADR 0003, this covers model selection (single configured default),
 per-user rate limiting (Redis, fixed window), and an audit log of every
 call -- not a multi-provider routing layer, since there's exactly one
 model/provider in play so far.
+
+chat_completion_with_tools (Phase 9d, ADR 0024) shares the same
+rate-limit/call/audit-log machinery via _call_ollama, but returns the
+raw response message (content + optional tool_calls) instead of just
+the content string -- chat_completion's contract is unchanged for its
+many existing callers.
 """
 import time
+from typing import Any
 from uuid import UUID
 
 import httpx
@@ -31,31 +38,25 @@ async def _check_rate_limit(user_id: UUID) -> None:
         )
 
 
-async def chat_completion(
+async def _call_ollama(
     messages: list[dict],
     *,
     user_id: UUID,
     endpoint: str,
-    model: str | None = None,
-    json_mode: bool = False,
-) -> str:
-    """Set json_mode=True for prompts that require valid JSON output.
-
-    Uses Ollama's grammar-constrained JSON decoding ("format": "json") rather
-    than relying on prompt instructions alone -- a small model asked only in
-    the prompt to "return JSON" can and does occasionally produce malformed
-    output (mismatched braces, missing closing brackets) on more complex
-    structures. Confirmed directly: the Entity Agent's extraction prompt
-    (docs/adr/0008-phase4-entity-graph.md) hit this on its first live test.
-    """
+    model: str | None,
+    json_mode: bool,
+    tools: list[dict[str, Any]] | None,
+) -> dict[str, Any]:
     await _check_rate_limit(user_id)
 
     chosen_model = model or settings.chat_model
     start = time.monotonic()
     async with httpx.AsyncClient(base_url=settings.ollama_url, timeout=120.0) as client:
-        request_body = {"model": chosen_model, "messages": messages, "stream": False}
+        request_body: dict[str, Any] = {"model": chosen_model, "messages": messages, "stream": False}
         if json_mode:
             request_body["format"] = "json"
+        if tools:
+            request_body["tools"] = tools
         response = await client.post("/api/chat", json=request_body)
         response.raise_for_status()
         payload = response.json()
@@ -75,4 +76,50 @@ async def chat_completion(
         )
         await db.commit()
 
-    return payload["message"]["content"]
+    return payload["message"]
+
+
+async def chat_completion(
+    messages: list[dict],
+    *,
+    user_id: UUID,
+    endpoint: str,
+    model: str | None = None,
+    json_mode: bool = False,
+) -> str:
+    """Set json_mode=True for prompts that require valid JSON output.
+
+    Uses Ollama's grammar-constrained JSON decoding ("format": "json") rather
+    than relying on prompt instructions alone -- a small model asked only in
+    the prompt to "return JSON" can and does occasionally produce malformed
+    output (mismatched braces, missing closing brackets) on more complex
+    structures. Confirmed directly: the Entity Agent's extraction prompt
+    (docs/adr/0008-phase4-entity-graph.md) hit this on its first live test.
+    """
+    message = await _call_ollama(
+        messages, user_id=user_id, endpoint=endpoint, model=model, json_mode=json_mode, tools=None,
+    )
+    return message["content"]
+
+
+async def chat_completion_with_tools(
+    messages: list[dict],
+    *,
+    user_id: UUID,
+    endpoint: str,
+    tools: list[dict[str, Any]],
+    model: str | None = None,
+) -> dict[str, Any]:
+    """Like chat_completion, but offers the model a set of callable tools
+    (Phase 9d, ADR 0024) via Ollama's native function-calling and returns
+    the raw response message instead of just its content -- callers must
+    check for a "tool_calls" key themselves.
+
+    Executing a requested tool call (looking it up in the registry,
+    dispatching it, feeding a result back for a second round-trip) is
+    deliberately not this function's job -- see ADR 0024 for why that loop
+    is out of scope here.
+    """
+    return await _call_ollama(
+        messages, user_id=user_id, endpoint=endpoint, model=model, json_mode=False, tools=tools,
+    )

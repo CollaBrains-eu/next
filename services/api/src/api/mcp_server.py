@@ -12,7 +12,13 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.tool_registry import ToolDescriptor, ToolPermissionError, dispatch, list_tools
+from api.tool_registry import (
+    ToolDescriptor,
+    ToolPermissionError,
+    _input_schema_to_json_schema,
+    dispatch,
+    list_tools,
+)
 
 PROTOCOL_VERSION = "2024-11-05"
 SERVER_NAME = "collabrains-mcp"
@@ -23,31 +29,6 @@ METHOD_NOT_FOUND = -32601
 # Never let a caller override these via `arguments` -- user_id must always
 # come from the authenticated session, db from the request's own session.
 _RESERVED_ARGUMENT_NAMES = {"db", "user_id"}
-
-
-def _field_to_json_schema(prose: str) -> dict[str, Any]:
-    """Best-effort translation of a ToolDescriptor prose type into JSON Schema.
-
-    Deliberately narrow: maps the first word to string/integer/boolean/array,
-    defaulting to string for anything unrecognized. See ADR 0022 for why this
-    exists instead of changing ToolDescriptor.input_schema's format.
-    """
-    first_word = prose.strip().split()[0].lower() if prose.strip() else "string"
-    json_type = first_word if first_word in {"string", "integer", "boolean", "array"} else "string"
-    schema: dict[str, Any] = {"type": json_type}
-    if json_type == "array":
-        schema["items"] = {"type": "string"}
-    return schema
-
-
-def _input_schema_to_json_schema(input_schema: dict[str, str]) -> dict[str, Any]:
-    properties: dict[str, Any] = {}
-    required: list[str] = []
-    for field_name, prose in input_schema.items():
-        properties[field_name] = _field_to_json_schema(prose)
-        if "(optional" not in prose:
-            required.append(field_name)
-    return {"type": "object", "properties": properties, "required": required}
 
 
 def _tool_to_mcp_schema(tool: ToolDescriptor) -> dict[str, Any]:
