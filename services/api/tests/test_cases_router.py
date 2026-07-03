@@ -1,7 +1,11 @@
 from unittest.mock import patch
 from uuid import uuid4
 
+from sqlalchemy import select
+
+from api.db import async_session
 from api.ldap_auth import LdapIdentity
+from api.models import Decision, Document, Task, User
 
 
 async def _login(client, username: str) -> str:
@@ -139,3 +143,122 @@ async def test_create_case_rejects_empty_name(client):
         "/cases", headers={"Authorization": f"Bearer {token}"}, json={"name": ""}
     )
     assert response.status_code == 422
+
+
+async def _user_id_for(username: str):
+    async with async_session() as db:
+        return (await db.execute(select(User).where(User.username == username))).scalar_one().id
+
+
+async def _create_document(owner_id) -> Document:
+    async with async_session() as db:
+        document = Document(
+            owner_id=owner_id, title="t", filename="t.pdf", mime_type="application/pdf", status="ready",
+        )
+        db.add(document)
+        await db.commit()
+        await db.refresh(document)
+        return document
+
+
+async def _create_task(created_by) -> Task:
+    async with async_session() as db:
+        task = Task(title="Do the thing", source="manual", created_by=created_by)
+        db.add(task)
+        await db.commit()
+        await db.refresh(task)
+        return task
+
+
+async def _create_decision(user_id) -> Decision:
+    async with async_session() as db:
+        decision = Decision(user_id=user_id, summary="Approved something")
+        db.add(decision)
+        await db.commit()
+        await db.refresh(decision)
+        return decision
+
+
+async def test_attach_document_to_case_via_put(client):
+    token = await _login(client, "caserouteruser14")
+    headers = {"Authorization": f"Bearer {token}"}
+    user_id = await _user_id_for("caserouteruser14")
+    document = await _create_document(user_id)
+
+    create_response = await client.post("/cases", headers=headers, json={"name": "A case"})
+    case_id = create_response.json()["id"]
+
+    put_response = await client.put(
+        f"/documents/{document.id}/case", headers=headers, json={"case_id": case_id}
+    )
+    assert put_response.status_code == 200
+
+    dashboard = await client.get(f"/cases/{case_id}", headers=headers)
+    assert [d["id"] for d in dashboard.json()["documents"]] == [str(document.id)]
+
+
+async def test_attach_document_rejects_non_owner_document(client):
+    await _login(client, "caserouteruser15")
+    intruder_token = await _login(client, "caserouteruser16")
+    owner_id = await _user_id_for("caserouteruser15")
+    document = await _create_document(owner_id)
+
+    create_response = await client.post(
+        "/cases", headers={"Authorization": f"Bearer {intruder_token}"}, json={"name": "Intruder's case"}
+    )
+    case_id = create_response.json()["id"]
+
+    response = await client.put(
+        f"/documents/{document.id}/case",
+        headers={"Authorization": f"Bearer {intruder_token}"}, json={"case_id": case_id},
+    )
+    assert response.status_code == 403
+
+
+async def test_link_task_to_case(client):
+    token = await _login(client, "caserouteruser17")
+    headers = {"Authorization": f"Bearer {token}"}
+    user_id = await _user_id_for("caserouteruser17")
+    task = await _create_task(user_id)
+
+    create_response = await client.post("/cases", headers=headers, json={"name": "A case"})
+    case_id = create_response.json()["id"]
+
+    link_response = await client.post(f"/cases/{case_id}/tasks/{task.id}", headers=headers)
+    assert link_response.status_code == 204
+
+    dashboard = await client.get(f"/cases/{case_id}", headers=headers)
+    assert [t["id"] for t in dashboard.json()["tasks"]] == [str(task.id)]
+
+
+async def test_link_task_rejects_non_owner_task(client):
+    await _login(client, "caserouteruser18")
+    intruder_token = await _login(client, "caserouteruser19")
+    owner_id = await _user_id_for("caserouteruser18")
+    task = await _create_task(owner_id)
+
+    create_response = await client.post(
+        "/cases", headers={"Authorization": f"Bearer {intruder_token}"}, json={"name": "Intruder's case"}
+    )
+    case_id = create_response.json()["id"]
+
+    response = await client.post(
+        f"/cases/{case_id}/tasks/{task.id}", headers={"Authorization": f"Bearer {intruder_token}"}
+    )
+    assert response.status_code == 403
+
+
+async def test_link_decision_to_case(client):
+    token = await _login(client, "caserouteruser20")
+    headers = {"Authorization": f"Bearer {token}"}
+    user_id = await _user_id_for("caserouteruser20")
+    decision = await _create_decision(user_id)
+
+    create_response = await client.post("/cases", headers=headers, json={"name": "A case"})
+    case_id = create_response.json()["id"]
+
+    link_response = await client.post(f"/cases/{case_id}/decisions/{decision.id}", headers=headers)
+    assert link_response.status_code == 204
+
+    dashboard = await client.get(f"/cases/{case_id}", headers=headers)
+    assert [d["id"] for d in dashboard.json()["decisions"]] == [str(decision.id)]
