@@ -3,7 +3,7 @@
 Privacy-first AI knowledge platform. AI is the central orchestration layer;
 users interact via Web, Admin, Signal (chat-first), and later Mobile.
 
-## Status: Phase 6c — Monitoring & Alerting
+## Status: All planned phases complete (0-6)
 
 See `docs/adr/` for the architecture decisions behind this build
 (0001: scaffold, 0002: document pipeline, 0003: AI Gateway/Orchestrator,
@@ -11,8 +11,8 @@ See `docs/adr/` for the architecture decisions behind this build
 identity linking, 0007: Signal attachments & notifications, 0008: entity
 graph, 0009: frontend auth & documents, 0010: chat/legal/tasks UI, 0011:
 entity graph UI, 0012: TLS & reverse proxy, 0013: backups, 0014:
-monitoring & alerting), and the phase plan below for what's next. Phases
-0-4, all of Phase 5 (5a, 5b, 5c), and 6a-6c are done.
+monitoring & alerting, 0015: load testing). Phases 0-4, all of Phase 5
+(5a, 5b, 5c), and all of Phase 6 (6a, 6b, 6c, 6d) are done.
 
 The app is live at **https://v78281.1blu.de** (real Let's Encrypt
 certificate, auto-renewing). `api` and the Vite dev server are no longer
@@ -153,6 +153,22 @@ would silently drop out of both the expected and running lists at once
 and never be flagged. Fixed using `docker compose ps -a` (all states)
 instead.
 
+Phase 6d (ADR 0015) closed out Phase 6 with a real load test
+(`infra/loadtest/loadtest.py`, no framework — a short `asyncio`+`httpx`
+script) against `/chat` (LLM-bound) and `/search` (DB-only baseline) at
+concurrency 1/2/4/8, using 8 disposable test users so the per-user rate
+limiter didn't distort the results. Full numbers and analysis in
+`docs/runbooks/capacity.md`; the short version: Postgres search stays
+under a second even at 8 concurrent requests, but Ollama runs with
+`OLLAMA_NUM_PARALLEL:1` on this host (confirmed directly in its startup
+log, never explicitly configured either way) — generation requests
+fully serialize, and `docker stats` showed Ollama alone using 752% of
+this 8-vCPU host's CPU during the concurrency=8 run. Practical guidance:
+comfortable up to ~2 people using chat/legal-draft at the same moment,
+usable but slow (worst case ~85s) at 8. The test users were provisioned
+and torn down completely afterward (LDAP + Postgres), same cleanup
+discipline as every other phase's live testing.
+
 ## Local development
 
 ```bash
@@ -227,5 +243,7 @@ reachable from the public internet on this host, on 80 (redirects to
      restore procedure (`docs/runbooks/backup-restore.md`)
    - 6c (done): health watchdog (containers, internal+public
      `/health`, disk usage) alerting over Signal on state transitions
-   - 6d: load testing to document real capacity limits on this
-     CPU-only host
+   - 6d (done): load testing (`docs/runbooks/capacity.md`) — comfortable
+     up to ~2 concurrent chat/draft users on this CPU-only host, usable
+     but slow up to ~8; Ollama's `NUM_PARALLEL:1` is the bottleneck, not
+     the database
