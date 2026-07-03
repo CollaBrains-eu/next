@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.documents import _generate_summary
 from api.entity_agent import extract_entities
+from api.knowledge_graph import create_decision_from_plan
 from api.legal import _generate_draft
 from api.models import Document, Entity, EntityMention, Plan, PlanStep, Task
 from api.planner_agent import extract_tasks
@@ -243,6 +244,12 @@ async def approve_plan(db: AsyncSession, *, plan_id: UUID, user_id: UUID, is_adm
 
     await execute_plan(db, plan_id=plan.id)
     await db.refresh(plan)
+
+    try:
+        await create_decision_from_plan(db, plan=plan, user_id=user_id)
+    except Exception:  # noqa: BLE001 - recording the decision must never fail the approval that already happened
+        logger.exception("failed to record Decision for approved plan %s", plan.id)
+
     return plan
 
 

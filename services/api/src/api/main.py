@@ -6,6 +6,7 @@ from api import tools as _tools  # noqa: F401 - import side effect: registers bu
 from api.auth import router as auth_router
 from api.chat import router as chat_router
 from api.db import engine
+from api.decisions import router as decisions_router
 from api.documents import router as documents_router, search_router
 from api.entities import router as entities_router
 from api.legal import router as legal_router
@@ -36,6 +37,7 @@ app.include_router(memories_router)
 app.include_router(plans_router)
 app.include_router(tools_router)
 app.include_router(mcp_router)
+app.include_router(decisions_router)
 
 
 @app.get("/health")
