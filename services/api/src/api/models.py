@@ -3,7 +3,7 @@ from datetime import date, datetime
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import Computed, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
-from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from api.config import settings
@@ -166,3 +166,32 @@ class EntityRelationship(Base):
     relationship_type: Mapped[str] = mapped_column(String(255), nullable=False)
     document_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("documents.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Memory(Base):
+    """Persistent AI memory (Phase 8b, ADR 0018).
+
+    `memory_type` is one of `episodic` (conversation summaries), `semantic`
+    (facts about users/entities/cases), or `procedural` (reusable
+    workflows/plans) -- enforced in application code (api/memory.py), not a
+    DB enum, the same choice ADR 0008 made for `Entity.entity_type`.
+    `json_data` holds type-specific structured extras a summary string can't
+    carry (e.g. a structured entity/document reference). Retrieval is by
+    `embedding` similarity (HNSW cosine index, same strategy as
+    `DocumentChunk`), scoped to `user_id` and non-expired rows.
+    """
+
+    __tablename__ = "memories"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    memory_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    importance: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(Vector(settings.embedding_dim), nullable=False)
+    json_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
