@@ -2,8 +2,8 @@ import uuid
 from datetime import date, datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Computed, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
-from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
+from sqlalchemy import Boolean, Computed, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from api.config import settings
@@ -166,3 +166,51 @@ class EntityRelationship(Base):
     relationship_type: Mapped[str] = mapped_column(String(255), nullable=False)
     document_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("documents.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Plan(Base):
+    """A goal decomposed into an ordered sequence of steps (Phase 8c, ADR 0019).
+
+    `goal_type` is one of `planning_engine.GOAL_TYPES`; `goal_params` holds
+    whatever that goal template needs (usually `document_ids`).
+    `requires_approval` gates execution behind `POST /plans/{id}/approve`
+    for goals whose output is meant to leave the system (drafts) -- see
+    the ADR. `status` is `pending_approval`, `running`, `completed`,
+    `partially_failed`, or `failed`.
+    """
+
+    __tablename__ = "plans"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    goal_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    goal_params: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="pending_approval")
+    requires_approval: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class PlanStep(Base):
+    """One step of a `Plan`'s task tree, executed in `step_index` order.
+
+    `agent` selects the handler in `planning_engine.AGENT_DISPATCH`
+    (`document_agent`, `planner_agent`, `entity_agent`, `legal_agent`,
+    `collection_agent`, or `timeline_agent`). A failed step is retried
+    once by the engine before being recorded as `failed` -- it does not
+    abort the rest of the plan (ADR 0019).
+    """
+
+    __tablename__ = "plan_steps"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    plan_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("plans.id", ondelete="CASCADE"), nullable=False)
+    step_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    agent: Mapped[str] = mapped_column(String(50), nullable=False)
+    input_data: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="pending")
+    result_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
