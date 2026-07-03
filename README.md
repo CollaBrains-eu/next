@@ -3,7 +3,7 @@
 Privacy-first AI knowledge platform. AI is the central orchestration layer;
 users interact via Web, Mobile, Signal (chat-first), and later Admin.
 
-## Status: Phase 7 — Mobile App
+## Status: Phase 8 — Cognitive Engine
 
 See `docs/adr/` for the architecture decisions behind this build
 (0001: scaffold, 0002: document pipeline, 0003: AI Gateway/Orchestrator,
@@ -11,10 +11,13 @@ See `docs/adr/` for the architecture decisions behind this build
 identity linking, 0007: Signal attachments & notifications, 0008: entity
 graph, 0009: frontend auth & documents, 0010: chat/legal/tasks UI, 0011:
 entity graph UI, 0012: TLS & reverse proxy, 0013: backups, 0014:
-monitoring & alerting, 0015: load testing, 0016: mobile app foundation).
+monitoring & alerting, 0015: load testing, 0016: mobile app foundation,
+0017: event bus, 0018: long-term memory, 0019: planning engine, 0020:
+reflection engine).
 Phases 0-4, all of Phase 5 (5a, 5b, 5c), all of Phase 6 (6a, 6b, 6c, 6d),
-and Phase 7 are done — every phase in both the original 7-phase plan and
-the subsequent mobile phase.
+Phase 7, and all of Phase 8 (8a, 8b, 8c, 8d) are done — every phase in
+the original 7-phase plan, the mobile phase, and the Cognitive Engine
+roadmap that followed it.
 
 The app is live at **https://v78281.1blu.de** (real Let's Encrypt
 certificate, auto-renewing). `api` and the Vite dev server are no longer
@@ -61,6 +64,40 @@ ADR 0004).
   `PATCH /tasks/{id}`) that extracts actionable items from document text;
   and a minimal in-process workflow trigger (document ready → auto
   task-extraction). See ADR 0004.
+- **Phase 8a** — an in-process event bus (`api/events.py`): handlers are
+  awaited inline so existing test-timing assumptions hold, while every
+  event is also durably logged to a Redis Stream (retry with backoff,
+  dead-letter queue after 3 attempts, idempotent re-dispatch) for
+  audit/replay. The document pipeline (`api/documents.py`) now runs as a
+  chain of events (`DocumentUploaded` → `OCRCompleted` →
+  `EmbeddingsCreated` → `TasksCreated`/`EntitiesExtracted` →
+  `NotificationRequested` → `WorkflowCompleted`) instead of one
+  sequential function. See ADR 0017.
+- **Phase 8b** — persistent AI memory (`api/memory.py`, `memories` table):
+  episodic/semantic/procedural memories, embedded and retrieved by cosine
+  similarity (HNSW, same strategy as document chunks), scoped per user.
+  `/chat` retrieves relevant past-conversation memories and injects them
+  alongside document context; after responding, a background task
+  extracts a new memory from the exchange if it's worth keeping. See ADR
+  0018.
+- **Phase 8c** — a Planning Engine (`api/planning_engine.py`,
+  `POST /plans`, `POST /plans/{id}/approve`): decomposes a goal into a
+  fixed, deterministic sequence of steps (not an LLM-improvised graph —
+  the same "smallest safe slice" reasoning ADR 0004 applied one level up)
+  dispatched across the existing Document/Legal/Entity/Planner agents plus
+  two new no-LLM aggregations (document-collection organization,
+  timeline generation). A failing step is retried once, then isolated —
+  it doesn't abort the rest of the plan. Goals whose output leaves the
+  system (drafting) require explicit approval before they run. See ADR
+  0019.
+- **Phase 8d** — a Reflection Engine (`api/reflection.py`): after `/chat`
+  and `/legal/draft` generate an answer, a second LLM call judges whether
+  the retrieved context actually supported it, retrying retrieval once
+  with a wider net if not. Wired into the same `_generate_draft` function
+  the Planning Engine's Legal Agent step calls, so plan-initiated drafts
+  get the same hallucination check as direct API calls. Results are
+  logged to a `reflection_log` audit table; a reflection failure never
+  blocks or alters the response actually returned. See ADR 0020.
 
 `apps/signal-bot` bridges Signal to `/chat`: polls
 `signal-cli-rest-api` for incoming messages on the registered number
@@ -274,3 +311,20 @@ reachable from the public internet on this host, on 80 (redirects to
    browsing/search, AI chat, tasks, entity graph. Read-mostly (no
    upload, no Legal Draft); testable build only, no store distribution
    yet. See ADR 0016.
+8. Cognitive Engine (done) — split into four independently deployable
+   milestones, each built from `main` rather than stacked on the others:
+   - 8a (done): in-process event bus with durable Redis Stream logging,
+     retry/backoff, and a dead-letter queue; the document pipeline runs
+     as an event chain instead of one sequential function. See ADR 0017.
+   - 8b (done): persistent episodic/semantic/procedural AI memory,
+     retrieved by embedding similarity and injected into `/chat`;
+     extracted automatically from exchanges worth remembering. See ADR
+     0018.
+   - 8c (done): a Planning Engine that decomposes a goal into a fixed,
+     deterministic step sequence across the existing agents, with
+     retry-once-then-isolate failure handling and approval-gating for
+     goals whose output leaves the system. See ADR 0019.
+   - 8d (done): a Reflection Engine that reviews every `/chat` and
+     `/legal/draft` answer against its retrieved context, retrying
+     retrieval once if the evidence looks insufficient, and logging the
+     verdict to an audit table. See ADR 0020.
