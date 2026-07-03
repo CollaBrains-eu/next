@@ -6,7 +6,13 @@ from sqlalchemy import select
 
 from api.db import async_session
 from api.ldap_auth import LdapIdentity
-from api.memory import create_memory, delete_memory, maybe_create_memory_from_exchange, retrieve_relevant_memories
+from api.memory import (
+    create_memory,
+    delete_memory,
+    maybe_create_memory_from_exchange,
+    reinforce_memories,
+    retrieve_relevant_memories,
+)
 from api.models import Memory, User
 
 FAKE_EMBEDDING = [0.1] * 768
@@ -185,6 +191,45 @@ async def test_maybe_create_memory_handles_unparseable_output_gracefully():
     assert result is None
 
 
+async def test_reinforce_memories_increases_importance():
+    user = await _make_user("mem-reinforce-user")
+
+    with patch("api.memory.embed_text", return_value=FAKE_EMBEDDING):
+        async with async_session() as db:
+            memory = await create_memory(
+                db, user_id=user.id, memory_type="semantic", summary="x", importance=50
+            )
+
+    async with async_session() as db:
+        await reinforce_memories(db, [memory.id], delta=5)
+
+    async with async_session() as db:
+        refreshed = await db.get(Memory, memory.id)
+        assert refreshed.importance == 55
+
+
+async def test_reinforce_memories_caps_at_100():
+    user = await _make_user("mem-reinforce-cap-user")
+
+    with patch("api.memory.embed_text", return_value=FAKE_EMBEDDING):
+        async with async_session() as db:
+            memory = await create_memory(
+                db, user_id=user.id, memory_type="semantic", summary="x", importance=98
+            )
+
+    async with async_session() as db:
+        await reinforce_memories(db, [memory.id], delta=5)
+
+    async with async_session() as db:
+        refreshed = await db.get(Memory, memory.id)
+        assert refreshed.importance == 100
+
+
+async def test_reinforce_memories_handles_empty_list_without_error():
+    # should return before ever touching db, so a bogus db value is fine here
+    await reinforce_memories(None, [])
+
+
 async def test_chat_includes_relevant_memories_in_prompt_context(client):
     token, username = await _login_unique(client, "mem-chat-user")
     headers = {"Authorization": f"Bearer {token}"}
@@ -213,6 +258,76 @@ async def test_chat_includes_relevant_memories_in_prompt_context(client):
     user_turn = sent_messages[-1]["content"]
     assert "Relevant memories:" in user_turn
     assert "User prefers concise answers." in user_turn
+
+
+async def test_chat_reinforces_memories_used_in_a_sufficient_answer(client):
+    from api.reflection import ReflectionResult
+
+    token, username = await _login_unique(client, "mem-reinforce-chat-user")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    async with async_session() as db:
+        chat_user = (await db.execute(select(User).where(User.username == username))).scalar_one()
+
+    with patch("api.memory.embed_text", return_value=FAKE_EMBEDDING):
+        async with async_session() as db:
+            memory = await create_memory(
+                db, user_id=chat_user.id, memory_type="semantic", summary="Relevant fact.", importance=50
+            )
+
+    with (
+        patch("api.chat.hybrid_search", return_value=[]),
+        patch("api.chat.retrieve_relevant_memories", wraps=retrieve_relevant_memories),
+        patch("api.memory.embed_text", return_value=FAKE_EMBEDDING),
+        patch("api.chat.chat_completion", return_value="ok"),
+        patch("api.memory.chat_completion", return_value='{"should_remember": false}'),
+        patch(
+            "api.chat.reflect",
+            return_value=ReflectionResult(sufficient_evidence=True, confidence=90, issues=[]),
+        ),
+    ):
+        response = await client.post("/chat", headers=headers, json={"message": "What's the relevant fact?"})
+
+    assert response.status_code == 200
+
+    async with async_session() as db:
+        refreshed = await db.get(Memory, memory.id)
+    assert refreshed.importance == 55
+
+
+async def test_chat_does_not_reinforce_memories_on_insufficient_evidence(client):
+    from api.reflection import ReflectionResult
+
+    token, username = await _login_unique(client, "mem-no-reinforce-user")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    async with async_session() as db:
+        chat_user = (await db.execute(select(User).where(User.username == username))).scalar_one()
+
+    with patch("api.memory.embed_text", return_value=FAKE_EMBEDDING):
+        async with async_session() as db:
+            memory = await create_memory(
+                db, user_id=chat_user.id, memory_type="semantic", summary="Relevant fact.", importance=50
+            )
+
+    with (
+        patch("api.chat.hybrid_search", return_value=[]),
+        patch("api.chat.retrieve_relevant_memories", wraps=retrieve_relevant_memories),
+        patch("api.memory.embed_text", return_value=FAKE_EMBEDDING),
+        patch("api.chat.chat_completion", return_value="ok"),
+        patch("api.memory.chat_completion", return_value='{"should_remember": false}'),
+        patch(
+            "api.chat.reflect",
+            return_value=ReflectionResult(sufficient_evidence=False, confidence=20, issues=["no evidence"]),
+        ),
+    ):
+        response = await client.post("/chat", headers=headers, json={"message": "What's the relevant fact?"})
+
+    assert response.status_code == 200
+
+    async with async_session() as db:
+        refreshed = await db.get(Memory, memory.id)
+    assert refreshed.importance == 50
 
 
 async def test_list_and_delete_memories_via_api(client):

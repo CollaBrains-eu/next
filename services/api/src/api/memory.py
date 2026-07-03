@@ -109,6 +109,23 @@ async def delete_memory(db: AsyncSession, *, memory_id: UUID, user_id: UUID, is_
     return True
 
 
+async def reinforce_memories(db: AsyncSession, memory_ids: list[UUID], *, delta: int = 5) -> None:
+    """Bump importance for memories that contributed to a verified-sufficient
+    answer (Phase 12, ADR 0027).
+
+    Reward only, never decay: an insufficient-evidence verdict could be
+    about missing document context, not the memory's fault, so there's no
+    symmetric penalty here -- see the ADR.
+    """
+    if not memory_ids:
+        return
+    result = await db.execute(select(Memory).where(Memory.id.in_(memory_ids)))
+    memories = list(result.scalars().all())
+    for memory in memories:
+        memory.importance = min(100, memory.importance + delta)
+    await db.commit()
+
+
 async def maybe_create_memory_from_exchange(
     db: AsyncSession, *, user_id: UUID, user_message: str, answer: str
 ) -> Memory | None:
