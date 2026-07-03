@@ -7,7 +7,15 @@ document context, never the model's own "knowledge" of law.
 `_generate_draft` is a plain function, not inlined in the endpoint, so the
 Planning Engine (Phase 8c, ADR 0019) can call the same code the HTTP
 endpoint does for the "Draft legal document"/"Prepare objection" goals.
+Reflection (Phase 8d, ADR 0020) lives inside `_generate_draft` itself for
+the same reason: wiring it into the shared function, not just the HTTP
+handler, means plan-initiated drafts get the same hallucination check as
+direct API calls, with no extra code at either call site. After drafting,
+Reflection checks whether the context actually supported it and retries
+retrieval once with a wider net if not; reflection failures never affect
+the returned draft -- see api.reflection and ADR 0020.
 """
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
@@ -19,9 +27,14 @@ from api.ai_gateway import chat_completion
 from api.auth import get_current_user
 from api.db import get_db
 from api.models import Document, User
+from api.reflection import log_reflection, reflect
 from api.search_service import hybrid_search
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/legal", tags=["legal"])
+
+REFLECTION_RETRY_CAP = 20
 
 DISCLAIMER = (
     "This is an AI-generated draft grounded only in the documents provided to it. "
@@ -58,12 +71,10 @@ class DraftResponse(BaseModel):
     disclaimer: str = DISCLAIMER
 
 
-async def _generate_draft(
-    db: AsyncSession, *, instruction: str, user_id: UUID, document_ids: list[UUID] | None = None,
-    context_chunks: int = 8,
-) -> DraftResponse:
-    scope = set(document_ids) if document_ids else None
-    hits = await hybrid_search(db, instruction, limit=context_chunks, document_ids=scope)
+async def _retrieve(
+    db: AsyncSession, instruction: str, limit: int, scope: set[UUID] | None
+) -> tuple[list[Citation], str]:
+    hits = await hybrid_search(db, instruction, limit=limit, document_ids=scope)
 
     citations: list[Citation] = []
     context_blocks: list[str] = []
@@ -84,12 +95,43 @@ async def _generate_draft(
             context_blocks.append(f"[{marker}] {hit.chunk.content}")
 
     context_text = "\n\n".join(context_blocks) if context_blocks else "(no relevant documents found)"
+    return citations, context_text
+
+
+async def _generate_draft(
+    db: AsyncSession, *, instruction: str, user_id: UUID, document_ids: list[UUID] | None = None,
+    context_chunks: int = 8,
+) -> DraftResponse:
+    scope = set(document_ids) if document_ids else None
+    citations, context_text = await _retrieve(db, instruction, context_chunks, scope)
 
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": f"Context:\n{context_text}\n\nDrafting instruction: {instruction}"},
     ]
     draft_text = await chat_completion(messages, user_id=user_id, endpoint="legal.draft")
+
+    try:
+        result = await reflect(
+            question=instruction, answer=draft_text, context_text=context_text,
+            user_id=user_id, endpoint="legal.draft",
+        )
+        retried = False
+        if not result.sufficient_evidence and context_chunks < REFLECTION_RETRY_CAP:
+            retry_limit = min(context_chunks * 2, REFLECTION_RETRY_CAP)
+            citations, context_text = await _retrieve(db, instruction, retry_limit, scope)
+            messages = [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": f"Context:\n{context_text}\n\nDrafting instruction: {instruction}"},
+            ]
+            draft_text = await chat_completion(messages, user_id=user_id, endpoint="legal.draft")
+            retried = True
+        await log_reflection(
+            db, user_id=user_id, endpoint="legal.draft", question=instruction,
+            result=result, retried=retried,
+        )
+    except Exception:  # noqa: BLE001 - reflection is a quality check, must never fail the draft response
+        logger.exception("reflection failed for legal draft request from user %s", user_id)
 
     return DraftResponse(draft=draft_text, citations=citations)
 

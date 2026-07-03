@@ -1,6 +1,9 @@
 from unittest.mock import patch
 
+from sqlalchemy import select
+
 from api.ldap_auth import LdapIdentity
+from api.reflection import ReflectionResult
 
 
 async def _login(client) -> str:
@@ -31,6 +34,57 @@ async def test_chat_returns_answer_with_citations(client):
 async def test_chat_rejects_missing_token(client):
     response = await client.post("/chat", json={"message": "hello"})
     assert response.status_code == 401
+
+
+async def test_chat_retries_retrieval_when_reflection_flags_insufficient_evidence(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    with (
+        patch("api.chat.hybrid_search", side_effect=[[], []]) as mock_hybrid,
+        patch("api.chat.chat_completion", side_effect=["first answer", "second answer"]) as mock_completion,
+        patch(
+            "api.chat.reflect",
+            return_value=ReflectionResult(sufficient_evidence=False, confidence=20, issues=["no evidence"]),
+        ),
+    ):
+        response = await client.post("/chat", headers=headers, json={"message": "What is our retention policy?"})
+
+    assert response.status_code == 200
+    assert response.json()["answer"] == "second answer"
+    assert mock_hybrid.call_count == 2
+    assert mock_hybrid.call_args_list[1].kwargs["limit"] == 10  # context_chunks default 5, doubled
+    assert mock_completion.call_count == 2
+
+    from api.db import async_session
+    from api.models import ReflectionLog, User
+
+    async with async_session() as db:
+        user = (await db.execute(select(User).where(User.username == "chatuser"))).scalar_one()
+        rows = (
+            await db.execute(select(ReflectionLog).where(ReflectionLog.user_id == user.id))
+        ).scalars().all()
+    assert any(row.retried is True for row in rows)
+
+
+async def test_chat_does_not_retry_when_reflection_flags_sufficient_evidence(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    with (
+        patch("api.chat.hybrid_search", return_value=[]) as mock_hybrid,
+        patch("api.chat.chat_completion", return_value="the only answer") as mock_completion,
+        patch(
+            "api.chat.reflect",
+            return_value=ReflectionResult(sufficient_evidence=True, confidence=95, issues=[]),
+        ),
+    ):
+        response = await client.post("/chat", headers=headers, json={"message": "What is our retention policy?"})
+
+    assert response.status_code == 200
+    assert response.json()["answer"] == "the only answer"
+    assert mock_hybrid.call_count == 1
+    assert mock_completion.call_count == 1
 
 
 async def _create_service_account_token(username: str = "test-signal-bot") -> str:
