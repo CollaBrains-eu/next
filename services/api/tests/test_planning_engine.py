@@ -5,7 +5,8 @@ from sqlalchemy import select
 
 from api.db import async_session
 from api.ldap_auth import LdapIdentity
-from api.models import Document
+from api.models import DEFAULT_ORGANIZATION_ID, Document
+from api.organizations import set_organization_policies
 from api.planning_engine import (
     approve_plan,
     build_steps,
@@ -117,6 +118,31 @@ async def test_create_plan_for_legal_goal_starts_pending_approval(client):
 
     assert plan.status == "pending_approval"
     assert plan.requires_approval is True
+
+
+async def test_create_plan_honors_an_organization_level_approval_override(client):
+    token, username = await _login(client, "plan-org-policy-user")
+    user_id = await _user_id_for(username)
+
+    async with async_session() as db:
+        await set_organization_policies(
+            db, organization_id=DEFAULT_ORGANIZATION_ID,
+            policies={"approval_required_goals": ["organize_document_collection"]},
+        )
+
+    try:
+        async with async_session() as db:
+            # normally auto-runs with no approval (ADR 0019) -- the org
+            # policy override makes it require approval instead (ADR 0029)
+            plan = await create_plan(
+                db, user_id=user_id, goal_type="organize_document_collection", goal_params={"document_ids": ["x"]}
+            )
+
+        assert plan.requires_approval is True
+        assert plan.status == "pending_approval"
+    finally:
+        async with async_session() as db:
+            await set_organization_policies(db, organization_id=DEFAULT_ORGANIZATION_ID, policies={})
 
 
 async def test_approve_plan_executes_and_completes():

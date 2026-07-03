@@ -22,6 +22,7 @@ from api.entity_agent import extract_entities
 from api.knowledge_graph import create_decision_from_plan
 from api.legal import _generate_draft
 from api.models import Document, Entity, EntityMention, Plan, PlanStep, Task
+from api.organizations import get_approval_required_goals
 from api.planner_agent import extract_tasks
 
 logger = logging.getLogger(__name__)
@@ -211,7 +212,11 @@ async def create_plan(db: AsyncSession, *, user_id: UUID, goal_type: str, goal_p
         raise ValueError(f"unknown goal_type: {goal_type!r}")
 
     step_specs = build_steps(goal_type, goal_params)
-    requires_approval = goal_type in APPROVAL_REQUIRED_GOALS
+    # Not wrapped in try/except: approval gating is security-relevant, so a
+    # lookup failure should fail create_plan() loudly rather than silently
+    # falling back to a possibly-wrong default (ADR 0029).
+    approval_required_goals = await get_approval_required_goals(db, user_id, default=APPROVAL_REQUIRED_GOALS)
+    requires_approval = goal_type in approval_required_goals
 
     plan = Plan(
         user_id=user_id,

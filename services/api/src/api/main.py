@@ -13,6 +13,7 @@ from api.legal import router as legal_router
 from api.manager_router import router as manager_router
 from api.mcp_router import router as mcp_router
 from api.memories import router as memories_router
+from api.organizations_router import router as organizations_router
 from api.plans import router as plans_router
 from api.preferences_router import router as preferences_router
 from api.tasks import router as tasks_router
@@ -42,6 +43,7 @@ app.include_router(mcp_router)
 app.include_router(decisions_router)
 app.include_router(manager_router)
 app.include_router(preferences_router)
+app.include_router(organizations_router)
 
 
 @app.get("/health")

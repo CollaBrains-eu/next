@@ -2,12 +2,37 @@ import uuid
 from datetime import date, datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Boolean, Computed, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, Computed, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from api.config import settings
 from api.db import Base
+
+# The organization every pre-Phase-14 user is backfilled into (ADR 0029).
+# Fixed, well-known UUID so new rows default to it at the DB layer without
+# a Python-side lookup -- see the migration for where the row is created.
+DEFAULT_ORGANIZATION_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+
+
+class Organization(Base):
+    """The tenant boundary (Phase 14, ADR 0029). Every user belongs to
+    exactly one. `policies` holds org-level overrides of otherwise
+    hardcoded platform behavior (e.g. approval_required_goals) --
+    application-enforced, not a DB constraint, the same choice ADR 0008
+    made for Entity.entity_type.
+
+    No per-table organization_id retrofit (documents/memories/plans/...)
+    yet -- see ADR 0029 for why that's its own dedicated future phase,
+    not done speculatively here.
+    """
+
+    __tablename__ = "organizations"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    policies: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class User(Base):
@@ -27,6 +52,10 @@ class User(Base):
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     role: Mapped[str] = mapped_column(String(50), nullable=False, default="member")
     phone_number: Mapped[str | None] = mapped_column(String(32), unique=True, nullable=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False,
+        server_default=text(f"'{DEFAULT_ORGANIZATION_ID}'::uuid"),
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
