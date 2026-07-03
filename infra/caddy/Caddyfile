@@ -1,0 +1,31 @@
+v78281.1blu.de {
+	encode gzip
+
+	# Responses on this site differ by the Accept header (see @api below),
+	# so caches (browser HTTP cache included) must not conflate a page
+	# navigation's response with a same-URL fetch() call's response, or a
+	# client-side route like /documents/:id can silently start serving the
+	# API's JSON (or vice versa) after the first request. Without this,
+	# browsers may reuse an SPA-fallback response cached under the page
+	# navigation's Accept: text/html for a later fetch() with no Accept
+	# header at all, since Chromium's fetch() omits Accept when unset.
+	header Vary Accept
+
+	# The SPA has client-side routes that share a path prefix with API
+	# routes (e.g. GET /documents/:id is both a frontend page and a REST
+	# endpoint). Browser page navigations send Accept: text/html; the
+	# frontend's own fetch() calls don't, so that's what disambiguates them.
+	@api {
+		not header Accept *text/html*
+		path /auth* /documents* /chat* /legal* /tasks* /entities* /search* /health*
+	}
+	handle @api {
+		reverse_proxy api:8000
+	}
+
+	handle {
+		root * /srv/web
+		try_files {path} /index.html
+		file_server
+	}
+}

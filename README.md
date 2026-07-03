@@ -3,15 +3,19 @@
 Privacy-first AI knowledge platform. AI is the central orchestration layer;
 users interact via Web, Admin, Signal (chat-first), and later Mobile.
 
-## Status: Phase 5c — Entity Graph Visualization
+## Status: Phase 6a — TLS & Reverse Proxy
 
 See `docs/adr/` for the architecture decisions behind this build
 (0001: scaffold, 0002: document pipeline, 0003: AI Gateway/Orchestrator,
 0004: Legal/Planner agents + workflow, 0005: Signal bot, 0006: Signal
 identity linking, 0007: Signal attachments & notifications, 0008: entity
 graph, 0009: frontend auth & documents, 0010: chat/legal/tasks UI, 0011:
-entity graph UI), and the phase plan below for what's next. Phases 0-4
-and all of Phase 5 (5a, 5b, 5c) are done.
+entity graph UI, 0012: TLS & reverse proxy), and the phase plan below for
+what's next. Phases 0-4, all of Phase 5 (5a, 5b, 5c), and 6a are done.
+
+The app is live at **https://v78281.1blu.de** (real Let's Encrypt
+certificate, auto-renewing). `api` and the Vite dev server are no longer
+reachable from the public internet — see "Production deployment" below.
 
 ## Repo layout
 
@@ -96,6 +100,19 @@ around). No graph-layout library was added — for an always-small
 hub-and-spoke shape, a circular placement is simpler than pulling in
 d3-force or similar.
 
+Phase 6a (ADR 0012) put a real TLS/reverse-proxy layer in front of
+everything: Caddy terminates HTTPS for `v78281.1blu.de` (the
+hosting-assigned hostname, already resolving here — automatic
+Let's-Encrypt-issued cert, self-renewing, no certbot/cron needed), serves
+the production frontend build as static files, and proxies known API
+path prefixes to `api:8000` over the internal Docker network. `api` and
+the Vite dev server's Compose port bindings were rebound to
+`127.0.0.1` — the same fix already proven correct twice earlier in this
+project (Postgres/Redis in Phase 0, Ollama/Paperless/Elasticsearch in
+Phase 1b) for the same reason: Docker's own port-publishing writes
+iptables rules UFW doesn't filter by default, so UFW rules alone weren't
+actually blocking anything. UFW now only allows 22/80/443.
+
 ## Local development
 
 ```bash
@@ -122,6 +139,24 @@ Frontend tests:
 cd apps/web && pnpm test
 ```
 
+## Production deployment
+
+```bash
+# Build the static frontend bundle (lands in apps/web/dist, same-origin
+# API base URL so it works behind the reverse proxy):
+docker compose exec -e VITE_API_URL='' web sh -c "cd /app/apps/web && pnpm build"
+
+# Start (or reload after a rebuild) the TLS-terminating reverse proxy:
+docker compose --profile prod up -d caddy
+```
+
+Re-run both after any frontend change you want live at
+https://v78281.1blu.de — the `dist/` build is static, it does not
+auto-rebuild like the dev server does. `api` and the dev server's ports
+are host-local only (`127.0.0.1`); Caddy is the only thing meant to be
+reachable from the public internet on this host, on 80 (redirects to
+443) and 443.
+
 ## Phases
 
 0. Project setup — monorepo, Docker Compose, FastAPI health, React shell (done)
@@ -145,4 +180,11 @@ cd apps/web && pnpm test
    - 5b (done): AI chat UI, Legal draft UI, Task list UI
    - 5c (done): entity graph explorer (searchable list + one-hop SVG
      radial view, click-to-recenter for multi-hop exploration)
-6. Production readiness — load testing, hardening, monitoring
+6. Production readiness — split into:
+   - 6a (done): TLS + reverse proxy (Caddy, automatic HTTPS), production
+     frontend build, close direct public access to `api`/dev server
+   - 6b: automated Postgres backups + documented restore procedure
+   - 6c: monitoring/alerting on `/health`+`/health/ready`, reusing the
+     Signal bot as the alert channel
+   - 6d: load testing to document real capacity limits on this
+     CPU-only host
