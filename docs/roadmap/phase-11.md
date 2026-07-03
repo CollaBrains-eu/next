@@ -1,5 +1,14 @@
 # Phase 11 — Multi-Agent System
 
+> **Status: done.** Built as: the model itself is the Manager (no
+> separate Agent-descriptor abstraction), offered the calling user's
+> permitted tools via 9d's native function-calling, dispatching at most
+> one per request (ADR 0026). See `README.md` for the summary and ADR
+> 0026 for what actually shipped vs. what this spec originally proposed
+> (Planning Engine's fixed templates were kept, not replaced). Kept
+> here as historical context for how the open design questions got
+> resolved.
+
 ## Goal
 
 Replace hardcoded agent dispatch (Phase 8c's `AGENT_DISPATCH` dict,

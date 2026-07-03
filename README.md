@@ -3,7 +3,7 @@
 Privacy-first AI knowledge platform. AI is the central orchestration layer;
 users interact via Web, Mobile, Signal (chat-first), and later Admin.
 
-## Status: Phase 10 — Knowledge Graph 2
+## Status: Phase 11 — Multi-Agent System
 
 See `docs/adr/` for the architecture decisions behind this build
 (0001: scaffold, 0002: document pipeline, 0003: AI Gateway/Orchestrator,
@@ -14,17 +14,18 @@ entity graph UI, 0012: TLS & reverse proxy, 0013: backups, 0014:
 monitoring & alerting, 0015: load testing, 0016: mobile app foundation,
 0017: event bus, 0018: long-term memory, 0019: planning engine, 0020:
 reflection engine, 0021: tool registry, 0022: MCP platform, 0023:
-permissions, 0024: tool discovery, 0025: knowledge graph 2).
+permissions, 0024: tool discovery, 0025: knowledge graph 2, 0026:
+multi-agent system).
 Phases 0-4, all of Phase 5 (5a, 5b, 5c), all of Phase 6 (6a, 6b, 6c, 6d),
 Phase 7, all of Phase 8 (8a, 8b, 8c, 8d), all of Phase 9 (9a, 9b, 9c,
-9d), and Phase 10 are done — every phase in the original 7-phase plan,
-the mobile phase, the Cognitive Engine roadmap, and the AI Platform
-roadmap that followed it.
+9d), Phase 10, and Phase 11 are done — every phase in the original
+7-phase plan, the mobile phase, the Cognitive Engine roadmap, and the
+AI Platform roadmap that followed it.
 
-This README covers what's built, frozen at Phase 10 — it does not grow
-a new section per future phase. Phase 11 onward (Multi-Agent System and
-beyond) is specified in [`docs/roadmap/`](docs/roadmap/), one file per
-phase, written before implementation starts.
+This README covers what's built, frozen at Phase 11 — it does not grow
+a new section per future phase. Phase 12 onward (Autonomous Workflows
+and beyond) is specified in [`docs/roadmap/`](docs/roadmap/), one file
+per phase, written before implementation starts.
 
 The app is live at **https://v78281.1blu.de** (real Let's Encrypt
 certificate, auto-renewing). `api` and the Vite dev server are no longer
@@ -133,6 +134,13 @@ ADR 0004).
   generalized, polymorphic `GraphEdge` table connecting it to the
   documents it was derived from, answering "which documents support
   this decision?" See ADR 0025.
+- **Phase 11** — Multi-Agent System (`api/manager_agent.py`,
+  `POST /manager/ask`): the model itself is the Manager — it's offered
+  the calling user's permitted tools (9a, filtered by 9c's
+  permissions) via 9d's native function-calling, and if it requests
+  one, the tool is dispatched and the result fed back for a final
+  answer. One round only; Planning Engine (8c) is untouched, this is a
+  new, separate single-turn capability alongside it. See ADR 0026.
 
 `apps/signal-bot` bridges Signal to `/chat`: polls
 `signal-cli-rest-api` for incoming messages on the registered number
@@ -380,5 +388,10 @@ reachable from the public internet on this host, on 80 (redirects to
     to the roadmap's own acceptance bar (one new node type, one new
     relationship, one real answerable question) rather than all ten
     node types the roadmap originally proposed. See ADR 0025.
+11. Multi-Agent System (done) — the model itself is the Manager: offered
+    the calling user's permitted tools, and if it requests one,
+    `dispatch()` is called and the result fed back for a final answer.
+    One round only; no new Agent-descriptor abstraction, no cost/
+    priority fields nothing differentiates on yet. See ADR 0026.
 
-See [`docs/roadmap/`](docs/roadmap/) for Phase 11 onward.
+See [`docs/roadmap/`](docs/roadmap/) for Phase 12 onward.
