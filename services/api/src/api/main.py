@@ -9,6 +9,7 @@ from api.db import engine
 from api.decisions import router as decisions_router
 from api.documents import router as documents_router, search_router
 from api.entities import router as entities_router
+from api.learning_router import router as learning_router
 from api.legal import router as legal_router
 from api.manager_router import router as manager_router
 from api.mcp_router import router as mcp_router
@@ -44,6 +45,7 @@ app.include_router(decisions_router)
 app.include_router(manager_router)
 app.include_router(preferences_router)
 app.include_router(organizations_router)
+app.include_router(learning_router)
 
 
 @app.get("/health")
