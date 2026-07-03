@@ -84,3 +84,109 @@ async def test_chat_completion_sends_json_format_when_json_mode_enabled(monkeypa
         [{"role": "user", "content": "hi"}], user_id=real_user_id, endpoint="test.no_json_mode", json_mode=False
     )
     assert "format" not in captured_request["json"]
+
+
+async def test_chat_completion_with_tools_sends_tools_and_returns_full_message(monkeypatch):
+    import httpx
+    from sqlalchemy import select
+
+    from api.ai_gateway import chat_completion_with_tools
+    from api.db import async_session
+    from api.models import User
+
+    username = f"tools-test-user-{uuid.uuid4().hex[:8]}"
+    async with async_session() as db:
+        db.add(User(username=username, display_name="x", role="member"))
+        await db.commit()
+        result = await db.execute(select(User).where(User.username == username))
+        real_user_id = result.scalar_one().id
+
+    captured_request = {}
+
+    class FakeResponse:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {
+                "message": {
+                    "content": "",
+                    "tool_calls": [{"function": {"name": "search", "arguments": {"query": "hi"}}}],
+                },
+                "prompt_eval_count": 1,
+                "eval_count": 1,
+            }
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        async def post(self, url, json):
+            captured_request["json"] = json
+            return FakeResponse()
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+
+    tools = [{"type": "function", "function": {"name": "search", "description": "d", "parameters": {}}}]
+    message = await chat_completion_with_tools(
+        [{"role": "user", "content": "hi"}], user_id=real_user_id, endpoint="test.tools", tools=tools,
+    )
+
+    assert captured_request["json"]["tools"] == tools
+    assert message["tool_calls"][0]["function"]["name"] == "search"
+
+
+async def test_chat_completion_without_tools_omits_tools_key_from_request(monkeypatch):
+    import httpx
+    from sqlalchemy import select
+
+    from api.ai_gateway import chat_completion
+    from api.db import async_session
+    from api.models import User
+
+    username = f"no-tools-test-user-{uuid.uuid4().hex[:8]}"
+    async with async_session() as db:
+        db.add(User(username=username, display_name="x", role="member"))
+        await db.commit()
+        result = await db.execute(select(User).where(User.username == username))
+        real_user_id = result.scalar_one().id
+
+    captured_request = {}
+
+    class FakeResponse:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"message": {"content": "hello"}, "prompt_eval_count": 1, "eval_count": 1}
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        async def post(self, url, json):
+            captured_request["json"] = json
+            return FakeResponse()
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+
+    answer = await chat_completion([{"role": "user", "content": "hi"}], user_id=real_user_id, endpoint="test.plain")
+
+    assert answer == "hello"
+    assert "tools" not in captured_request["json"]

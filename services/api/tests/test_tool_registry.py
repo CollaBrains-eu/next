@@ -4,7 +4,17 @@ import pytest
 
 from api.db import async_session
 from api.models import User
-from api.tool_registry import ToolDescriptor, ToolPermissionError, dispatch, get_tool, list_tools, register_tool
+from api.tool_registry import (
+    ToolDescriptor,
+    ToolPermissionError,
+    _field_to_json_schema,
+    _input_schema_to_json_schema,
+    dispatch,
+    get_tool,
+    list_tools,
+    register_tool,
+    to_ollama_tools,
+)
 
 
 def _unique(base: str) -> str:
@@ -154,3 +164,59 @@ async def test_dispatch_denies_an_unknown_user_id():
     async with async_session() as db:
         with pytest.raises(ToolPermissionError):
             await dispatch(name, db=db, user_id=uuid4())
+
+
+def test_field_to_json_schema_maps_real_tool_field_types():
+    assert _field_to_json_schema("string") == {"type": "string"}
+    assert _field_to_json_schema("string UUID") == {"type": "string"}
+    assert _field_to_json_schema("integer (optional, default 10)") == {"type": "integer"}
+    assert _field_to_json_schema("boolean (optional, regenerate cached summary)") == {"type": "boolean"}
+    assert _field_to_json_schema("array of string UUIDs (optional, restricts search scope)") == {
+        "type": "array",
+        "items": {"type": "string"},
+    }
+
+
+def test_field_to_json_schema_defaults_to_string_for_unrecognized_prose():
+    assert _field_to_json_schema("some made-up type") == {"type": "string"}
+
+
+def test_input_schema_to_json_schema_marks_optional_fields_correctly():
+    schema = _input_schema_to_json_schema({
+        "document_id": "string UUID",
+        "force": "boolean (optional, regenerate cached summary)",
+    })
+    assert schema["type"] == "object"
+    assert schema["properties"]["document_id"] == {"type": "string"}
+    assert schema["properties"]["force"] == {"type": "boolean"}
+    assert schema["required"] == ["document_id"]
+
+
+def test_to_ollama_tools_includes_all_built_in_tools_as_function_definitions():
+    functions_by_name = {entry["function"]["name"]: entry for entry in to_ollama_tools()}
+
+    for name in ("search", "summarize_document", "draft_legal_document", "extract_tasks", "extract_entities"):
+        assert name in functions_by_name
+        entry = functions_by_name[name]
+        assert entry["type"] == "function"
+        assert entry["function"]["parameters"]["type"] == "object"
+
+    search_params = functions_by_name["search"]["function"]["parameters"]
+    assert search_params["properties"]["query"] == {"type": "string"}
+    assert "query" in search_params["required"]
+
+
+def test_to_ollama_tools_includes_a_freshly_registered_tool():
+    name = _unique("ollama-tool")
+
+    async def handler(**kwargs):
+        return {}
+
+    register_tool(ToolDescriptor(
+        name=name, description="a demo tool", permissions=[],
+        input_schema={"value": "string"}, output_schema={}, handler=handler,
+    ))
+
+    functions_by_name = {entry["function"]["name"]: entry for entry in to_ollama_tools()}
+    assert name in functions_by_name
+    assert functions_by_name[name]["function"]["description"] == "a demo tool"

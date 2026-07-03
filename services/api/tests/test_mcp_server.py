@@ -2,8 +2,6 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from api.mcp_server import (
-    _field_to_json_schema,
-    _input_schema_to_json_schema,
     handle_initialize,
     handle_request,
     handle_tools_call,
@@ -26,32 +24,6 @@ async def _create_user(username: str, *, role: str = "member") -> User:
         await db.commit()
         await db.refresh(user)
         return user
-
-
-def test_field_to_json_schema_maps_real_tool_field_types():
-    assert _field_to_json_schema("string") == {"type": "string"}
-    assert _field_to_json_schema("string UUID") == {"type": "string"}
-    assert _field_to_json_schema("integer (optional, default 10)") == {"type": "integer"}
-    assert _field_to_json_schema("boolean (optional, regenerate cached summary)") == {"type": "boolean"}
-    assert _field_to_json_schema("array of string UUIDs (optional, restricts search scope)") == {
-        "type": "array",
-        "items": {"type": "string"},
-    }
-
-
-def test_field_to_json_schema_defaults_to_string_for_unrecognized_prose():
-    assert _field_to_json_schema("some made-up type") == {"type": "string"}
-
-
-def test_input_schema_to_json_schema_marks_optional_fields_correctly():
-    schema = _input_schema_to_json_schema({
-        "document_id": "string UUID",
-        "force": "boolean (optional, regenerate cached summary)",
-    })
-    assert schema["type"] == "object"
-    assert schema["properties"]["document_id"] == {"type": "string"}
-    assert schema["properties"]["force"] == {"type": "boolean"}
-    assert schema["required"] == ["document_id"]
 
 
 def test_handle_initialize_reports_tools_capability():
