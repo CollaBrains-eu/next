@@ -19,6 +19,10 @@ A verified-sufficient answer also reinforces the memories that
 contributed to it (Phase 12, ADR 0027) -- the "learn" step of the
 observe/plan/execute/verify/learn cycle, closing the one part of that
 cycle that didn't already exist somewhere in this codebase.
+
+If the user has set a preferred_language (Phase 13, ADR 0028), it's
+appended to the system prompt on every request without needing to be
+restated -- the one Personal AI integration point this phase adds.
 """
 import logging
 from uuid import UUID
@@ -33,6 +37,7 @@ from api.auth import get_effective_user
 from api.db import async_session, get_db
 from api.memory import maybe_create_memory_from_exchange, reinforce_memories, retrieve_relevant_memories
 from api.models import Document, User
+from api.preferences import get_preferences
 from api.reflection import log_reflection, reflect
 from api.search_service import hybrid_search
 
@@ -104,8 +109,11 @@ async def _extract_and_store_memory(user_id: UUID, user_message: str, answer: st
         logger.exception("memory extraction failed for user %s", user_id)
 
 
-def _build_messages(history: list[ChatTurn], context_text: str, question: str, memory_text: str = "") -> list[dict]:
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+def _build_messages(
+    history: list[ChatTurn], context_text: str, question: str, memory_text: str = "",
+    language_instruction: str = "",
+) -> list[dict]:
+    messages = [{"role": "system", "content": SYSTEM_PROMPT + language_instruction}]
     messages.extend({"role": turn.role, "content": turn.content} for turn in history)
     messages.append({"role": "user", "content": f"Context:\n{context_text}{memory_text}\n\nQuestion: {question}"})
     return messages
@@ -132,7 +140,15 @@ async def chat(
         memory_lines = "\n".join(f"- {memory.summary}" for memory in memories)
         memory_text = f"\n\nRelevant memories:\n{memory_lines}"
 
-    messages = _build_messages(request.history, context_text, request.message, memory_text)
+    language_instruction = ""
+    try:
+        preferences = await get_preferences(db, user_id=current_user.id)
+        if preferences and preferences.preferred_language:
+            language_instruction = f" Respond in {preferences.preferred_language}."
+    except Exception:  # noqa: BLE001 - preference lookup must never fail the chat response
+        logger.exception("preference lookup failed for chat request")
+
+    messages = _build_messages(request.history, context_text, request.message, memory_text, language_instruction)
     answer = await chat_completion(messages, user_id=current_user.id, endpoint="chat")
 
     try:
@@ -144,7 +160,9 @@ async def chat(
         if not result.sufficient_evidence and context_chunks < REFLECTION_RETRY_CAP:
             retry_limit = min(context_chunks * 2, REFLECTION_RETRY_CAP)
             citations, context_text = await _retrieve(db, request.message, retry_limit)
-            messages = _build_messages(request.history, context_text, request.message, memory_text)
+            messages = _build_messages(
+                request.history, context_text, request.message, memory_text, language_instruction,
+            )
             answer = await chat_completion(messages, user_id=current_user.id, endpoint="chat")
             retried = True
         await log_reflection(
