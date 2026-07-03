@@ -4,11 +4,16 @@ Deliberately NOT a general legal-reasoning chatbot -- see the ADR. Every
 response is a draft requiring attorney review, grounded only in retrieved
 document context, never the model's own "knowledge" of law.
 
-After drafting, a Reflection step (ADR 0020) checks whether the context
-actually supported the draft, retrying retrieval once with a wider net if
-not -- the same hallucination-risk check applied to /chat, wired in here
-too since drafting is the higher-stakes of the two. Reflection failures
-never affect the returned draft; see api.reflection and ADR 0020.
+`_generate_draft` is a plain function, not inlined in the endpoint, so the
+Planning Engine (Phase 8c, ADR 0019) can call the same code the HTTP
+endpoint does for the "Draft legal document"/"Prepare objection" goals.
+Reflection (Phase 8d, ADR 0020) lives inside `_generate_draft` itself for
+the same reason: wiring it into the shared function, not just the HTTP
+handler, means plan-initiated drafts get the same hallucination check as
+direct API calls, with no extra code at either call site. After drafting,
+Reflection checks whether the context actually supported it and retries
+retrieval once with a wider net if not; reflection failures never affect
+the returned draft -- see api.reflection and ADR 0020.
 """
 import logging
 from uuid import UUID
@@ -74,8 +79,8 @@ async def _retrieve(
     citations: list[Citation] = []
     context_blocks: list[str] = []
     if hits:
-        document_ids = {hit.chunk.document_id for hit in hits}
-        documents_result = await db.execute(select(Document).where(Document.id.in_(document_ids)))
+        hit_document_ids = {hit.chunk.document_id for hit in hits}
+        documents_result = await db.execute(select(Document).where(Document.id.in_(hit_document_ids)))
         titles = {doc.id: doc.title for doc in documents_result.scalars().all()}
 
         for marker, hit in enumerate(hits, start=1):
@@ -93,41 +98,54 @@ async def _retrieve(
     return citations, context_text
 
 
+async def _generate_draft(
+    db: AsyncSession, *, instruction: str, user_id: UUID, document_ids: list[UUID] | None = None,
+    context_chunks: int = 8,
+) -> DraftResponse:
+    scope = set(document_ids) if document_ids else None
+    citations, context_text = await _retrieve(db, instruction, context_chunks, scope)
+
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": f"Context:\n{context_text}\n\nDrafting instruction: {instruction}"},
+    ]
+    draft_text = await chat_completion(messages, user_id=user_id, endpoint="legal.draft")
+
+    try:
+        result = await reflect(
+            question=instruction, answer=draft_text, context_text=context_text,
+            user_id=user_id, endpoint="legal.draft",
+        )
+        retried = False
+        if not result.sufficient_evidence and context_chunks < REFLECTION_RETRY_CAP:
+            retry_limit = min(context_chunks * 2, REFLECTION_RETRY_CAP)
+            citations, context_text = await _retrieve(db, instruction, retry_limit, scope)
+            messages = [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": f"Context:\n{context_text}\n\nDrafting instruction: {instruction}"},
+            ]
+            draft_text = await chat_completion(messages, user_id=user_id, endpoint="legal.draft")
+            retried = True
+        await log_reflection(
+            db, user_id=user_id, endpoint="legal.draft", question=instruction,
+            result=result, retried=retried,
+        )
+    except Exception:  # noqa: BLE001 - reflection is a quality check, must never fail the draft response
+        logger.exception("reflection failed for legal draft request from user %s", user_id)
+
+    return DraftResponse(draft=draft_text, citations=citations)
+
+
 @router.post("/draft", response_model=DraftResponse)
 async def draft(
     request: DraftRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> DraftResponse:
-    scope = set(request.document_ids) or None
-    citations, context_text = await _retrieve(db, request.instruction, request.context_chunks, scope)
-
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": f"Context:\n{context_text}\n\nDrafting instruction: {request.instruction}"},
-    ]
-    draft_text = await chat_completion(messages, user_id=current_user.id, endpoint="legal.draft")
-
-    try:
-        result = await reflect(
-            question=request.instruction, answer=draft_text, context_text=context_text,
-            user_id=current_user.id, endpoint="legal.draft",
-        )
-        retried = False
-        if not result.sufficient_evidence and request.context_chunks < REFLECTION_RETRY_CAP:
-            retry_limit = min(request.context_chunks * 2, REFLECTION_RETRY_CAP)
-            citations, context_text = await _retrieve(db, request.instruction, retry_limit, scope)
-            messages = [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": f"Context:\n{context_text}\n\nDrafting instruction: {request.instruction}"},
-            ]
-            draft_text = await chat_completion(messages, user_id=current_user.id, endpoint="legal.draft")
-            retried = True
-        await log_reflection(
-            db, user_id=current_user.id, endpoint="legal.draft", question=request.instruction,
-            result=result, retried=retried,
-        )
-    except Exception:  # noqa: BLE001 - reflection is a quality check, must never fail the draft response
-        logger.exception("reflection failed for legal draft request from user %s", current_user.id)
-
-    return DraftResponse(draft=draft_text, citations=citations)
+    return await _generate_draft(
+        db,
+        instruction=request.instruction,
+        user_id=current_user.id,
+        document_ids=request.document_ids,
+        context_chunks=request.context_chunks,
+    )
