@@ -14,6 +14,11 @@ After generating an answer, a Reflection step (ADR 0020) checks whether the
 context actually supported it, retrying retrieval once with a wider net if
 not. Reflection failures never affect the returned answer -- see
 api.reflection and ADR 0020 for the "never fail the primary flow" reasoning.
+
+A verified-sufficient answer also reinforces the memories that
+contributed to it (Phase 12, ADR 0027) -- the "learn" step of the
+observe/plan/execute/verify/learn cycle, closing the one part of that
+cycle that didn't already exist somewhere in this codebase.
 """
 import logging
 from uuid import UUID
@@ -26,7 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.ai_gateway import chat_completion
 from api.auth import get_effective_user
 from api.db import async_session, get_db
-from api.memory import maybe_create_memory_from_exchange, retrieve_relevant_memories
+from api.memory import maybe_create_memory_from_exchange, reinforce_memories, retrieve_relevant_memories
 from api.models import Document, User
 from api.reflection import log_reflection, reflect
 from api.search_service import hybrid_search
@@ -146,6 +151,8 @@ async def chat(
             db, user_id=current_user.id, endpoint="chat", question=request.message,
             result=result, retried=retried,
         )
+        if result.sufficient_evidence and memories:
+            await reinforce_memories(db, [memory.id for memory in memories])
     except Exception:  # noqa: BLE001 - reflection is a quality check, must never fail the chat response
         logger.exception("reflection failed for chat request from user %s", current_user.id)
 
