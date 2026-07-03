@@ -57,7 +57,9 @@ export interface UserOut {
 }
 
 export async function login(username: string, password: string): Promise<string> {
-  const body = new URLSearchParams({ username, password });
+  // React Native fetch does not reliably serialize a URLSearchParams body the
+  // way browser fetch does -- build the encoded string ourselves instead.
+  const body = `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
   const result = await request<{ access_token: string; token_type: string }>("/auth/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },

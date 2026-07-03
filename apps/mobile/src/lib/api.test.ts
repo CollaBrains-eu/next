@@ -64,4 +64,21 @@ describe("api request()", () => {
 
     await expect(request("/chat")).rejects.toMatchObject(new ApiError(403, "not linked"));
   });
+
+  it("sends the login body as a plain encoded string, not a URLSearchParams instance", async () => {
+    // Regression test: React Native's fetch does not reliably serialize a
+    // URLSearchParams body the way browser fetch does -- on a real device
+    // this silently sent an empty body, and the backend rejected it with
+    // "username: Field required, password: Field required" even though the
+    // Content-Type header and fields all looked correct in code review.
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(JSON.stringify({ access_token: "tok", token_type: "bearer" }), { status: 200 }),
+    );
+
+    await login("admin1", "hunter2");
+
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(typeof init.body).toBe("string");
+    expect(init.body).toBe("username=admin1&password=hunter2");
+  });
 });
