@@ -3,7 +3,7 @@
 Privacy-first AI knowledge platform. AI is the central orchestration layer;
 users interact via Web, Mobile, Signal (chat-first), and later Admin.
 
-## Status: Phase 12 — Autonomous Workflows
+## Status: Phase 13 — Personal AI
 
 See `docs/adr/` for the architecture decisions behind this build
 (0001: scaffold, 0002: document pipeline, 0003: AI Gateway/Orchestrator,
@@ -15,15 +15,15 @@ monitoring & alerting, 0015: load testing, 0016: mobile app foundation,
 0017: event bus, 0018: long-term memory, 0019: planning engine, 0020:
 reflection engine, 0021: tool registry, 0022: MCP platform, 0023:
 permissions, 0024: tool discovery, 0025: knowledge graph 2, 0026:
-multi-agent system, 0027: autonomous workflows).
+multi-agent system, 0027: autonomous workflows, 0028: personal AI).
 Phases 0-4, all of Phase 5 (5a, 5b, 5c), all of Phase 6 (6a, 6b, 6c, 6d),
 Phase 7, all of Phase 8 (8a, 8b, 8c, 8d), all of Phase 9 (9a, 9b, 9c,
-9d), Phase 10, Phase 11, and Phase 12 are done — every phase in the
-original 7-phase plan, the mobile phase, the Cognitive Engine roadmap,
-and the AI Platform roadmap that followed it.
+9d), Phase 10, Phase 11, Phase 12, and Phase 13 are done — every phase
+in the original 7-phase plan, the mobile phase, the Cognitive Engine
+roadmap, and the AI Platform roadmap that followed it.
 
-This README covers what's built, frozen at Phase 12 — it does not grow
-a new section per future phase. Phase 13 onward (Personal AI and
+This README covers what's built, frozen at Phase 13 — it does not grow
+a new section per future phase. Phase 14 onward (Enterprise and
 beyond) is specified in [`docs/roadmap/`](docs/roadmap/), one file per
 phase, written before implementation starts.
 
@@ -148,6 +148,13 @@ ADR 0004).
   agents execute; 8d verifies). A memory that contributed to a
   Reflection-verified-sufficient `/chat` answer gets its importance
   reinforced -- reward only, no decay. See ADR 0027.
+- **Phase 13** — Personal AI (`api/preferences.py`,
+  `GET`/`PUT`/`DELETE /preferences/me`): a `UserPreference` table for
+  durable, explicitly-set facts about a specific user -- distinct from
+  Memory (Phase 8b), which stores facts extracted from conversations.
+  Scoped to one preference, `preferred_language`, wired into `/chat`'s
+  system prompt so it changes behavior across future conversations
+  without being restated. See ADR 0028.
 
 `apps/signal-bot` bridges Signal to `/chat`: polls
 `signal-cli-rest-api` for incoming messages on the registered number
@@ -405,5 +412,10 @@ reachable from the public internet on this host, on 80 (redirects to
     Observe/plan/execute/verify already existed elsewhere in this
     codebase (event bus, Planning Engine, agents, Reflection Engine);
     this closes the one missing piece. See ADR 0027.
+13. Personal AI (done) — one preference, `preferred_language`, in a new
+    `UserPreference` table (separate from Memory -- explicit, upserted,
+    never expires), wired into `/chat`'s system prompt. Scoped to the
+    roadmap's own testable example rather than the three services
+    (profile/preferences/context) it proposed. See ADR 0028.
 
-See [`docs/roadmap/`](docs/roadmap/) for Phase 13 onward.
+See [`docs/roadmap/`](docs/roadmap/) for Phase 14 onward.

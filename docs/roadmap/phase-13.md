@@ -1,5 +1,13 @@
 # Phase 13 — Personal AI
 
+> **Status: done.** Built as one preference, `preferred_language`, in a
+> new `UserPreference` table, wired into `/chat`'s system prompt (ADR
+> 0028) -- not the three proposed services (profile/preferences/context),
+> since the other data (work patterns, expertise, active cases) has no
+> concrete first consumer in this codebase yet. See `README.md` for the
+> summary. Kept here as historical context for how the open design
+> questions got resolved.
+
 ## Goal
 
 Give the AI durable knowledge *about a specific user* — preferred
