@@ -18,6 +18,10 @@ docs/adr/0003-phase2a-ai-gateway-orchestrator.md for the Document Agent
 (summarization) and Search Agent (hybrid_search, in search_service.py).
 Uploads are authenticated via `get_effective_user` (ADR 0006) so Signal
 attachment uploads (ADR 0007) work the same way `/chat` does.
+
+`_generate_summary` (the Document Agent's actual summarization call) is a
+plain function, not inlined in the endpoint, so the Planning Engine
+(Phase 8c, ADR 0019) can call the same code the HTTP endpoint does.
 """
 from datetime import datetime, timezone
 from uuid import UUID
@@ -274,6 +278,29 @@ SUMMARY_PROMPT = (
 )
 
 
+async def _generate_summary(db: AsyncSession, document: Document, *, user_id: UUID, force: bool = False) -> str:
+    """Compute (or return the cached) summary for an already-`ready` document.
+
+    Callers (the HTTP endpoint, the Planning Engine's Document Agent step)
+    are responsible for checking `document.status`/`document.ocr_text`
+    first -- this assumes the document is ready.
+    """
+    if document.summary and not force:
+        return document.summary
+
+    prompt = SUMMARY_PROMPT.format(text=document.ocr_text[:8000])
+    summary = await chat_completion(
+        [{"role": "user", "content": prompt}],
+        user_id=user_id,
+        endpoint="documents.summarize",
+    )
+
+    document.summary = summary
+    await db.commit()
+    await publish(EventType.SUMMARY_CREATED, {"document_id": document.id, "summary_length": len(summary)})
+    return summary
+
+
 @router.post("/{document_id}/summarize", response_model=SummaryOut)
 async def summarize_document(
     document_id: UUID,
@@ -289,19 +316,7 @@ async def summarize_document(
             status_code=status.HTTP_409_CONFLICT, detail=f"Document is not ready yet (status: {document.status})"
         )
 
-    if document.summary and not force:
-        return SummaryOut(summary=document.summary)
-
-    prompt = SUMMARY_PROMPT.format(text=document.ocr_text[:8000])
-    summary = await chat_completion(
-        [{"role": "user", "content": prompt}],
-        user_id=current_user.id,
-        endpoint="documents.summarize",
-    )
-
-    document.summary = summary
-    await db.commit()
-    await publish(EventType.SUMMARY_CREATED, {"document_id": document_id, "summary_length": len(summary)})
+    summary = await _generate_summary(db, document, user_id=current_user.id, force=force)
     return SummaryOut(summary=summary)
 
 
