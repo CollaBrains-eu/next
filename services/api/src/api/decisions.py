@@ -4,12 +4,13 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth import get_current_user
 from api.db import get_db
 from api.knowledge_graph import get_decision_with_documents
-from api.models import User
+from api.models import Decision, User
 
 router = APIRouter(tags=["decisions"])
 
@@ -25,6 +26,23 @@ class DecisionOut(BaseModel):
     plan_id: UUID | None
     created_at: datetime
     supporting_documents: list[DecisionDocumentOut]
+
+
+class DecisionListItemOut(BaseModel):
+    id: UUID
+    summary: str
+
+
+@router.get("/decisions", response_model=list[DecisionListItemOut])
+async def list_decisions(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[Decision]:
+    query = select(Decision).order_by(Decision.created_at.desc())
+    if current_user.role != "admin":
+        query = query.where(Decision.user_id == current_user.id)
+    result = await db.execute(query)
+    return list(result.scalars().all())
 
 
 @router.get("/decisions/{decision_id}", response_model=DecisionOut)

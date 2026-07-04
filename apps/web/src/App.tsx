@@ -9,6 +9,8 @@ import Legal from "./routes/Legal";
 import Tasks from "./routes/Tasks";
 import Entities from "./routes/Entities";
 import EntityGraph from "./routes/EntityGraph";
+import Cases from "./routes/Cases";
+import CaseDetail from "./routes/CaseDetail";
 import NotFound from "./routes/NotFound";
 
 export default function App() {
@@ -71,6 +73,22 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <EntityGraph />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/cases"
+              element={
+                <ProtectedRoute>
+                  <Cases />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/cases/:id"
+              element={
+                <ProtectedRoute>
+                  <CaseDetail />
                 </ProtectedRoute>
               }
             />
