@@ -6,7 +6,8 @@ endpoint only persists the `Document` row and publishes `DocumentUploaded`
 (ADR 0017, Phase 8a) -- OCR, chunking/embedding, task/entity extraction, and
 owner notification are event handlers reacting to that event and the ones it
 chains into (`OCRCompleted` -> `EmbeddingsCreated` -> `TasksCreated` /
-`EntitiesExtracted` -> `NotificationRequested` -> `WorkflowCompleted`), not
+`EntitiesExtracted` / `VehiclesDetected` -> `NotificationRequested` ->
+`WorkflowCompleted`), not
 functions called directly from the endpoint. See
 docs/adr/0004-phase2b-legal-planner-workflow.md and
 docs/adr/0007-phase3c-signal-attachments-notifications.md for why each step
@@ -45,6 +46,7 @@ from api.paperless_client import delete_document as paperless_delete, fetch_docu
 from api.planner_agent import extract_tasks
 from api.search_service import hybrid_search
 from api.signal_client import send_signal_message
+from api.vehicle_agent import detect_and_link_vehicles
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -162,6 +164,16 @@ async def _handle_extract_entities(event: Event) -> None:
             db, document_id=document_id, text=event.payload["text"], user_id=event.payload["owner_id"]
         )
     await publish(EventType.ENTITIES_EXTRACTED, {"document_id": document_id, "entity_count": len(entities)})
+
+
+@subscribe(EventType.EMBEDDINGS_CREATED)
+async def _handle_extract_vehicles(event: Event) -> None:
+    if not settings.auto_extract_vehicles_on_ready:
+        return
+    document_id = event.payload["document_id"]
+    async with async_session() as db:
+        vehicles = await detect_and_link_vehicles(db, document_id=document_id, text=event.payload["text"])
+    await publish(EventType.VEHICLES_DETECTED, {"document_id": document_id, "vehicle_count": len(vehicles)})
 
 
 @subscribe(EventType.NOTIFICATION_REQUESTED)

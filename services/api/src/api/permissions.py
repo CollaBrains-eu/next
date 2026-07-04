@@ -12,8 +12,8 @@ tools directly (see ADR 0023).
 """
 
 ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
-    "member": frozenset({"documents.read", "legal.draft", "tasks.write", "entities.write"}),
-    "admin": frozenset({"documents.read", "legal.draft", "tasks.write", "entities.write"}),
+    "member": frozenset({"documents.read", "legal.draft", "tasks.write", "entities.write", "vehicles.write"}),
+    "admin": frozenset({"documents.read", "legal.draft", "tasks.write", "entities.write", "vehicles.write"}),
     "service": frozenset(),
 }
 

@@ -3,7 +3,7 @@
 Privacy-first AI knowledge platform. AI is the central orchestration layer;
 users interact via Web, Mobile, Signal (chat-first), and later Admin.
 
-## Status: Phase 17d — Frontend Catch-Up (Settings UI)
+## Status: Phase 18 — Vehicle Entity (Kenteken/VIN Detection + RDW Enrichment)
 
 See `docs/adr/` for the architecture decisions behind this build
 (0001: scaffold, 0002: document pipeline, 0003: AI Gateway/Orchestrator,
@@ -18,18 +18,18 @@ permissions, 0024: tool discovery, 0025: knowledge graph 2, 0026:
 multi-agent system, 0027: autonomous workflows, 0028: personal AI,
 0029: enterprise foundation, 0030: learning platform, 0031: case/matter
 workspace, 0032: sidebar shell redesign, 0033: case workspace UI,
-0034: assistant UI, 0035: settings UI).
-**All 15 phases of the original roadmap are done**, plus two further
+0034: assistant UI, 0035: settings UI, 0036: vehicle entity).
+**All 15 phases of the original roadmap are done**, plus three further
 phases built from fresh specs after the roadmap closed: Phases 0-4, all
 of Phase 5 (5a, 5b, 5c), all of Phase 6 (6a, 6b, 6c, 6d), Phase 7, all
 of Phase 8 (8a, 8b, 8c, 8d), all of Phase 9 (9a, 9b, 9c, 9d), Phase 10,
 Phase 11, Phase 12, Phase 13, Phase 14, and Phase 15 -- every phase in
 the original 7-phase plan, the mobile phase, the Cognitive Engine
 roadmap, and the AI Platform roadmap that followed it. **Phase 16**
-(Case/Matter Workspace) and **Phase 17** (Frontend Catch-Up, split into
-17a-17d) followed, each starting from its own brainstormed spec rather
-than a pre-written roadmap entry -- see
-[`docs/roadmap/`](docs/roadmap/) for what came before and ADR
+(Case/Matter Workspace), **Phase 17** (Frontend Catch-Up, split into
+17a-17d), and **Phase 18** (Vehicle Entity) followed, each starting
+from its own brainstormed spec rather than a pre-written roadmap entry
+-- see [`docs/roadmap/`](docs/roadmap/) for what came before and ADR
 0031/0032 for why this project keeps going past a "complete" roadmap.
 
 Two earlier phases were deliberately scoped down from their original
@@ -40,8 +40,8 @@ policy override exist, but there's no per-table tenant isolation yet
 from existing feedback signal, but stops before fine-tuning,
 benchmarking, or deploying a model -- this environment has no training
 infrastructure to do that safely (ADR 0030). Both remain candidate
-starting points for future work, alongside what Phase 16/17 themselves
-left open (see their ADRs, 0031-0035).
+starting points for future work, alongside what Phase 16/17/18
+themselves left open (see their ADRs, 0031-0036).
 
 The app is live at **https://v78281.1blu.de** (real Let's Encrypt
 certificate, auto-renewing). `api` and the Vite dev server are no longer
@@ -199,6 +199,19 @@ ADR 0004).
   backfill, no existing-row risk. `POST /plans` now accepts a `case_id`
   for `summarize_case`, resolved to that case's documents before
   `build_steps()` runs. See ADR 0031.
+- **Phase 18** — Vehicle Entity (`api/vehicle_agent.py`, `api/rdw_client.py`):
+  a new `entity_type="vehicle"` reusing the existing `Entity`/
+  `EntityMention` graph (Phase 4, ADR 0008) rather than a new top-level
+  node type, so a vehicle shows up for free in `/entities` and its
+  one-hop graph view, and two documents mentioning the same kenteken
+  automatically share one entity. Detection is pure regex (not LLM --
+  kentekens/VINs have small, fixed syntactic formats), run alongside
+  the Entity Agent in the same document-pipeline event chain (Phase
+  8a). RDW's open data API enriches any newly-known kenteken
+  (anonymous access, no App Token yet); the same `lookup_vehicle`
+  function backs both that passive pipeline hook and an active Tool
+  Registry entry, automatically callable from the Manager Agent
+  (`/manager/ask`, Phase 11) and MCP (Phase 9b). See ADR 0036.
 
 `apps/signal-bot` bridges Signal to `/chat`: polls
 `signal-cli-rest-api` for incoming messages on the registered number
@@ -522,11 +535,21 @@ reachable from the public internet on this host, on 80 (redirects to
       See ADR 0034.
     - 17d (done): Settings UI (`/settings`) for the Phase 13 Personal
       AI language preference. See ADR 0035.
+18. Vehicle Entity (done) — a new `entity_type="vehicle"` (`Entity` +
+    new `Vehicle` table), regex-based kenteken/VIN detection wired into
+    the document pipeline alongside the existing Entity Agent, an RDW
+    open data client (anonymous, no App Token yet), and a
+    `lookup_vehicle` tool usable from the Manager Agent and MCP. No
+    frontend UI yet -- a vehicle is visible today only via the existing
+    `/entities` list/graph view and the Manager Agent tool. Other Dutch
+    open-data sources (KVK, PDOK, CBS, Kadaster) are deliberately out of
+    scope -- candidate future phases. See ADR 0036.
 
-This is every phase built so far. Phases 16-17 each started from their
+This is every phase built so far. Phases 16-18 each started from their
 own fresh spec rather than the original roadmap, which the 15 phases
 above complete in full -- see [`docs/roadmap/`](docs/roadmap/) for that
-history, and ADR 0031-0035 for exactly what Phase 16/17 themselves
+history, and ADR 0031-0036 for exactly what Phase 16/17/18 themselves
 deliberately left open (case sharing, Planning Engine/Tool Registry/MCP/
-Organizations/Learning Dataset UI, among others), alongside what Phase
-14 and Phase 15 left open before them.
+Organizations/Learning Dataset UI, other Dutch open-data sources, a
+Vehicle Entity frontend, among others), alongside what Phase 14 and
+Phase 15 left open before them.

@@ -267,3 +267,27 @@ async def test_upload_document_on_behalf_of_rejects_unlinked_phone_number(client
         files={"file": ("scan.pdf", b"content", "application/pdf")},
     )
     assert response.status_code == 403
+
+
+async def test_upload_triggers_vehicle_detection_and_creates_entity(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    with (
+        patch("api.documents.submit_document", return_value="task-x"),
+        patch("api.documents.wait_for_paperless_id", return_value=101),
+        patch("api.documents.fetch_document_text", return_value="Kenteken VE-01-HI staat geregistreerd."),
+        patch("api.documents.embed_text", return_value=FAKE_EMBEDDING),
+        patch("api.documents.settings.auto_extract_tasks_on_ready", False),
+        patch("api.documents.settings.auto_extract_entities_on_ready", False),
+        patch("api.vehicle_agent.fetch_vehicle_data", return_value=None),
+    ):
+        upload = await client.post(
+            "/documents", headers=headers,
+            files={"file": ("vehicle.txt", b"Kenteken VE-01-HI staat geregistreerd.", "text/plain")},
+        )
+
+    assert upload.status_code == 202
+    response = await client.get("/entities?entity_type=vehicle", headers=headers)
+    names = {entity["name"] for entity in response.json()}
+    assert "VE01HI" in names

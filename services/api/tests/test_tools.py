@@ -125,3 +125,34 @@ async def test_search_tool_denies_a_role_with_no_permissions():
     async with async_session() as db:
         with pytest.raises(ToolPermissionError):
             await dispatch("search", db=db, user_id=user.id, query="hello")
+
+
+async def test_lookup_vehicle_tool_returns_rdw_fields():
+    user = await _create_user(f"tooluser-{uuid4().hex[:8]}")
+    fake_data = {
+        "voertuigsoort": "Personenauto", "merk": "TOYOTA", "handelsbenaming": "AYGO",
+        "eerste_kleur": "GRIJS", "datum_eerste_toelating": "20180501",
+        "vervaldatum_apk": "20270501", "wam_verzekerd": "Ja",
+        "openstaande_terugroepactie_indicator": "Nee", "brandstofomschrijving": "Benzine",
+        "massa_ledig_voertuig": "840", "aantal_cilinders": "3", "wielbasis": "2340",
+        "catalogusprijs": "12500", "aantal_zitplaatsen": "4", "aantal_deuren": "5",
+        "vermogen_massarijklaar": "51", "europese_voertuigcategorie": "M1",
+    }
+
+    async with async_session() as db:
+        with patch("api.vehicle_agent.fetch_vehicle_data", return_value=fake_data):
+            result = await dispatch("lookup_vehicle", db=db, user_id=user.id, kenteken="TO-OL-01")
+
+    assert result["kenteken"] == "TOOL01"
+    assert result["merk"] == "TOYOTA"
+    assert result["found"] is True
+
+
+async def test_lookup_vehicle_tool_reports_not_found():
+    user = await _create_user(f"tooluser-{uuid4().hex[:8]}")
+
+    async with async_session() as db:
+        with patch("api.vehicle_agent.fetch_vehicle_data", return_value=None):
+            result = await dispatch("lookup_vehicle", db=db, user_id=user.id, kenteken="ZZ-99-ZZ")
+
+    assert result["found"] is False

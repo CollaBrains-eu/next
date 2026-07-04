@@ -18,6 +18,7 @@ from api.models import Document
 from api.planner_agent import extract_tasks
 from api.search_service import hybrid_search
 from api.tool_registry import ToolDescriptor, register_tool
+from api.vehicle_agent import lookup_vehicle as _lookup_vehicle
 
 
 async def _search_handler(
@@ -83,6 +84,23 @@ async def _extract_entities_handler(
     }
 
 
+async def _lookup_vehicle_handler(*, db: AsyncSession, user_id: UUID, kenteken: str) -> dict[str, Any]:
+    vehicle = await _lookup_vehicle(kenteken=kenteken)
+    return {
+        "kenteken": vehicle.kenteken,
+        "merk": vehicle.merk,
+        "handelsbenaming": vehicle.handelsbenaming,
+        "voertuigsoort": vehicle.voertuigsoort,
+        "eerste_kleur": vehicle.eerste_kleur,
+        "datum_eerste_toelating": vehicle.datum_eerste_toelating,
+        "vervaldatum_apk": vehicle.vervaldatum_apk,
+        "wam_verzekerd": vehicle.wam_verzekerd,
+        "openstaande_terugroepactie_indicator": vehicle.openstaande_terugroepactie_indicator,
+        "brandstofomschrijving": vehicle.brandstofomschrijving,
+        "found": vehicle.merk is not None,
+    }
+
+
 register_tool(ToolDescriptor(
     name="search",
     description="Search indexed documents by keyword and semantic similarity.",
@@ -134,4 +152,19 @@ register_tool(ToolDescriptor(
     input_schema={"document_id": "string UUID", "text": "string"},
     output_schema={"entities": "array of {id, name, entity_type}"},
     handler=_extract_entities_handler,
+))
+
+register_tool(ToolDescriptor(
+    name="lookup_vehicle",
+    description="Look up a vehicle's RDW registration data by kenteken (Dutch license plate).",
+    permissions=["vehicles.write"],
+    input_schema={"kenteken": "string"},
+    output_schema={
+        "kenteken": "string", "merk": "string", "handelsbenaming": "string",
+        "voertuigsoort": "string", "eerste_kleur": "string",
+        "datum_eerste_toelating": "string", "vervaldatum_apk": "string",
+        "wam_verzekerd": "string", "openstaande_terugroepactie_indicator": "string",
+        "brandstofomschrijving": "string", "found": "boolean",
+    },
+    handler=_lookup_vehicle_handler,
 ))
