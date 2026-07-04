@@ -8,7 +8,7 @@ endpoint, both new. See docs/superpowers/specs/2026-07-04-vehicles-page-design.m
 from datetime import datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.auth import get_current_user
 from api.db import get_db
 from api.models import User, Vehicle
+from api.rdw_client import RdwLookupError
+from api.vehicle_agent import lookup_vehicle
 
 router = APIRouter(tags=["vehicles"])
 
@@ -44,3 +46,18 @@ async def list_vehicles_endpoint(
 ) -> list[Vehicle]:
     result = await db.execute(select(Vehicle).order_by(Vehicle.created_at.desc()))
     return list(result.scalars().all())
+
+
+class VehicleLookupRequest(BaseModel):
+    kenteken: str
+
+
+@router.post("/vehicles/lookup", response_model=VehicleOut)
+async def lookup_vehicle_endpoint(
+    request: VehicleLookupRequest,
+    current_user: User = Depends(get_current_user),
+) -> Vehicle:
+    try:
+        return await lookup_vehicle(kenteken=request.kenteken)
+    except RdwLookupError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
