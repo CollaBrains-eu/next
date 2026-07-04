@@ -278,3 +278,15 @@ export function linkTaskToCase(caseId: string, taskId: string): Promise<void> {
 export function linkDecisionToCase(caseId: string, decisionId: string): Promise<void> {
   return request<void>(`/cases/${caseId}/decisions/${decisionId}`, { method: "POST" });
 }
+
+export interface AskResponse {
+  answer: string;
+  tool_called: string | null;
+}
+
+export function askManager(message: string): Promise<AskResponse> {
+  return request<AskResponse>("/manager/ask", {
+    method: "POST",
+    body: JSON.stringify({ message }),
+  });
+}
