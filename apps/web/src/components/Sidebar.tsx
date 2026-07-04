@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { to: "/tasks", label: "Tasks" },
   { to: "/entities", label: "Entities" },
   { to: "/cases", label: "Cases" },
+  { to: "/assistant", label: "Assistant" },
 ];
 
 export default function Sidebar() {
