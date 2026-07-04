@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { to: "/legal", label: "Legal Draft" },
   { to: "/tasks", label: "Tasks" },
   { to: "/entities", label: "Entities" },
+  { to: "/cases", label: "Cases" },
 ];
 
 export default function Sidebar() {
