@@ -41,6 +41,7 @@ class EventType:
     EMBEDDINGS_CREATED = "EmbeddingsCreated"
     SUMMARY_CREATED = "SummaryCreated"
     ENTITIES_EXTRACTED = "EntitiesExtracted"
+    VEHICLES_DETECTED = "VehiclesDetected"
     TASKS_CREATED = "TasksCreated"
     NOTIFICATION_REQUESTED = "NotificationRequested"
     WORKFLOW_STARTED = "WorkflowStarted"

@@ -1,3 +1,5 @@
+import random
+import string
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -7,6 +9,16 @@ from api.db import async_session
 from api.models import Document, Entity, EntityMention, User, Vehicle
 from api.rdw_client import RdwLookupError
 from api.vehicle_agent import detect_and_link_vehicles, detect_kentekens, detect_vins, lookup_vehicle
+
+
+def _random_kenteken() -> str:
+    """A fresh XX-99-XX kenteken per call -- this test suite has no
+    per-test DB rollback (same convention as test_entities.py/test_tools.py),
+    so a fixed literal would accumulate stale EntityMention rows across
+    repeated suite runs and make count-based assertions flaky."""
+    letters = lambda n: "".join(random.choices(string.ascii_uppercase, k=n))  # noqa: E731
+    digits = lambda n: "".join(random.choices(string.digits, k=n))  # noqa: E731
+    return f"{letters(2)}-{digits(2)}-{letters(2)}"
 
 
 async def _create_document() -> Document:
@@ -111,11 +123,12 @@ async def test_detect_and_link_vehicles_links_kenteken_and_vin_from_same_documen
 async def test_detect_and_link_vehicles_shares_one_entity_across_two_documents():
     doc_a = await _create_document()
     doc_b = await _create_document()
+    kenteken = _random_kenteken()
     with patch("api.vehicle_agent.fetch_vehicle_data", return_value=FAKE_RDW_DATA):
         async with async_session() as db:
-            first = await detect_and_link_vehicles(db, document_id=doc_a.id, text="Kenteken TE-03-ST.")
+            first = await detect_and_link_vehicles(db, document_id=doc_a.id, text=f"Kenteken {kenteken}.")
         async with async_session() as db:
-            second = await detect_and_link_vehicles(db, document_id=doc_b.id, text="Kenteken TE-03-ST.")
+            second = await detect_and_link_vehicles(db, document_id=doc_b.id, text=f"Kenteken {kenteken}.")
 
     assert first[0].id == second[0].id
     async with async_session() as db:
