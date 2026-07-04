@@ -90,3 +90,20 @@ async def test_draft_does_not_retry_when_reflection_flags_sufficient_evidence(cl
     assert response.json()["draft"] == "the only draft"
     assert mock_hybrid.call_count == 1
     assert mock_completion.call_count == 1
+
+
+async def test_draft_includes_preferred_language_in_system_prompt(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    await client.put("/preferences/me", headers=headers, json={"preferred_language": "fr"})
+
+    with (
+        patch("api.legal.hybrid_search", return_value=[]),
+        patch("api.legal.chat_completion", return_value="ok") as mock_completion,
+    ):
+        await client.post("/legal/draft", headers=headers, json={"instruction": "Draft an objection."})
+
+    sent_messages = mock_completion.call_args.args[0]
+    system_message = sent_messages[0]["content"]
+    assert "you must respond only in fr" in system_message.lower()

@@ -4,6 +4,7 @@ from uuid import uuid4
 from api.db import async_session
 from api.manager_agent import _tools_for_role, handle_request
 from api.models import Document, User
+from api.preferences import set_preferences
 from api.search_service import SearchHit
 
 
@@ -135,3 +136,29 @@ async def test_handle_request_denies_a_tool_the_role_lacks_permission_for():
     assert result["tool_called"] == "search"
     follow_up_messages = mock_final.call_args.args[0]
     assert "error" in follow_up_messages[-1]["content"]
+
+
+async def test_handle_request_includes_preferred_language_in_system_prompt():
+    user = await _create_user(_unique("manageruser"), role="service")
+    async with async_session() as db:
+        await set_preferences(db, user_id=user.id, preferred_language="nl")
+
+    async with async_session() as db:
+        with patch("api.manager_agent.chat_completion", return_value="ok") as mock_completion:
+            await handle_request(db, user_id=user.id, role="service", message="hello")
+
+    sent_messages = mock_completion.call_args.args[0]
+    system_message = sent_messages[0]["content"]
+    assert "you must respond only in nl" in system_message.lower()
+
+
+async def test_handle_request_omits_language_instruction_when_no_preference_set():
+    user = await _create_user(_unique("manageruser"), role="service")
+
+    async with async_session() as db:
+        with patch("api.manager_agent.chat_completion", return_value="ok") as mock_completion:
+            await handle_request(db, user_id=user.id, role="service", message="hello")
+
+    sent_messages = mock_completion.call_args.args[0]
+    system_message = sent_messages[0]["content"]
+    assert "respond only in" not in system_message.lower()
