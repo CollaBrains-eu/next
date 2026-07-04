@@ -11,6 +11,7 @@ import Entities from "./routes/Entities";
 import EntityGraph from "./routes/EntityGraph";
 import Cases from "./routes/Cases";
 import CaseDetail from "./routes/CaseDetail";
+import Vehicles from "./routes/Vehicles";
 import Assistant from "./routes/Assistant";
 import Settings from "./routes/Settings";
 import NotFound from "./routes/NotFound";
@@ -91,6 +92,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <CaseDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/vehicles"
+              element={
+                <ProtectedRoute>
+                  <Vehicles />
                 </ProtectedRoute>
               }
             />

@@ -231,6 +231,7 @@ export interface CaseDashboardOut extends CaseOut {
   documents: { id: string; title: string }[];
   tasks: { id: string; title: string; status: string }[];
   decisions: { id: string; summary: string }[];
+  vehicles: { id: string; kenteken: string | null; merk: string | null; handelsbenaming: string | null }[];
 }
 
 export interface DecisionListItemOut {
@@ -277,6 +278,38 @@ export function linkTaskToCase(caseId: string, taskId: string): Promise<void> {
 
 export function linkDecisionToCase(caseId: string, decisionId: string): Promise<void> {
   return request<void>(`/cases/${caseId}/decisions/${decisionId}`, { method: "POST" });
+}
+
+export interface VehicleOut {
+  id: string;
+  kenteken: string | null;
+  vin: string | null;
+  voertuigsoort: string | null;
+  merk: string | null;
+  handelsbenaming: string | null;
+  eerste_kleur: string | null;
+  datum_eerste_toelating: string | null;
+  vervaldatum_apk: string | null;
+  wam_verzekerd: string | null;
+  openstaande_terugroepactie_indicator: string | null;
+  brandstofomschrijving: string | null;
+  fetched_at: string | null;
+  created_at: string;
+}
+
+export function listVehicles(): Promise<VehicleOut[]> {
+  return request<VehicleOut[]>("/vehicles");
+}
+
+export function lookupVehicle(kenteken: string): Promise<VehicleOut> {
+  return request<VehicleOut>("/vehicles/lookup", {
+    method: "POST",
+    body: JSON.stringify({ kenteken }),
+  });
+}
+
+export function linkVehicleToCase(caseId: string, vehicleId: string): Promise<void> {
+  return request<void>(`/cases/${caseId}/vehicles/${vehicleId}`, { method: "POST" });
 }
 
 export interface AskResponse {

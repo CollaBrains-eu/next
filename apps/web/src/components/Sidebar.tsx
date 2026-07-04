@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { to: "/tasks", label: "Tasks" },
   { to: "/entities", label: "Entities" },
   { to: "/cases", label: "Cases" },
+  { to: "/vehicles", label: "Vehicles" },
   { to: "/assistant", label: "Assistant" },
   { to: "/settings", label: "Settings" },
 ];

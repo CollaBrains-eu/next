@@ -7,11 +7,12 @@ from api.cases import (
     get_case_dashboard,
     link_decision_to_case,
     link_task_to_case,
+    link_vehicle_to_case,
     list_cases,
     update_case,
 )
 from api.db import async_session
-from api.models import Case, Decision, Document, GraphEdge, Task, User
+from api.models import Case, Decision, Document, Entity, GraphEdge, Task, User, Vehicle
 
 
 def _unique(base: str) -> str:
@@ -242,3 +243,33 @@ async def test_delete_case_returns_false_for_unknown_id():
     async with async_session() as db:
         deleted = await delete_case(db, case_id=uuid4())
     assert deleted is False
+
+
+async def _create_vehicle(kenteken: str) -> Vehicle:
+    async with async_session() as db:
+        entity = Entity(name=kenteken, entity_type="vehicle")
+        db.add(entity)
+        await db.flush()
+        vehicle = Vehicle(entity_id=entity.id, kenteken=kenteken)
+        db.add(vehicle)
+        await db.commit()
+        await db.refresh(vehicle)
+        return vehicle
+
+
+async def test_link_vehicle_to_case_and_dashboard_includes_it():
+    user = User(username=_unique("caseuser"), display_name="Case User", role="member")
+    async with async_session() as db:
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+
+    async with async_session() as db:
+        case = await create_case(db, user_id=user.id, name="A case")
+        vehicle = await _create_vehicle(_unique("VE") + "-01-ST")
+        linked = await link_vehicle_to_case(db, case_id=case.id, vehicle_id=vehicle.id)
+        assert linked is True
+
+    async with async_session() as db:
+        dashboard = await get_case_dashboard(db, case.id)
+        assert [v.id for v in dashboard["vehicles"]] == [vehicle.id]

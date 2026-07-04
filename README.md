@@ -3,7 +3,7 @@
 Privacy-first AI knowledge platform. AI is the central orchestration layer;
 users interact via Web, Mobile, Signal (chat-first), and later Admin.
 
-## Status: Phase 18 — Vehicle Entity (Kenteken/VIN Detection + RDW Enrichment)
+## Status: Phase 19 — Vehicles Page (List, Plate-Styled Lookup, Case Linking)
 
 See `docs/adr/` for the architecture decisions behind this build
 (0001: scaffold, 0002: document pipeline, 0003: AI Gateway/Orchestrator,
@@ -18,8 +18,9 @@ permissions, 0024: tool discovery, 0025: knowledge graph 2, 0026:
 multi-agent system, 0027: autonomous workflows, 0028: personal AI,
 0029: enterprise foundation, 0030: learning platform, 0031: case/matter
 workspace, 0032: sidebar shell redesign, 0033: case workspace UI,
-0034: assistant UI, 0035: settings UI, 0036: vehicle entity).
-**All 15 phases of the original roadmap are done**, plus three further
+0034: assistant UI, 0035: settings UI, 0036: vehicle entity, 0037:
+vehicles page).
+**All 15 phases of the original roadmap are done**, plus four further
 phases built from fresh specs after the roadmap closed: Phases 0-4, all
 of Phase 5 (5a, 5b, 5c), all of Phase 6 (6a, 6b, 6c, 6d), Phase 7, all
 of Phase 8 (8a, 8b, 8c, 8d), all of Phase 9 (9a, 9b, 9c, 9d), Phase 10,
@@ -27,9 +28,10 @@ Phase 11, Phase 12, Phase 13, Phase 14, and Phase 15 -- every phase in
 the original 7-phase plan, the mobile phase, the Cognitive Engine
 roadmap, and the AI Platform roadmap that followed it. **Phase 16**
 (Case/Matter Workspace), **Phase 17** (Frontend Catch-Up, split into
-17a-17d), and **Phase 18** (Vehicle Entity) followed, each starting
-from its own brainstormed spec rather than a pre-written roadmap entry
--- see [`docs/roadmap/`](docs/roadmap/) for what came before and ADR
+17a-17d), **Phase 18** (Vehicle Entity), and **Phase 19** (Vehicles
+Page) followed, each starting from its own brainstormed spec rather
+than a pre-written roadmap entry -- see
+[`docs/roadmap/`](docs/roadmap/) for what came before and ADR
 0031/0032 for why this project keeps going past a "complete" roadmap.
 
 Two earlier phases were deliberately scoped down from their original
@@ -40,8 +42,8 @@ policy override exist, but there's no per-table tenant isolation yet
 from existing feedback signal, but stops before fine-tuning,
 benchmarking, or deploying a model -- this environment has no training
 infrastructure to do that safely (ADR 0030). Both remain candidate
-starting points for future work, alongside what Phase 16/17/18
-themselves left open (see their ADRs, 0031-0036).
+starting points for future work, alongside what Phase 16/17/18/19
+themselves left open (see their ADRs, 0031-0037).
 
 The app is live at **https://v78281.1blu.de** (real Let's Encrypt
 certificate, auto-renewing). `api` and the Vite dev server are no longer
@@ -212,6 +214,15 @@ ADR 0004).
   function backs both that passive pipeline hook and an active Tool
   Registry entry, automatically callable from the Manager Agent
   (`/manager/ask`, Phase 11) and MCP (Phase 9b). See ADR 0036.
+- **Phase 19** — Vehicles Page (`api/vehicles_router.py`): the first
+  REST surface for Phase 18's vehicle data -- `GET /vehicles` (full RDW
+  payload per row) and `POST /vehicles/lookup` (a direct wrapper around
+  `vehicle_agent.lookup_vehicle`, alongside its existing Tool Registry
+  entry), both requiring only authentication like `GET /entities`.
+  Vehicles can now link to a `Case` (Phase 16) via `graph_edges`,
+  exactly like Task/Decision already do -- `POST /cases/{case_id}/vehicles/{vehicle_id}`,
+  with no ownership check on the vehicle itself since entities have no
+  owner. See ADR 0037.
 
 `apps/signal-bot` bridges Signal to `/chat`: polls
 `signal-cli-rest-api` for incoming messages on the registered number
@@ -371,6 +382,20 @@ backend capabilities has real UI. None of 17a-17d added component-level
 test coverage (this codebase has no React component testing library);
 each was verified via `tsc -b` plus a real browser check against the
 live stack.
+
+Phase 19 (`docs/superpowers/specs/2026-07-04-vehicles-page-design.md`)
+added a ninth nav item, `/vehicles`, giving Phase 18's backend-only
+vehicle data its first UI: a new `LicensePlateInput.tsx` component
+styled as a real Dutch plate (yellow, black bold text, blue "NL" band
+with EU stars, confirmed via a visual mockup comparison during
+brainstorming) feeds `POST /vehicles/lookup`, above a card list of
+every detected vehicle (`GET /vehicles`) that distinguishes three
+states via `fetched_at`/`merk` — not yet looked up, looked up but no
+RDW match, or full RDW details. `CaseDetail.tsx` also gained a fourth
+attach-flow section (Vehicles), identical in shape to the existing
+Documents/Tasks/Decisions sections. Built as one phase rather than
+split into backend/frontend sub-phases like Phase 16→17b — an explicit
+choice even though it crossed both. See ADR 0037.
 
 ## Local development
 
@@ -539,17 +564,25 @@ reachable from the public internet on this host, on 80 (redirects to
     new `Vehicle` table), regex-based kenteken/VIN detection wired into
     the document pipeline alongside the existing Entity Agent, an RDW
     open data client (anonymous, no App Token yet), and a
-    `lookup_vehicle` tool usable from the Manager Agent and MCP. No
-    frontend UI yet -- a vehicle is visible today only via the existing
-    `/entities` list/graph view and the Manager Agent tool. Other Dutch
-    open-data sources (KVK, PDOK, CBS, Kadaster) are deliberately out of
-    scope -- candidate future phases. See ADR 0036.
+    `lookup_vehicle` tool usable from the Manager Agent and MCP.
+    Deliberately backend-only at merge time -- Phase 19 gave it a
+    frontend. Other Dutch open-data sources (KVK, PDOK, CBS, Kadaster)
+    are deliberately out of scope -- candidate future phases. See ADR
+    0036.
+19. Vehicles Page (done) — `GET /vehicles` and `POST /vehicles/lookup`
+    (the first REST surface for Phase 18's vehicle data), Vehicle↔Case
+    linking via `graph_edges` (same pattern as Task/Decision), a new
+    `/vehicles` page with a Dutch-plate-styled kenteken input
+    (`LicensePlateInput.tsx`) and a card-per-vehicle list, and a fourth
+    attach-flow section on `/cases/:id`. Built as one phase rather than
+    split into backend/frontend sub-phases -- an explicit choice. See
+    ADR 0037.
 
-This is every phase built so far. Phases 16-18 each started from their
+This is every phase built so far. Phases 16-19 each started from their
 own fresh spec rather than the original roadmap, which the 15 phases
 above complete in full -- see [`docs/roadmap/`](docs/roadmap/) for that
-history, and ADR 0031-0036 for exactly what Phase 16/17/18 themselves
+history, and ADR 0031-0037 for exactly what Phase 16/17/18/19 themselves
 deliberately left open (case sharing, Planning Engine/Tool Registry/MCP/
-Organizations/Learning Dataset UI, other Dutch open-data sources, a
-Vehicle Entity frontend, among others), alongside what Phase 14 and
-Phase 15 left open before them.
+Organizations/Learning Dataset UI, other Dutch open-data sources,
+unlinking a vehicle from a case, among others), alongside what Phase 14
+and Phase 15 left open before them.

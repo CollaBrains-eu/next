@@ -20,6 +20,7 @@ from api.plans import router as plans_router
 from api.preferences_router import router as preferences_router
 from api.tasks import router as tasks_router
 from api.tools_router import router as tools_router
+from api.vehicles_router import router as vehicles_router
 
 app = FastAPI(title="CollaBrains API", version="0.1.0")
 
@@ -48,6 +49,7 @@ app.include_router(manager_router)
 app.include_router(preferences_router)
 app.include_router(organizations_router)
 app.include_router(learning_router)
+app.include_router(vehicles_router)
 
 
 @app.get("/health")
