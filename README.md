@@ -3,7 +3,7 @@
 Privacy-first AI knowledge platform. AI is the central orchestration layer;
 users interact via Web, Mobile, Signal (chat-first), and later Admin.
 
-## Status: Phase 15 — Learning Platform (dataset export)
+## Status: Phase 17d — Frontend Catch-Up (Settings UI)
 
 See `docs/adr/` for the architecture decisions behind this build
 (0001: scaffold, 0002: document pipeline, 0003: AI Gateway/Orchestrator,
@@ -16,30 +16,32 @@ monitoring & alerting, 0015: load testing, 0016: mobile app foundation,
 reflection engine, 0021: tool registry, 0022: MCP platform, 0023:
 permissions, 0024: tool discovery, 0025: knowledge graph 2, 0026:
 multi-agent system, 0027: autonomous workflows, 0028: personal AI,
-0029: enterprise foundation, 0030: learning platform).
-**All 15 phases of the original roadmap are now done** -- Phases 0-4,
-all of Phase 5 (5a, 5b, 5c), all of Phase 6 (6a, 6b, 6c, 6d), Phase 7,
-all of Phase 8 (8a, 8b, 8c, 8d), all of Phase 9 (9a, 9b, 9c, 9d), Phase
-10, Phase 11, Phase 12, Phase 13, Phase 14, and Phase 15 -- every phase
-in the original 7-phase plan, the mobile phase, the Cognitive Engine
-roadmap, and the AI Platform roadmap that followed it.
+0029: enterprise foundation, 0030: learning platform, 0031: case/matter
+workspace, 0032: sidebar shell redesign, 0033: case workspace UI,
+0034: assistant UI, 0035: settings UI).
+**All 15 phases of the original roadmap are done**, plus two further
+phases built from fresh specs after the roadmap closed: Phases 0-4, all
+of Phase 5 (5a, 5b, 5c), all of Phase 6 (6a, 6b, 6c, 6d), Phase 7, all
+of Phase 8 (8a, 8b, 8c, 8d), all of Phase 9 (9a, 9b, 9c, 9d), Phase 10,
+Phase 11, Phase 12, Phase 13, Phase 14, and Phase 15 -- every phase in
+the original 7-phase plan, the mobile phase, the Cognitive Engine
+roadmap, and the AI Platform roadmap that followed it. **Phase 16**
+(Case/Matter Workspace) and **Phase 17** (Frontend Catch-Up, split into
+17a-17d) followed, each starting from its own brainstormed spec rather
+than a pre-written roadmap entry -- see
+[`docs/roadmap/`](docs/roadmap/) for what came before and ADR
+0031/0032 for why this project keeps going past a "complete" roadmap.
 
-Two phases were deliberately scoped down from their original proposal
-rather than fully built, and stay that way on purpose: **Phase 14**
-(Enterprise) is a foundation only -- organizations and one policy
-override exist, but there's no per-table tenant isolation yet (ADR
-0029). **Phase 15** (Learning Platform) exports a real dataset from
-existing feedback signal, but stops before fine-tuning, benchmarking,
-or deploying a model -- this environment has no training
-infrastructure to do that safely (ADR 0030). Both are the natural
-starting points for whatever comes next.
-
-This README covers what's built and is now frozen as a complete
-"what's done" record of the original roadmap. Any future phase beyond
-this point needs its own new spec written first, the same way every
-phase from 9 onward was -- see [`docs/roadmap/`](docs/roadmap/) for
-that discipline and for the two phases' own notes on what's still
-open.
+Two earlier phases were deliberately scoped down from their original
+proposal rather than fully built, and stay that way on purpose:
+**Phase 14** (Enterprise) is a foundation only -- organizations and one
+policy override exist, but there's no per-table tenant isolation yet
+(ADR 0029). **Phase 15** (Learning Platform) exports a real dataset
+from existing feedback signal, but stops before fine-tuning,
+benchmarking, or deploying a model -- this environment has no training
+infrastructure to do that safely (ADR 0030). Both remain candidate
+starting points for future work, alongside what Phase 16/17 themselves
+left open (see their ADRs, 0031-0035).
 
 The app is live at **https://v78281.1blu.de** (real Let's Encrypt
 certificate, auto-renewing). `api` and the Vite dev server are no longer
@@ -186,6 +188,17 @@ ADR 0004).
   Deploy stage, since this environment has no training infrastructure
   and the production host is already CPU-bound at low concurrency
   (ADR 0015). See ADR 0030.
+- **Phase 16** — Case/Matter Workspace (`api/cases.py`, `api/cases_router.py`,
+  `GET`/`POST /cases`, `GET`/`PATCH /cases/{id}`): a user-scoped `Case`
+  table giving the "case" concept Planning Engine's `summarize_case`
+  goal and `Decision`'s own docstring had assumed since Phase 8c/10 but
+  never had a real identity for. `Document.case_id` is a direct FK
+  (`ON DELETE SET NULL`); `Task`/`Decision` link via the existing
+  polymorphic `graph_edges` table (Phase 10, ADR 0025) instead of two
+  more nullable columns. Membership is optional everywhere -- no
+  backfill, no existing-row risk. `POST /plans` now accepts a `case_id`
+  for `summarize_case`, resolved to that case's documents before
+  `build_steps()` runs. See ADR 0031.
 
 `apps/signal-bot` bridges Signal to `/chat`: polls
 `signal-cli-rest-api` for incoming messages on the registered number
@@ -316,6 +329,35 @@ reliably serialize a `URLSearchParams` body the way browser `fetch`
 does, which silently sent an empty login request and got rejected by
 the backend — fixed by building the encoded string directly, with a
 regression test added.
+
+Phase 17 (`docs/superpowers/specs/2026-07-04-frontend-catchup-design.md`)
+closed the gap between backend capabilities shipped API-only since
+Phase 8c and what `apps/web` actually exposed, split into four stacked
+sub-phases. Phase 17a (ADR 0032) replaced the top nav with a persistent
+left sidebar (Linear/Notion/Vercel-style), shrinking `App.tsx` to a
+pure route table with the shell itself moved into new `Layout`/`Sidebar`
+components, plus two new shared primitives (`Card`, `EmptyState`) with
+no consumer yet in that sub-phase. Phase 17b (ADR 0033) built `/cases`
+and `/cases/:id` on top of the Phase 16 backend: a dashboard with
+inline "+ Attach" flows (reusing `UploadDialog.tsx`'s toggle pattern)
+for linking existing documents/tasks/decisions to a case, backed by a
+new `GET /decisions` list endpoint added specifically to populate the
+decisions picker. Phase 17c (ADR 0034) built `/assistant`, a UI for the
+Phase 11 Manager Agent (`POST /manager/ask`) — deliberately a separate
+page from `/chat` rather than a mode toggle, since the two endpoints
+have genuinely different contracts (stateless single-round tool-calling
+vs. full-history RAG), with a `via: <tool_name>` badge making the
+Manager's tool selection observable. Phase 17d (ADR 0035) built
+`/settings`, a single curated-language preference UI for the Phase 13
+Personal AI backend (`GET`/`PUT /preferences/me`) — intentionally the
+only setting on the page, a home for future settings rather than a
+sign more exist today. With all four sub-phases merged, the sidebar carries
+all 8 nav items (Documents, AI Chat, Legal Draft, Tasks, Entities,
+Cases, Assistant, Settings) and every one of Phase 17's three target
+backend capabilities has real UI. None of 17a-17d added component-level
+test coverage (this codebase has no React component testing library);
+each was verified via `tsc -b` plus a real browser check against the
+live stack.
 
 ## Local development
 
@@ -463,8 +505,28 @@ reachable from the public internet on this host, on 80 (redirects to
     and the production host is already CPU-bound at low concurrency
     (ADR 0015). See ADR 0030 for why faking those stages would be worse
     than not building them.
+16. Case/Matter Workspace (done) — a user-scoped `Case` table,
+    `Document.case_id` FK, and `Task`/`Decision` linked via the
+    existing `graph_edges` table. No case-level sharing between users,
+    no automatic case detection, no status workflow beyond open/closed
+    -- deliberately deferred, not solved. See ADR 0031.
+17. Frontend Catch-Up (done) — split into four stacked sub-phases,
+    closing the gap between backend-only capabilities and `apps/web`:
+    - 17a (done): sidebar shell redesign (`Layout`/`Sidebar`, `Card`/
+      `EmptyState` primitives), replacing the top nav. See ADR 0032.
+    - 17b (done): Case Workspace UI (`/cases`, `/cases/:id`) with
+      inline attach flows for documents/tasks/decisions, plus a new
+      `GET /decisions` list endpoint. See ADR 0033.
+    - 17c (done): Assistant UI (`/assistant`) for the Phase 11 Manager
+      Agent, with a `tool_called` badge making tool selection visible.
+      See ADR 0034.
+    - 17d (done): Settings UI (`/settings`) for the Phase 13 Personal
+      AI language preference. See ADR 0035.
 
-This is every phase of the original roadmap. See
-[`docs/roadmap/`](docs/roadmap/) for what a Phase 16 would need to
-start with, and for exactly what Phase 14 and Phase 15 deliberately
-left open.
+This is every phase built so far. Phases 16-17 each started from their
+own fresh spec rather than the original roadmap, which the 15 phases
+above complete in full -- see [`docs/roadmap/`](docs/roadmap/) for that
+history, and ADR 0031-0035 for exactly what Phase 16/17 themselves
+deliberately left open (case sharing, Planning Engine/Tool Registry/MCP/
+Organizations/Learning Dataset UI, among others), alongside what Phase
+14 and Phase 15 left open before them.
