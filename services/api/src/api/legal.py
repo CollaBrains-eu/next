@@ -27,6 +27,7 @@ from api.ai_gateway import chat_completion
 from api.auth import get_current_user
 from api.db import get_db
 from api.models import Document, User
+from api.preferences import build_language_instruction, get_preferences
 from api.reflection import log_reflection, reflect
 from api.search_service import hybrid_search
 
@@ -105,8 +106,15 @@ async def _generate_draft(
     scope = set(document_ids) if document_ids else None
     citations, context_text = await _retrieve(db, instruction, context_chunks, scope)
 
+    language_instruction = ""
+    try:
+        preferences = await get_preferences(db, user_id=user_id)
+        language_instruction = build_language_instruction(preferences.preferred_language if preferences else None)
+    except Exception:  # noqa: BLE001 - preference lookup must never fail the draft response
+        logger.exception("preference lookup failed for legal draft request")
+
     messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": SYSTEM_PROMPT + language_instruction},
         {"role": "user", "content": f"Context:\n{context_text}\n\nDrafting instruction: {instruction}"},
     ]
     draft_text = await chat_completion(messages, user_id=user_id, endpoint="legal.draft")
@@ -121,7 +129,7 @@ async def _generate_draft(
             retry_limit = min(context_chunks * 2, REFLECTION_RETRY_CAP)
             citations, context_text = await _retrieve(db, instruction, retry_limit, scope)
             messages = [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": SYSTEM_PROMPT + language_instruction},
                 {"role": "user", "content": f"Context:\n{context_text}\n\nDrafting instruction: {instruction}"},
             ]
             draft_text = await chat_completion(messages, user_id=user_id, endpoint="legal.draft")

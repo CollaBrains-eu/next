@@ -1,5 +1,5 @@
 import os
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 os.environ.setdefault("SIGNAL_PHONE_NUMBER", "+15550001111")
 os.environ.setdefault("SIGNAL_BOT_API_TOKEN", "test-token")
@@ -116,7 +116,42 @@ def test_resolve_phone_number_returns_none_for_unknown_uuid():
     main._uuid_to_number.clear()
     client = MagicMock()
     client.get.return_value.json.return_value = []
-    assert main.resolve_phone_number(client, "00000000-0000-0000-0000-000000000000") is None
+    with patch.object(main.time, "sleep"):
+        assert main.resolve_phone_number(client, "00000000-0000-0000-0000-000000000000") is None
+    assert client.get.call_count == main.RESOLVE_RETRY_ATTEMPTS
+
+
+def test_resolve_phone_number_retries_before_giving_up_on_transient_contact_sync_lag():
+    """A sealed-sender UUID that isn't in signal-cli's contacts yet on the
+    first try (but shows up moments later) should still resolve -- the real
+    incident this covers: a linked user got told they were unlinked because
+    the very first lookup raced signal-cli's own contact sync."""
+    main._uuid_to_number.clear()
+    client = MagicMock()
+    client.get.return_value.json.side_effect = [
+        [],
+        [],
+        [{"uuid": "f080a563-d3a2-459a-938c-2ac9497d35bd", "number": "+4915110684738"}],
+    ]
+
+    with patch.object(main.time, "sleep") as mock_sleep:
+        resolved = main.resolve_phone_number(client, "f080a563-d3a2-459a-938c-2ac9497d35bd")
+
+    assert resolved == "+4915110684738"
+    assert client.get.call_count == 3
+    assert mock_sleep.call_count == 2
+
+
+def test_resolve_phone_number_gives_up_immediately_on_a_genuine_api_error():
+    main._uuid_to_number.clear()
+    client = MagicMock()
+    client.get.side_effect = Exception("connection refused")
+
+    with patch.object(main.time, "sleep") as mock_sleep:
+        assert main.resolve_phone_number(client, "f080a563-d3a2-459a-938c-2ac9497d35bd") is None
+
+    assert client.get.call_count == 1
+    mock_sleep.assert_not_called()
 
 
 def test_ask_collabrains_treats_403_as_unlinked():

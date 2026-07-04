@@ -50,7 +50,7 @@ async def test_chat_includes_preferred_language_in_system_prompt(client):
 
     sent_messages = mock_completion.call_args.args[0]
     system_message = sent_messages[0]["content"]
-    assert "Respond in de." in system_message
+    assert "you must respond only in de" in system_message.lower()
 
 
 async def test_chat_omits_language_instruction_when_no_preference_set(client):

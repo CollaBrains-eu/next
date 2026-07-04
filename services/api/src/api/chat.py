@@ -37,7 +37,7 @@ from api.auth import get_effective_user
 from api.db import async_session, get_db
 from api.memory import maybe_create_memory_from_exchange, reinforce_memories, retrieve_relevant_memories
 from api.models import Document, User
-from api.preferences import get_preferences
+from api.preferences import build_language_instruction, get_preferences
 from api.reflection import log_reflection, reflect
 from api.search_service import hybrid_search
 
@@ -143,8 +143,7 @@ async def chat(
     language_instruction = ""
     try:
         preferences = await get_preferences(db, user_id=current_user.id)
-        if preferences and preferences.preferred_language:
-            language_instruction = f" Respond in {preferences.preferred_language}."
+        language_instruction = build_language_instruction(preferences.preferred_language if preferences else None)
     except Exception:  # noqa: BLE001 - preference lookup must never fail the chat response
         logger.exception("preference lookup failed for chat request")
 

@@ -2,7 +2,7 @@ from uuid import uuid4
 
 from api.db import async_session
 from api.models import User
-from api.preferences import delete_preferences, get_preferences, set_preferences
+from api.preferences import build_language_instruction, delete_preferences, get_preferences, set_preferences
 
 
 def _unique(base: str) -> str:
@@ -68,3 +68,13 @@ async def test_delete_preferences_returns_false_when_nothing_to_delete():
     async with async_session() as db:
         deleted = await delete_preferences(db, user_id=user.id)
     assert deleted is False
+
+
+def test_build_language_instruction_returns_empty_string_for_no_preference():
+    assert build_language_instruction(None) == ""
+    assert build_language_instruction("") == ""
+
+
+def test_build_language_instruction_is_an_explicit_imperative():
+    instruction = build_language_instruction("de")
+    assert "you must respond only in de" in instruction.lower()

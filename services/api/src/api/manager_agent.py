@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.ai_gateway import chat_completion, chat_completion_with_tools
 from api.permissions import has_permission
+from api.preferences import build_language_instruction, get_preferences
 from api.tool_registry import ToolPermissionError, dispatch, list_tools, to_ollama_tools
 
 logger = logging.getLogger(__name__)
@@ -41,8 +42,15 @@ def _tools_for_role(role: str) -> list[dict[str, Any]]:
 
 async def handle_request(db: AsyncSession, *, user_id: UUID, role: str, message: str) -> dict[str, Any]:
     """Answer a free-form request, autonomously calling at most one tool."""
+    language_instruction = ""
+    try:
+        preferences = await get_preferences(db, user_id=user_id)
+        language_instruction = build_language_instruction(preferences.preferred_language if preferences else None)
+    except Exception:  # noqa: BLE001 - preference lookup must never fail the manager agent response
+        logger.exception("preference lookup failed for manager agent request")
+
     messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": SYSTEM_PROMPT + language_instruction},
         {"role": "user", "content": message},
     ]
 

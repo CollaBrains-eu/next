@@ -17,6 +17,22 @@ async def get_preferences(db: AsyncSession, *, user_id: UUID) -> UserPreference 
     return result.scalar_one_or_none()
 
 
+def build_language_instruction(preferred_language: str | None) -> str:
+    """The shared wording used everywhere a preferred_language is injected
+    into a system prompt (chat, manager agent, legal draft). Phrased as an
+    explicit imperative ("you must ... regardless of ...") rather than a
+    mild trailing note -- a small instruct model follows a direct directive
+    more reliably than a soft aside, and this was previously only wired
+    into /chat, so a user's preference silently had no effect on
+    /manager/ask or Legal Draft at all."""
+    if not preferred_language:
+        return ""
+    return (
+        f" IMPORTANT: You must respond only in {preferred_language}, regardless of what "
+        f"language the user's message or the provided context is written in."
+    )
+
+
 async def set_preferences(db: AsyncSession, *, user_id: UUID, preferred_language: str | None) -> UserPreference:
     preferences = await get_preferences(db, user_id=user_id)
     if preferences is None:

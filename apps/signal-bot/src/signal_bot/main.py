@@ -27,6 +27,13 @@ SIGNAL_PHONE_NUMBER = os.environ["SIGNAL_PHONE_NUMBER"]
 COLLABRAINS_API_URL = os.environ.get("COLLABRAINS_API_URL", "http://api:8000")
 SIGNAL_BOT_API_TOKEN = os.environ["SIGNAL_BOT_API_TOKEN"]
 POLL_INTERVAL_SECONDS = float(os.environ.get("SIGNAL_POLL_INTERVAL_SECONDS", "3"))
+# A sealed-sender envelope can arrive before signal-cli's own contact sync
+# has recorded that UUID's phone number yet -- retrying a few times with a
+# short delay covers that race instead of prematurely telling an
+# actually-linked sender they're unlinked (a real incident: see the
+# 2026-07-03 08:37:44 log entry referenced in the fix's ADR).
+RESOLVE_RETRY_ATTEMPTS = int(os.environ.get("SIGNAL_RESOLVE_RETRY_ATTEMPTS", "3"))
+RESOLVE_RETRY_DELAY_SECONDS = float(os.environ.get("SIGNAL_RESOLVE_RETRY_DELAY_SECONDS", "2"))
 
 FALLBACK_REPLY = "Sorry, something went wrong answering that. Please try again shortly."
 UNLINKED_REPLY = (
@@ -88,23 +95,35 @@ def extract_attachments(envelope: dict) -> tuple[str, list[dict], str | None] | 
 
 
 def resolve_phone_number(client: httpx.Client, sender: str) -> str | None:
-    """Resolve a sender identifier to an E.164 phone number, or None if it can't be resolved."""
+    """Resolve a sender identifier to an E.164 phone number, or None if it can't be resolved.
+
+    Retries the /v1/contacts refresh a few times (RESOLVE_RETRY_ATTEMPTS,
+    RESOLVE_RETRY_DELAY_SECONDS apart) when the UUID isn't found -- a
+    genuine network/API error still gives up immediately, since retrying
+    that wouldn't help."""
     if sender.startswith("+"):
         return sender
     if sender in _uuid_to_number:
         return _uuid_to_number[sender]
 
-    try:
-        response = client.get(f"{SIGNAL_CLI_URL}/v1/contacts/{_encoded_number()}", timeout=15.0)
-        response.raise_for_status()
-        for contact in response.json():
-            if contact.get("uuid") and contact.get("number"):
-                _uuid_to_number[contact["uuid"]] = contact["number"]
-    except Exception:
-        logger.exception("failed to fetch contacts to resolve sender %s", sender)
-        return None
+    for attempt in range(RESOLVE_RETRY_ATTEMPTS):
+        try:
+            response = client.get(f"{SIGNAL_CLI_URL}/v1/contacts/{_encoded_number()}", timeout=15.0)
+            response.raise_for_status()
+            for contact in response.json():
+                if contact.get("uuid") and contact.get("number"):
+                    _uuid_to_number[contact["uuid"]] = contact["number"]
+        except Exception:
+            logger.exception("failed to fetch contacts to resolve sender %s", sender)
+            return None
 
-    return _uuid_to_number.get(sender)
+        if sender in _uuid_to_number:
+            return _uuid_to_number[sender]
+
+        if attempt < RESOLVE_RETRY_ATTEMPTS - 1:
+            time.sleep(RESOLVE_RETRY_DELAY_SECONDS)
+
+    return None
 
 
 def ask_collabrains(client: httpx.Client, message: str, phone_number: str) -> tuple[str, bool]:
