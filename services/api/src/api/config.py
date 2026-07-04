@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     ai_max_context_chunks: int = 5
     auto_extract_tasks_on_ready: bool = True
     auto_extract_entities_on_ready: bool = True
+    rdw_app_token: str = ""
 
     signal_cli_url: str = ""
     signal_phone_number: str = ""
