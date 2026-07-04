@@ -59,6 +59,36 @@ async def test_get_decision_returns_supporting_documents(client):
     assert [doc["id"] for doc in body["supporting_documents"]] == [str(document.id)]
 
 
+async def test_list_decisions_scoped_to_user(client):
+    owner_token, owner_username = await _login(client, "decisionlistuser")
+    owner_id = await _user_id_for(owner_username)
+
+    async with async_session() as db:
+        plan = await create_plan(
+            db, user_id=owner_id, goal_type="draft_legal_document", goal_params={"instruction": "Draft a notice."},
+        )
+        decision = await create_decision_from_plan(db, plan=plan, user_id=owner_id)
+
+    other_token, other_username = await _login(client, "decisionlistother")
+    other_id = await _user_id_for(other_username)
+    async with async_session() as db:
+        other_plan = await create_plan(
+            db, user_id=other_id, goal_type="draft_legal_document",
+            goal_params={"instruction": "Draft another notice."},
+        )
+        await create_decision_from_plan(db, plan=other_plan, user_id=other_id)
+
+    response = await client.get("/decisions", headers={"Authorization": f"Bearer {owner_token}"})
+    assert response.status_code == 200
+    ids = [d["id"] for d in response.json()]
+    assert ids == [str(decision.id)]
+
+
+async def test_list_decisions_rejects_missing_token(client):
+    response = await client.get("/decisions")
+    assert response.status_code == 401
+
+
 async def test_get_decision_rejects_non_owner(client):
     owner_token, owner_username = await _login(client, "decisionowner")
     owner_id = await _user_id_for(owner_username)
