@@ -5,7 +5,7 @@ from sqlalchemy import select
 
 from api.db import async_session
 from api.ldap_auth import LdapIdentity
-from api.models import Decision, Document, Task, User
+from api.models import Decision, Document, Entity, Task, User, Vehicle
 
 
 async def _login(client, username: str) -> str:
@@ -262,3 +262,41 @@ async def test_link_decision_to_case(client):
 
     dashboard = await client.get(f"/cases/{case_id}", headers=headers)
     assert [d["id"] for d in dashboard.json()["decisions"]] == [str(decision.id)]
+
+
+async def _create_vehicle_router(kenteken: str) -> Vehicle:
+    async with async_session() as db:
+        entity = Entity(name=kenteken, entity_type="vehicle")
+        db.add(entity)
+        await db.flush()
+        vehicle = Vehicle(entity_id=entity.id, kenteken=kenteken)
+        db.add(vehicle)
+        await db.commit()
+        await db.refresh(vehicle)
+        return vehicle
+
+
+async def test_link_vehicle_to_case(client):
+    token = await _login(client, "caserouteruser21")
+    headers = {"Authorization": f"Bearer {token}"}
+    vehicle = await _create_vehicle_router(f"LV-{uuid4().hex[:2].upper()}-ST")
+
+    create_response = await client.post("/cases", headers=headers, json={"name": "A case"})
+    case_id = create_response.json()["id"]
+
+    link_response = await client.post(f"/cases/{case_id}/vehicles/{vehicle.id}", headers=headers)
+    assert link_response.status_code == 204
+
+    dashboard = await client.get(f"/cases/{case_id}", headers=headers)
+    assert [v["id"] for v in dashboard.json()["vehicles"]] == [str(vehicle.id)]
+
+
+async def test_link_vehicle_to_case_rejects_unknown_vehicle(client):
+    token = await _login(client, "caserouteruser22")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    create_response = await client.post("/cases", headers=headers, json={"name": "A case"})
+    case_id = create_response.json()["id"]
+
+    response = await client.post(f"/cases/{case_id}/vehicles/{uuid4()}", headers=headers)
+    assert response.status_code == 404

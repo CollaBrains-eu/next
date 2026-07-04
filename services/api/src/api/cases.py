@@ -14,7 +14,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.models import Case, Decision, Document, GraphEdge, Task
+from api.models import Case, Decision, Document, GraphEdge, Task, Vehicle
 
 
 async def create_case(db: AsyncSession, *, user_id: UUID, name: str, description: str | None = None) -> Case:
@@ -100,6 +100,19 @@ async def link_decision_to_case(db: AsyncSession, *, case_id: UUID, decision_id:
     return True
 
 
+async def link_vehicle_to_case(db: AsyncSession, *, case_id: UUID, vehicle_id: UUID) -> bool:
+    case = await db.get(Case, case_id)
+    vehicle = await db.get(Vehicle, vehicle_id)
+    if case is None or vehicle is None:
+        return False
+    db.add(GraphEdge(
+        source_type="vehicle", source_id=vehicle.id, target_type="case", target_id=case.id,
+        relationship_type="belongs_to",
+    ))
+    await db.commit()
+    return True
+
+
 async def get_case_dashboard(db: AsyncSession, case_id: UUID) -> dict[str, Any] | None:
     case = await db.get(Case, case_id)
     if case is None:
@@ -117,6 +130,7 @@ async def get_case_dashboard(db: AsyncSession, case_id: UUID) -> dict[str, Any] 
     edges = list(edges_result.scalars().all())
     task_ids = [edge.source_id for edge in edges if edge.source_type == "task"]
     decision_ids = [edge.source_id for edge in edges if edge.source_type == "decision"]
+    vehicle_ids = [edge.source_id for edge in edges if edge.source_type == "vehicle"]
 
     tasks: list[Task] = []
     if task_ids:
@@ -128,4 +142,9 @@ async def get_case_dashboard(db: AsyncSession, case_id: UUID) -> dict[str, Any] 
         decisions_result = await db.execute(select(Decision).where(Decision.id.in_(decision_ids)))
         decisions = list(decisions_result.scalars().all())
 
-    return {"case": case, "documents": documents, "tasks": tasks, "decisions": decisions}
+    vehicles: list[Vehicle] = []
+    if vehicle_ids:
+        vehicles_result = await db.execute(select(Vehicle).where(Vehicle.id.in_(vehicle_ids)))
+        vehicles = list(vehicles_result.scalars().all())
+
+    return {"case": case, "documents": documents, "tasks": tasks, "decisions": decisions, "vehicles": vehicles}

@@ -20,11 +20,12 @@ from api.cases import (
     get_case_dashboard,
     link_decision_to_case,
     link_task_to_case,
+    link_vehicle_to_case,
     list_cases,
     update_case,
 )
 from api.db import get_db
-from api.models import Case, Decision, Document, Task, User
+from api.models import Case, Decision, Document, Task, User, Vehicle
 
 router = APIRouter(tags=["cases"])
 
@@ -64,10 +65,18 @@ class CaseDecisionOut(BaseModel):
     summary: str
 
 
+class CaseVehicleOut(BaseModel):
+    id: UUID
+    kenteken: str | None
+    merk: str | None
+    handelsbenaming: str | None
+
+
 class CaseDashboardOut(CaseOut):
     documents: list[CaseDocumentOut]
     tasks: list[CaseTaskOut]
     decisions: list[CaseDecisionOut]
+    vehicles: list[CaseVehicleOut]
 
 
 class DocumentCaseRequest(BaseModel):
@@ -114,6 +123,10 @@ async def get_case_endpoint(
         documents=[CaseDocumentOut(id=doc.id, title=doc.title) for doc in result["documents"]],
         tasks=[CaseTaskOut(id=task.id, title=task.title, status=task.status) for task in result["tasks"]],
         decisions=[CaseDecisionOut(id=dec.id, summary=dec.summary) for dec in result["decisions"]],
+        vehicles=[
+            CaseVehicleOut(id=v.id, kenteken=v.kenteken, merk=v.merk, handelsbenaming=v.handelsbenaming)
+            for v in result["vehicles"]
+        ],
     )
 
 
@@ -214,3 +227,22 @@ async def link_decision_endpoint(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to link this decision")
 
     await link_decision_to_case(db, case_id=case_id, decision_id=decision_id)
+
+
+@router.post("/cases/{case_id}/vehicles/{vehicle_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def link_vehicle_endpoint(
+    case_id: UUID,
+    vehicle_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    case = await db.get(Case, case_id)
+    if case is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+    _require_case_owner(case, current_user)
+
+    vehicle = await db.get(Vehicle, vehicle_id)
+    if vehicle is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
+
+    await link_vehicle_to_case(db, case_id=case_id, vehicle_id=vehicle_id)
