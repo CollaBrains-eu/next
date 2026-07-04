@@ -378,3 +378,46 @@ class Case(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="open")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Vehicle(Base):
+    """RDW-enriched vehicle data behind an `Entity(entity_type="vehicle")`
+    row (Phase 18). A separate table, not columns on `Entity` itself --
+    `Entity` only ever holds `name`/`entity_type` (Phase 4, ADR 0008), and
+    every other node type needing structured data (`Case`, `Decision`)
+    already gets its own table rather than bloating `Entity`. See
+    docs/superpowers/specs/2026-07-04-vehicle-entity-design.md.
+
+    All RDW-sourced fields are stored as plain strings -- RDW's open data
+    API (Socrata/SODA) returns them as JSON strings, not typed numerics,
+    so this avoids coercion failures on values like "1200" or "J"/"N".
+    """
+
+    __tablename__ = "vehicles"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    kenteken: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    vin: Mapped[str | None] = mapped_column(String(17), nullable=True)
+    voertuigsoort: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    merk: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    handelsbenaming: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    eerste_kleur: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    datum_eerste_toelating: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    vervaldatum_apk: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    wam_verzekerd: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    openstaande_terugroepactie_indicator: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    brandstofomschrijving: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    massa_ledig_voertuig: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    aantal_cilinders: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    wielbasis: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    catalogusprijs: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    aantal_zitplaatsen: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    aantal_deuren: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    vermogen_massarijklaar: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    lengte: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    europese_voertuigcategorie: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    fetched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
