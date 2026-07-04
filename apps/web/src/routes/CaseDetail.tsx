@@ -7,17 +7,20 @@ import {
   getCase,
   linkDecisionToCase,
   linkTaskToCase,
+  linkVehicleToCase,
   listDecisions,
   listDocuments,
   listTasks,
+  listVehicles,
   updateCaseStatus,
   type CaseDashboardOut,
   type DecisionListItemOut,
   type DocumentOut,
   type TaskOut,
+  type VehicleOut,
 } from "../lib/api";
 
-type AttachSection = "documents" | "tasks" | "decisions";
+type AttachSection = "documents" | "tasks" | "decisions" | "vehicles";
 
 export default function CaseDetail() {
   const { id } = useParams<{ id: string }>();
@@ -29,6 +32,7 @@ export default function CaseDetail() {
   const [allDocuments, setAllDocuments] = useState<DocumentOut[]>([]);
   const [allTasks, setAllTasks] = useState<TaskOut[]>([]);
   const [allDecisions, setAllDecisions] = useState<DecisionListItemOut[]>([]);
+  const [allVehicles, setAllVehicles] = useState<VehicleOut[]>([]);
 
   function refresh() {
     if (!id) return;
@@ -44,6 +48,7 @@ export default function CaseDetail() {
     listDocuments().then(setAllDocuments).catch(() => undefined);
     listTasks().then(setAllTasks).catch(() => undefined);
     listDecisions().then(setAllDecisions).catch(() => undefined);
+    listVehicles().then(setAllVehicles).catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -63,6 +68,7 @@ export default function CaseDetail() {
       if (attaching === "documents") await attachDocumentToCase(selected, caseData.id);
       if (attaching === "tasks") await linkTaskToCase(caseData.id, selected);
       if (attaching === "decisions") await linkDecisionToCase(caseData.id, selected);
+      if (attaching === "vehicles") await linkVehicleToCase(caseData.id, selected);
       setAttaching(null);
       setSelected("");
       refresh();
@@ -78,11 +84,15 @@ export default function CaseDetail() {
   const linkedDocumentIds = new Set(caseData.documents.map((d) => d.id));
   const linkedTaskIds = new Set(caseData.tasks.map((t) => t.id));
   const linkedDecisionIds = new Set(caseData.decisions.map((d) => d.id));
+  const linkedVehicleIds = new Set(caseData.vehicles.map((v) => v.id));
 
   const attachOptions: Record<AttachSection, { id: string; label: string }[]> = {
     documents: allDocuments.filter((d) => !linkedDocumentIds.has(d.id)).map((d) => ({ id: d.id, label: d.title })),
     tasks: allTasks.filter((t) => !linkedTaskIds.has(t.id)).map((t) => ({ id: t.id, label: t.title })),
     decisions: allDecisions.filter((d) => !linkedDecisionIds.has(d.id)).map((d) => ({ id: d.id, label: d.summary })),
+    vehicles: allVehicles
+      .filter((v) => !linkedVehicleIds.has(v.id))
+      .map((v) => ({ id: v.id, label: v.kenteken ?? v.vin ?? v.id })),
   };
 
   function AttachControl({ section }: { section: AttachSection }) {
@@ -193,6 +203,24 @@ export default function CaseDetail() {
             {caseData.decisions.map((d) => (
               <li key={d.id} className="text-sm">
                 {d.summary}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      <Card>
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-sm font-medium">Vehicles</span>
+          <AttachControl section="vehicles" />
+        </div>
+        {caseData.vehicles.length === 0 ? (
+          <p className="text-sm text-slate-400">Nothing linked yet.</p>
+        ) : (
+          <ul className="flex flex-col gap-1">
+            {caseData.vehicles.map((v) => (
+              <li key={v.id} className="text-sm">
+                {v.kenteken} {v.merk && <span className="text-xs text-slate-400">({v.merk} {v.handelsbenaming})</span>}
               </li>
             ))}
           </ul>
