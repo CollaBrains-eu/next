@@ -218,3 +218,63 @@ export interface EntityGraphOut {
 export function getEntityGraph(id: string): Promise<EntityGraphOut> {
   return request<EntityGraphOut>(`/entities/${id}/graph`);
 }
+
+export interface CaseOut {
+  id: string;
+  name: string;
+  description: string | null;
+  status: string;
+  created_at: string;
+}
+
+export interface CaseDashboardOut extends CaseOut {
+  documents: { id: string; title: string }[];
+  tasks: { id: string; title: string; status: string }[];
+  decisions: { id: string; summary: string }[];
+}
+
+export interface DecisionListItemOut {
+  id: string;
+  summary: string;
+}
+
+export function listCases(): Promise<CaseOut[]> {
+  return request<CaseOut[]>("/cases");
+}
+
+export function createCase(name: string, description?: string): Promise<CaseOut> {
+  return request<CaseOut>("/cases", {
+    method: "POST",
+    body: JSON.stringify({ name, description: description || null }),
+  });
+}
+
+export function getCase(id: string): Promise<CaseDashboardOut> {
+  return request<CaseDashboardOut>(`/cases/${id}`);
+}
+
+export function updateCaseStatus(id: string, status: "open" | "closed"): Promise<CaseOut> {
+  return request<CaseOut>(`/cases/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+}
+
+export function listDecisions(): Promise<DecisionListItemOut[]> {
+  return request<DecisionListItemOut[]>("/decisions");
+}
+
+export function attachDocumentToCase(documentId: string, caseId: string | null): Promise<{ id: string; title: string }> {
+  return request<{ id: string; title: string }>(`/documents/${documentId}/case`, {
+    method: "PUT",
+    body: JSON.stringify({ case_id: caseId }),
+  });
+}
+
+export function linkTaskToCase(caseId: string, taskId: string): Promise<void> {
+  return request<void>(`/cases/${caseId}/tasks/${taskId}`, { method: "POST" });
+}
+
+export function linkDecisionToCase(caseId: string, decisionId: string): Promise<void> {
+  return request<void>(`/cases/${caseId}/decisions/${decisionId}`, { method: "POST" });
+}
