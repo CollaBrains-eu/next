@@ -12,6 +12,7 @@ import EntityGraph from "./routes/EntityGraph";
 import Cases from "./routes/Cases";
 import CaseDetail from "./routes/CaseDetail";
 import Assistant from "./routes/Assistant";
+import Settings from "./routes/Settings";
 import NotFound from "./routes/NotFound";
 
 export default function App() {
@@ -98,6 +99,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <Assistant />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <Settings />
                 </ProtectedRoute>
               }
             />

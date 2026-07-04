@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { to: "/entities", label: "Entities" },
   { to: "/cases", label: "Cases" },
   { to: "/assistant", label: "Assistant" },
+  { to: "/settings", label: "Settings" },
 ];
 
 export default function Sidebar() {

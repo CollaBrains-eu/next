@@ -290,3 +290,18 @@ export function askManager(message: string): Promise<AskResponse> {
     body: JSON.stringify({ message }),
   });
 }
+
+export interface PreferencesOut {
+  preferred_language: string | null;
+}
+
+export function getPreferences(): Promise<PreferencesOut> {
+  return request<PreferencesOut>("/preferences/me");
+}
+
+export function setPreferences(preferredLanguage: string | null): Promise<PreferencesOut> {
+  return request<PreferencesOut>("/preferences/me", {
+    method: "PUT",
+    body: JSON.stringify({ preferred_language: preferredLanguage }),
+  });
+}
