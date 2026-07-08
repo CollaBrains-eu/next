@@ -36,15 +36,15 @@ export default function EntityGraph() {
   if (error) {
     return (
       <div>
-        <Link to="/entities" className="text-sm text-slate-500 hover:text-slate-900">
+        <Link to="/entities" className="text-sm text-ink-2 hover:text-ink">
           ← Back to entities
         </Link>
-        <p className="mt-4 text-red-600">{error}</p>
+        <p className="mt-4 text-danger">{error}</p>
       </div>
     );
   }
 
-  if (!graph) return <p className="text-slate-500">Loading…</p>;
+  if (!graph) return <p className="text-ink-3">Loading…</p>;
 
   const positions = new Map<string, { x: number; y: number }>();
   positions.set(graph.center.id, CENTER);
@@ -59,19 +59,19 @@ export default function EntityGraph() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <Link to="/entities" className="text-sm text-slate-500 hover:text-slate-900">
+        <Link to="/entities" className="text-sm text-ink-2 hover:text-ink">
           ← Back to entities
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold">{graph.center.name}</h1>
-        <p className="text-sm text-slate-500">
+        <h1 className="mt-2 text-2xl font-semibold text-ink">{graph.center.name}</h1>
+        <p className="text-sm text-ink-2">
           {graph.center.entity_type} · {graph.nodes.length} direct relationship{graph.nodes.length === 1 ? "" : "s"}
         </p>
       </div>
 
       {graph.nodes.length === 0 ? (
-        <p className="text-slate-500">No known relationships for this entity yet.</p>
+        <p className="text-ink-3">No known relationships for this entity yet.</p>
       ) : (
-        <div className="overflow-x-auto rounded border border-slate-200 bg-white">
+        <div className="overflow-x-auto rounded-2xl border border-edge bg-surface">
           <svg width={WIDTH} height={HEIGHT} viewBox={`0 0 ${WIDTH} ${HEIGHT}`}>
             <defs>
               <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
