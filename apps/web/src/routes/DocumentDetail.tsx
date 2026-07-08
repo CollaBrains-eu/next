@@ -1,14 +1,28 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError, deleteDocument, getDocument, summarizeDocument, type DocumentDetailOut } from "../lib/api";
+import { Badge } from "../components/ui/Badge";
+import { Button } from "../components/ui/Button";
+import { Modal } from "../components/ui/Modal";
+import { useToast } from "../lib/toast";
+
+const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "default"> = {
+  ready: "success",
+  pending: "default",
+  ocr_processing: "warning",
+  embedding: "warning",
+  failed: "danger",
+};
 
 export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [doc, setDoc] = useState<DocumentDetailOut | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [summarizing, setSummarizing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const load = useCallback(() => {
     if (!id) return;
@@ -41,14 +55,17 @@ export default function DocumentDetail() {
     }
   }
 
-  async function handleDelete() {
-    if (!id || !window.confirm("Delete this document? This cannot be undone.")) return;
+  async function handleConfirmDelete() {
+    if (!id) return;
     setDeleting(true);
     try {
       await deleteDocument(id);
+      setConfirmOpen(false);
+      showToast(`"${doc?.title}" deleted`);
       navigate("/");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Delete failed");
+      setConfirmOpen(false);
       setDeleting(false);
     }
   }
@@ -56,64 +73,66 @@ export default function DocumentDetail() {
   if (error) {
     return (
       <div>
-        <Link to="/" className="text-sm text-slate-500 hover:text-slate-900">
+        <Link to="/" className="text-sm text-ink-2 hover:text-ink">
           ← Back
         </Link>
-        <p className="mt-4 text-red-600">{error}</p>
+        <p className="mt-4 text-danger">{error}</p>
       </div>
     );
   }
 
-  if (!doc) return <p className="text-slate-500">Loading…</p>;
+  if (!doc) return <p className="text-ink-2">Loading…</p>;
 
   return (
     <div className="flex flex-col gap-4">
-      <Link to="/" className="text-sm text-slate-500 hover:text-slate-900">
+      <Link to="/" className="text-sm text-ink-2 hover:text-ink">
         ← Back
       </Link>
 
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">{doc.title}</h1>
-          <p className="text-sm text-slate-500">
-            {doc.mime_type} · {doc.status} · {doc.chunk_count} chunk(s)
+          <h1 className="text-2xl font-semibold text-ink">{doc.title}</h1>
+          <p className="mt-1 flex items-center gap-2 text-sm text-ink-2">
+            {doc.mime_type} · <Badge variant={STATUS_VARIANT[doc.status] ?? "default"}>{doc.status}</Badge> · {doc.chunk_count} chunk(s)
           </p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={handleSummarize}
-            disabled={doc.status !== "ready" || summarizing}
-            className="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100 disabled:opacity-50"
-          >
+          <Button variant="secondary" size="sm" onClick={handleSummarize} disabled={doc.status !== "ready" || summarizing}>
             {summarizing ? "Summarizing…" : doc.summary ? "Re-summarize" : "Summarize"}
-          </button>
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            className="rounded border border-red-200 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50 disabled:opacity-50"
-          >
+          </Button>
+          <Button variant="danger" size="sm" onClick={() => setConfirmOpen(true)} disabled={deleting}>
             Delete
-          </button>
+          </Button>
         </div>
       </div>
 
-      {doc.error && (
-        <p className="rounded bg-red-50 p-3 text-sm text-red-700">Processing error: {doc.error}</p>
-      )}
+      {doc.error && <p className="rounded-xl bg-danger-soft p-3 text-sm text-danger">Processing error: {doc.error}</p>}
 
       {doc.summary && (
-        <div className="rounded border border-slate-200 bg-white p-4">
-          <h2 className="text-sm font-medium text-slate-500">Summary</h2>
-          <p className="mt-1 whitespace-pre-wrap text-sm">{doc.summary}</p>
+        <div className="rounded-2xl border border-edge bg-surface p-4 shadow-raised">
+          <h2 className="text-sm font-medium text-ink-2">Summary</h2>
+          <p className="mt-1 whitespace-pre-wrap text-sm text-ink">{doc.summary}</p>
         </div>
       )}
 
       {doc.ocr_text && (
-        <div className="rounded border border-slate-200 bg-white p-4">
-          <h2 className="text-sm font-medium text-slate-500">Extracted text</h2>
-          <p className="mt-1 max-h-96 overflow-y-auto whitespace-pre-wrap text-sm text-slate-700">{doc.ocr_text}</p>
+        <div className="rounded-2xl border border-edge bg-surface p-4 shadow-raised">
+          <h2 className="text-sm font-medium text-ink-2">Extracted text</h2>
+          <p className="mt-1 max-h-96 overflow-y-auto whitespace-pre-wrap text-sm text-ink">{doc.ocr_text}</p>
         </div>
       )}
+
+      <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title={`Delete "${doc.title}"?`}>
+        <p className="mb-4 text-sm text-ink-2">This cannot be undone.</p>
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" size="sm" onClick={() => setConfirmOpen(false)}>
+            Cancel
+          </Button>
+          <Button variant="danger" size="sm" onClick={handleConfirmDelete} disabled={deleting}>
+            Delete document
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }
