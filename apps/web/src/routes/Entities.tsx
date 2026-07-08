@@ -3,10 +3,10 @@ import { Link } from "react-router-dom";
 import { listEntities, type EntityOut } from "../lib/api";
 
 const TYPE_STYLES: Record<string, string> = {
-  person: "bg-blue-100 text-blue-800",
-  organization: "bg-purple-100 text-purple-800",
-  location: "bg-green-100 text-green-800",
-  other: "bg-slate-100 text-slate-700",
+  person: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+  organization: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
+  location: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+  other: "bg-hover text-ink-2",
 };
 
 function TypeBadge({ type }: { type: string }) {
@@ -37,8 +37,8 @@ export default function Entities() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-2xl font-semibold">Entities</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="text-2xl font-semibold text-ink">Entities</h1>
+        <p className="mt-1 text-sm text-ink-2">
           People, organizations, and locations extracted from your documents. Select one to explore its
           relationships.
         </p>
@@ -49,12 +49,12 @@ export default function Entities() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search entities…"
-          className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+          className="w-full rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none transition-colors duration-fast focus:border-accent focus:ring-2 focus:ring-accent-soft"
         />
         <select
           value={entityType}
           onChange={(e) => setEntityType(e.target.value)}
-          className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+          className="rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft"
         >
           <option value="">All types</option>
           <option value="person">Person</option>
@@ -65,18 +65,18 @@ export default function Entities() {
       </form>
 
       {loading ? (
-        <p className="text-slate-500">Loading…</p>
+        <p className="text-ink-3">Loading…</p>
       ) : entities.length === 0 ? (
-        <p className="text-slate-500">No entities found.</p>
+        <p className="text-ink-3">No entities found.</p>
       ) : (
-        <div className="flex flex-col divide-y divide-slate-200 rounded border border-slate-200 bg-white">
+        <div className="flex flex-col divide-y divide-edge rounded-2xl border border-edge bg-surface">
           {entities.map((entity) => (
             <Link
               key={entity.id}
               to={`/entities/${entity.id}`}
-              className="flex items-center justify-between px-4 py-3 hover:bg-slate-50"
+              className="flex items-center justify-between px-4 py-3 transition-colors duration-fast hover:bg-hover"
             >
-              <span className="text-sm font-medium">{entity.name}</span>
+              <span className="text-sm font-medium text-ink">{entity.name}</span>
               <TypeBadge type={entity.entity_type} />
             </Link>
           ))}
