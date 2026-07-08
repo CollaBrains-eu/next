@@ -1,5 +1,6 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { AuthProvider, ProtectedRoute } from "./lib/auth";
+import { ToastProvider } from "./lib/toast";
 import Layout from "./components/Layout";
 import Login from "./routes/Login";
 import Workspace from "./routes/Workspace";
@@ -20,108 +21,110 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Layout>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <Workspace />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/documents/:id"
-              element={
-                <ProtectedRoute>
-                  <DocumentDetail />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/chat"
-              element={
-                <ProtectedRoute>
-                  <Chat />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/legal"
-              element={
-                <ProtectedRoute>
-                  <Legal />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/tasks"
-              element={
-                <ProtectedRoute>
-                  <Tasks />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/entities"
-              element={
-                <ProtectedRoute>
-                  <Entities />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/entities/:id"
-              element={
-                <ProtectedRoute>
-                  <EntityGraph />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/cases"
-              element={
-                <ProtectedRoute>
-                  <Cases />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/cases/:id"
-              element={
-                <ProtectedRoute>
-                  <CaseDetail />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/vehicles"
-              element={
-                <ProtectedRoute>
-                  <Vehicles />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/assistant"
-              element={
-                <ProtectedRoute>
-                  <Assistant />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/settings"
-              element={
-                <ProtectedRoute>
-                  <Settings />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Layout>
+        <ToastProvider>
+          <Layout>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <Workspace />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/documents/:id"
+                element={
+                  <ProtectedRoute>
+                    <DocumentDetail />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/chat"
+                element={
+                  <ProtectedRoute>
+                    <Chat />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/legal"
+                element={
+                  <ProtectedRoute>
+                    <Legal />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/tasks"
+                element={
+                  <ProtectedRoute>
+                    <Tasks />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/entities"
+                element={
+                  <ProtectedRoute>
+                    <Entities />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/entities/:id"
+                element={
+                  <ProtectedRoute>
+                    <EntityGraph />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/cases"
+                element={
+                  <ProtectedRoute>
+                    <Cases />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/cases/:id"
+                element={
+                  <ProtectedRoute>
+                    <CaseDetail />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/vehicles"
+                element={
+                  <ProtectedRoute>
+                    <Vehicles />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/assistant"
+                element={
+                  <ProtectedRoute>
+                    <Assistant />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Layout>
+        </ToastProvider>
       </AuthProvider>
     </BrowserRouter>
   );

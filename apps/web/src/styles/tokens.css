@@ -1,0 +1,47 @@
+:root {
+  --bg: #F0EFFF;
+  --bg-sidebar: #ffffff;
+  --bg-card: #ffffff;
+  --text: #1E1B4B;
+  --text-2: #6B7280;
+  --text-3: #9CA3AF;
+  --border: #E8E6FF;
+  --hover: rgba(108, 99, 255, 0.06);
+  --active: rgba(108, 99, 255, 0.12);
+  --accent: #6C63FF;
+  --accent-hover: #5A52E8;
+  --accent-bg: #EEECFF;
+  --success: #16A34A;
+  --success-bg: rgba(34, 197, 94, 0.10);
+  --warning: #D97706;
+  --warning-bg: rgba(245, 158, 11, 0.10);
+  --danger: #EF4444;
+  --danger-bg: rgba(239, 68, 68, 0.10);
+  --shadow-raised: 0 2px 16px rgba(108, 99, 255, 0.10), 0 1px 4px rgba(0, 0, 0, 0.04);
+  --shadow-overlay: 0 20px 40px rgba(108, 99, 255, 0.22), 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-modal: 0 30px 60px rgba(108, 99, 255, 0.30);
+}
+
+.dark {
+  --bg: #0D0C1A;
+  --bg-sidebar: #13112A;
+  --bg-card: #13112A;
+  --text: rgba(255, 255, 255, 0.90);
+  --text-2: rgba(200, 195, 255, 0.65);
+  --text-3: rgba(200, 195, 255, 0.38);
+  --border: rgba(108, 99, 255, 0.18);
+  --hover: rgba(108, 99, 255, 0.10);
+  --active: rgba(108, 99, 255, 0.20);
+  --accent: #8B82FF;
+  --accent-hover: #9D95FF;
+  --accent-bg: rgba(108, 99, 255, 0.18);
+  --success: #4ADE80;
+  --success-bg: rgba(34, 197, 94, 0.15);
+  --warning: #FBBF24;
+  --warning-bg: rgba(245, 158, 11, 0.15);
+  --danger: #F87171;
+  --danger-bg: rgba(239, 68, 68, 0.15);
+  --shadow-raised: 0 2px 16px rgba(0, 0, 0, 0.40);
+  --shadow-overlay: 0 20px 40px rgba(0, 0, 0, 0.55);
+  --shadow-modal: 0 30px 60px rgba(0, 0, 0, 0.60);
+}

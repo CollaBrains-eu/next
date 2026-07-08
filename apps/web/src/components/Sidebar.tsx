@@ -1,5 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../lib/auth";
+import { useDarkMode } from "../hooks/useDarkMode";
+import { Button } from "./ui/Button";
 
 const NAV_ITEMS = [
   { to: "/", label: "Documents" },
@@ -15,6 +17,7 @@ const NAV_ITEMS = [
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
+  const { isDark, toggle } = useDarkMode();
 
   return (
     <aside className="flex h-screen w-56 shrink-0 flex-col justify-between border-r border-slate-200 bg-white px-4 py-6">
@@ -43,6 +46,9 @@ export default function Sidebar() {
           <button onClick={logout} className="text-left text-slate-500 hover:text-slate-900">
             Sign out
           </button>
+          <Button variant="ghost" size="sm" onClick={toggle} className="justify-start">
+            {isDark ? "☀️ Light mode" : "🌙 Dark mode"}
+          </Button>
         </div>
       )}
     </aside>
