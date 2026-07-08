@@ -1,37 +1,46 @@
-import { NavLink } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { useDarkMode } from "../hooks/useDarkMode";
 import { Button } from "./ui/Button";
-
-const NAV_ITEMS = [
-  { to: "/", label: "Documents" },
-  { to: "/chat", label: "AI Chat" },
-  { to: "/legal", label: "Legal Draft" },
-  { to: "/tasks", label: "Tasks" },
-  { to: "/entities", label: "Entities" },
-  { to: "/cases", label: "Cases" },
-  { to: "/vehicles", label: "Vehicles" },
-  { to: "/assistant", label: "Assistant" },
-  { to: "/settings", label: "Settings" },
-];
+import { NAV_ITEMS } from "../lib/navigation";
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
   const { isDark, toggle } = useDarkMode();
+  const location = useLocation();
+  const itemRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
+  const [pillStyle, setPillStyle] = useState<{ top: number; height: number }>({ top: 0, height: 0 });
+
+  useEffect(() => {
+    const activeItem = NAV_ITEMS.find((item) => (item.to === "/" ? location.pathname === "/" : location.pathname.startsWith(item.to)));
+    const el = activeItem ? itemRefs.current[activeItem.to] : null;
+    if (el) {
+      setPillStyle({ top: el.offsetTop, height: el.offsetHeight });
+    }
+  }, [location.pathname]);
 
   return (
-    <aside className="flex h-screen w-56 shrink-0 flex-col justify-between border-r border-slate-200 bg-white px-4 py-6">
+    <aside className="flex h-screen w-56 shrink-0 flex-col justify-between border-r border-edge bg-sidebar-surface px-4 py-6">
       <div className="flex flex-col gap-6">
-        <span className="text-lg font-semibold">CollaBrains</span>
-        <nav className="flex flex-col gap-1 text-sm">
+        <span className="text-lg font-semibold text-ink">CollaBrains</span>
+        <nav className="relative flex flex-col gap-1 text-sm">
+          <span
+            data-testid="nav-pill"
+            className="absolute left-0 right-0 z-0 rounded-lg bg-accent-soft transition-all duration-base ease-spring"
+            style={{ top: pillStyle.top, height: pillStyle.height }}
+          />
           {NAV_ITEMS.map((item) => (
             <NavLink
               key={item.to}
+              ref={(el) => {
+                itemRefs.current[item.to] = el;
+              }}
               to={item.to}
               end={item.to === "/"}
               className={({ isActive }) =>
-                `rounded px-3 py-2 ${
-                  isActive ? "bg-slate-100 font-medium text-slate-900" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                `relative z-10 rounded-lg px-3 py-2 transition-colors duration-fast ${
+                  isActive ? "font-semibold text-accent" : "text-ink-2 hover:text-ink"
                 }`
               }
             >
@@ -41,9 +50,9 @@ export default function Sidebar() {
         </nav>
       </div>
       {user && (
-        <div className="flex flex-col gap-2 border-t border-slate-200 pt-4 text-sm">
-          <span className="text-slate-500">{user.display_name}</span>
-          <button onClick={logout} className="text-left text-slate-500 hover:text-slate-900">
+        <div className="flex flex-col gap-2 border-t border-edge pt-4 text-sm">
+          <span className="text-ink-2">{user.display_name}</span>
+          <button onClick={logout} className="text-left text-ink-2 hover:text-ink">
             Sign out
           </button>
           <Button variant="ghost" size="sm" onClick={toggle} className="justify-start">
