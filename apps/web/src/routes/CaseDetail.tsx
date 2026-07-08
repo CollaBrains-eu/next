@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import Card from "../components/Card";
+import { Button } from "../components/ui/Button";
+import { Badge } from "../components/ui/Badge";
 import {
   ApiError,
   attachDocumentToCase,
@@ -77,8 +79,8 @@ export default function CaseDetail() {
     }
   }
 
-  if (loading) return <p className="text-slate-500">Loading…</p>;
-  if (error && !caseData) return <p className="text-sm text-red-600">{error}</p>;
+  if (loading) return <p className="text-ink-3">Loading…</p>;
+  if (error && !caseData) return <p className="text-sm text-danger">{error}</p>;
   if (!caseData) return null;
 
   const linkedDocumentIds = new Set(caseData.documents.map((d) => d.id));
@@ -98,15 +100,16 @@ export default function CaseDetail() {
   function AttachControl({ section }: { section: AttachSection }) {
     if (attaching !== section) {
       return (
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => {
             setAttaching(section);
             setSelected("");
           }}
-          className="text-xs text-slate-500 hover:text-slate-900"
         >
           + Attach
-        </button>
+        </Button>
       );
     }
     const options = attachOptions[section];
@@ -115,7 +118,7 @@ export default function CaseDetail() {
         <select
           value={selected}
           onChange={(e) => setSelected(e.target.value)}
-          className="rounded border border-slate-300 px-2 py-1 text-xs"
+          className="rounded-xl border border-edge bg-surface px-2 py-1 text-xs text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft"
         >
           <option value="">Select…</option>
           {options.map((o) => (
@@ -124,12 +127,12 @@ export default function CaseDetail() {
             </option>
           ))}
         </select>
-        <button onClick={handleAttach} disabled={!selected} className="text-xs text-slate-900 disabled:opacity-50">
+        <Button size="sm" onClick={handleAttach} disabled={!selected}>
           Attach
-        </button>
-        <button onClick={() => setAttaching(null)} className="text-xs text-slate-500 hover:text-slate-900">
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => setAttaching(null)}>
           Cancel
-        </button>
+        </Button>
       </div>
     );
   }
@@ -138,33 +141,28 @@ export default function CaseDetail() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">{caseData.name}</h1>
-          {caseData.description && <p className="mt-1 text-sm text-slate-500">{caseData.description}</p>}
+          <h1 className="text-2xl font-semibold text-ink">{caseData.name}</h1>
+          {caseData.description && <p className="mt-1 text-sm text-ink-2">{caseData.description}</p>}
         </div>
-        <button
-          onClick={toggleStatus}
-          className={`rounded px-3 py-1 text-xs ${
-            caseData.status === "open" ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-600"
-          }`}
-        >
-          {caseData.status}
+        <button onClick={toggleStatus} className="rounded-full">
+          <Badge variant={caseData.status === "open" ? "success" : "default"}>{caseData.status}</Badge>
         </button>
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
 
       <Card>
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-sm font-medium">Documents</span>
+          <span className="text-sm font-medium text-ink">Documents</span>
           <AttachControl section="documents" />
         </div>
         {caseData.documents.length === 0 ? (
-          <p className="text-sm text-slate-400">Nothing linked yet.</p>
+          <p className="text-sm text-ink-3">Nothing linked yet.</p>
         ) : (
           <ul className="flex flex-col gap-1">
             {caseData.documents.map((d) => (
               <li key={d.id}>
-                <Link to={`/documents/${d.id}`} className="text-sm hover:underline">
+                <Link to={`/documents/${d.id}`} className="text-sm text-ink hover:text-accent hover:underline">
                   {d.title}
                 </Link>
               </li>
@@ -175,16 +173,16 @@ export default function CaseDetail() {
 
       <Card>
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-sm font-medium">Tasks</span>
+          <span className="text-sm font-medium text-ink">Tasks</span>
           <AttachControl section="tasks" />
         </div>
         {caseData.tasks.length === 0 ? (
-          <p className="text-sm text-slate-400">Nothing linked yet.</p>
+          <p className="text-sm text-ink-3">Nothing linked yet.</p>
         ) : (
           <ul className="flex flex-col gap-1">
             {caseData.tasks.map((t) => (
-              <li key={t.id} className="text-sm">
-                {t.title} <span className="text-xs text-slate-400">({t.status})</span>
+              <li key={t.id} className="text-sm text-ink">
+                {t.title} <span className="text-xs text-ink-3">({t.status})</span>
               </li>
             ))}
           </ul>
@@ -193,15 +191,15 @@ export default function CaseDetail() {
 
       <Card>
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-sm font-medium">Decisions</span>
+          <span className="text-sm font-medium text-ink">Decisions</span>
           <AttachControl section="decisions" />
         </div>
         {caseData.decisions.length === 0 ? (
-          <p className="text-sm text-slate-400">Nothing linked yet.</p>
+          <p className="text-sm text-ink-3">Nothing linked yet.</p>
         ) : (
           <ul className="flex flex-col gap-1">
             {caseData.decisions.map((d) => (
-              <li key={d.id} className="text-sm">
+              <li key={d.id} className="text-sm text-ink">
                 {d.summary}
               </li>
             ))}
@@ -211,16 +209,16 @@ export default function CaseDetail() {
 
       <Card>
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-sm font-medium">Vehicles</span>
+          <span className="text-sm font-medium text-ink">Vehicles</span>
           <AttachControl section="vehicles" />
         </div>
         {caseData.vehicles.length === 0 ? (
-          <p className="text-sm text-slate-400">Nothing linked yet.</p>
+          <p className="text-sm text-ink-3">Nothing linked yet.</p>
         ) : (
           <ul className="flex flex-col gap-1">
             {caseData.vehicles.map((v) => (
-              <li key={v.id} className="text-sm">
-                {v.kenteken} {v.merk && <span className="text-xs text-slate-400">({v.merk} {v.handelsbenaming})</span>}
+              <li key={v.id} className="text-sm text-ink">
+                {v.kenteken} {v.merk && <span className="text-xs text-ink-3">({v.merk} {v.handelsbenaming})</span>}
               </li>
             ))}
           </ul>
