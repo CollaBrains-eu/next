@@ -1,12 +1,16 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { listDocuments, search as searchApi, type DocumentOut, type SearchResult } from "../lib/api";
+import { listDocuments, search as searchApi, deleteDocument, type DocumentOut, type SearchResult } from "../lib/api";
 import UploadDialog from "../components/UploadDialog";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { TextField } from "../components/ui/form";
 import EmptyState from "../components/EmptyState";
+import { useBulkSelection } from "../hooks/useBulkSelection";
+import { BulkActionBar } from "../components/ui/BulkActionBar";
+import { FilterChips } from "../components/ui/FilterChips";
+import { useToast } from "../lib/toast";
 
 const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "default"> = {
   ready: "success",
@@ -16,30 +20,10 @@ const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "default
   failed: "danger",
 };
 
-const columns: Column<DocumentOut>[] = [
-  {
-    key: "title",
-    header: "Title",
-    sortable: true,
-    sortValue: (doc) => doc.title.toLowerCase(),
-    render: (doc) => (
-      <Link to={`/documents/${doc.id}`} className="font-medium text-ink hover:text-accent">
-        {doc.title}
-      </Link>
-    ),
-  },
-  {
-    key: "created_at",
-    header: "Uploaded",
-    sortable: true,
-    sortValue: (doc) => doc.created_at,
-    render: (doc) => new Date(doc.created_at).toLocaleString(),
-  },
-  {
-    key: "status",
-    header: "Status",
-    render: (doc) => <Badge variant={STATUS_VARIANT[doc.status] ?? "default"}>{doc.status}</Badge>,
-  },
+const STATUS_FILTER_OPTIONS = [
+  { id: "ready", label: "Status: Ready" },
+  { id: "failed", label: "Status: Failed" },
+  { id: "pending", label: "Status: Pending" },
 ];
 
 export default function Workspace() {
@@ -48,6 +32,9 @@ export default function Workspace() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[] | null>(null);
   const [searching, setSearching] = useState(false);
+  const [statusFilters, setStatusFilters] = useState<string[]>([]);
+  const { isSelected, toggle, clear, selectedCount, selectedKeys } = useBulkSelection<DocumentOut>((doc) => doc.id);
+  const { showToast } = useToast();
 
   const refresh = useCallback((showLoading = false) => {
     if (showLoading) setLoading(true);
@@ -75,6 +62,59 @@ export default function Workspace() {
       setSearching(false);
     }
   }
+
+  async function handleBulkDelete() {
+    const ids = [...selectedKeys];
+    await Promise.all(ids.map((id) => deleteDocument(id)));
+    clear();
+    refresh();
+    showToast(`${ids.length} document${ids.length === 1 ? "" : "s"} deleted`);
+  }
+
+  const activeFilters = useMemo(() => new Set(statusFilters), [statusFilters]);
+  const filteredDocuments = useMemo(
+    () => (activeFilters.size === 0 ? documents : documents.filter((doc) => activeFilters.has(doc.status))),
+    [documents, activeFilters]
+  );
+
+  const columns: Column<DocumentOut>[] = [
+    {
+      key: "select",
+      header: "",
+      render: (doc) => (
+        <input
+          type="checkbox"
+          checked={isSelected(doc)}
+          onChange={() => toggle(doc)}
+          onClick={(event) => event.stopPropagation()}
+          className="h-4 w-4 accent-accent"
+        />
+      ),
+    },
+    {
+      key: "title",
+      header: "Title",
+      sortable: true,
+      sortValue: (doc) => doc.title.toLowerCase(),
+      render: (doc) => (
+        <Link to={`/documents/${doc.id}`} className="font-medium text-ink hover:text-accent">
+          {doc.title}
+        </Link>
+      ),
+    },
+    {
+      key: "created_at",
+      header: "Uploaded",
+      sortable: true,
+      sortValue: (doc) => doc.created_at,
+      render: (doc) => new Date(doc.created_at).toLocaleString(),
+    },
+    {
+      key: "status",
+      header: "Status",
+      render: (doc) => <Badge variant={STATUS_VARIANT[doc.status] ?? "default"}>{doc.status}</Badge>,
+    },
+  ];
 
   return (
     <div className="flex flex-col gap-6">
@@ -126,7 +166,20 @@ export default function Workspace() {
       ) : documents.length === 0 ? (
         <EmptyState message="No documents yet. Upload one to get started." />
       ) : (
-        <DataTable columns={columns} rows={documents} rowKey={(doc) => doc.id} />
+        <>
+          <FilterChips
+            chips={STATUS_FILTER_OPTIONS.filter((opt) => statusFilters.includes(opt.id))}
+            onRemove={(id) => setStatusFilters((prev) => prev.filter((s) => s !== id))}
+            addOptions={STATUS_FILTER_OPTIONS.filter((opt) => !statusFilters.includes(opt.id))}
+            onAdd={(opt) => setStatusFilters((prev) => [...prev, opt.id])}
+          />
+          <DataTable columns={columns} rows={filteredDocuments} rowKey={(doc) => doc.id} />
+          <BulkActionBar
+            count={selectedCount}
+            onCancel={clear}
+            actions={[{ label: "Delete", onClick: handleBulkDelete, variant: "danger" }]}
+          />
+        </>
       )}
     </div>
   );

@@ -1,7 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Workspace from "./Workspace";
+import { ToastProvider } from "../lib/toast";
 import * as api from "../lib/api";
 
 vi.mock("../lib/api", async () => {
@@ -10,6 +11,7 @@ vi.mock("../lib/api", async () => {
     ...actual,
     listDocuments: vi.fn(),
     search: vi.fn(),
+    deleteDocument: vi.fn(),
   };
 });
 
@@ -27,7 +29,9 @@ const docs: api.DocumentOut[] = Array.from({ length: 12 }, (_, i) => ({
 function renderPage() {
   return render(
     <MemoryRouter>
-      <Workspace />
+      <ToastProvider>
+        <Workspace />
+      </ToastProvider>
     </MemoryRouter>
   );
 }
@@ -56,5 +60,44 @@ describe("Workspace (Documents list)", () => {
     vi.mocked(api.listDocuments).mockResolvedValue([]);
     renderPage();
     expect(await screen.findByText(/no documents yet/i)).toBeInTheDocument();
+  });
+
+  it("shows a status filter chip for 'failed' documents, and toggling it narrows the table to just that row", async () => {
+    renderPage();
+    await screen.findByText("document-0.pdf");
+    fireEvent.click(screen.getByText("+ Add filter"));
+    fireEvent.click(screen.getByText("Status: Failed"));
+    expect(screen.getByText("document-0.pdf")).toBeInTheDocument();
+    expect(screen.queryByText("document-1.pdf")).not.toBeInTheDocument();
+  });
+
+  it("removing an active filter chip restores the full table", async () => {
+    renderPage();
+    await screen.findByText("document-0.pdf");
+    fireEvent.click(screen.getByText("+ Add filter"));
+    fireEvent.click(screen.getByText("Status: Failed"));
+    fireEvent.click(screen.getByLabelText("Remove Status: Failed"));
+    expect(screen.getByText("document-1.pdf")).toBeInTheDocument();
+  });
+
+  it("selecting rows shows the bulk action bar with the right count", async () => {
+    renderPage();
+    await screen.findByText("document-0.pdf");
+    const checkboxes = screen.getAllByRole("checkbox");
+    fireEvent.click(checkboxes[0]);
+    fireEvent.click(checkboxes[1]);
+    expect(screen.getByText((_, el) => el?.textContent === "2 selected")).toBeInTheDocument();
+  });
+
+  it("bulk-deleting selected rows calls deleteDocument for each and shows a toast", async () => {
+    vi.mocked(api.deleteDocument).mockResolvedValue(undefined);
+    renderPage();
+    await screen.findByText("document-0.pdf");
+    const checkboxes = screen.getAllByRole("checkbox");
+    fireEvent.click(checkboxes[0]);
+    fireEvent.click(checkboxes[1]);
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    await waitFor(() => expect(api.deleteDocument).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText(/deleted/i)).toBeInTheDocument();
   });
 });
