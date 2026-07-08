@@ -1,6 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { ApiError, legalDraft, listDocuments, type Citation, type DocumentOut } from "../lib/api";
+import { Button } from "../components/ui/Button";
+import { Checkbox } from "../components/ui/form";
+import { useLoadingBar } from "../lib/loadingBar";
 
 export default function Legal() {
   const [documents, setDocuments] = useState<DocumentOut[]>([]);
@@ -9,6 +12,7 @@ export default function Legal() {
   const [drafting, setDrafting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ draft: string; citations: Citation[]; disclaimer: string } | null>(null);
+  const { start, done } = useLoadingBar();
 
   useEffect(() => {
     listDocuments().then(setDocuments);
@@ -29,73 +33,69 @@ export default function Legal() {
     setDrafting(true);
     setError(null);
     setResult(null);
+    start();
     try {
       setResult(await legalDraft(instruction.trim(), Array.from(selectedIds)));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Draft request failed");
     } finally {
       setDrafting(false);
+      done();
     }
   }
 
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Legal Draft</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="text-2xl font-semibold text-ink">Legal Draft</h1>
+        <p className="mt-1 text-sm text-ink-2">
           Drafts are grounded only in the documents you select (or all documents if none are selected) and are
           never a substitute for attorney review.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex flex-col gap-1 text-sm text-ink">
           Drafting instruction
           <textarea
             value={instruction}
             onChange={(e) => setInstruction(e.target.value)}
             rows={4}
             placeholder="e.g. Draft a letter summarizing the client's obligations under the attached agreement."
-            className="rounded border border-slate-300 px-3 py-2 focus:border-slate-500 focus:outline-none"
+            className="rounded-xl border border-edge bg-surface px-3 py-2 text-ink outline-none transition-colors duration-fast focus:border-accent focus:ring-2 focus:ring-accent-soft"
           />
         </label>
 
         {documents.length > 0 && (
           <div>
-            <p className="text-sm font-medium text-slate-700">Scope to documents (optional)</p>
-            <div className="mt-1 flex flex-col gap-1 rounded border border-slate-200 bg-white p-3 max-h-48 overflow-y-auto">
+            <p className="text-sm font-medium text-ink-2">Scope to documents (optional)</p>
+            <div className="mt-1 flex flex-col gap-1 rounded-xl border border-edge bg-surface p-3 max-h-48 overflow-y-auto">
               {documents.map((doc) => (
-                <label key={doc.id} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(doc.id)}
-                    onChange={() => toggleDocument(doc.id)}
-                  />
-                  {doc.title}
-                </label>
+                <Checkbox
+                  key={doc.id}
+                  label={doc.title}
+                  checked={selectedIds.has(doc.id)}
+                  onChange={() => toggleDocument(doc.id)}
+                />
               ))}
             </div>
           </div>
         )}
 
-        <button
-          type="submit"
-          disabled={drafting || !instruction.trim()}
-          className="self-start rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
-        >
+        <Button type="submit" disabled={drafting || !instruction.trim()} className="self-start">
           {drafting ? "Drafting…" : "Draft"}
-        </button>
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        </Button>
+        {error && <p className="text-sm text-danger">{error}</p>}
       </form>
 
       {result && (
-        <div className="flex flex-col gap-3 rounded border border-slate-200 bg-white p-4">
-          <p className="rounded bg-amber-50 p-3 text-xs text-amber-800">{result.disclaimer}</p>
-          <p className="whitespace-pre-wrap text-sm">{result.draft}</p>
+        <div className="flex flex-col gap-3 rounded-2xl border border-edge bg-surface p-4">
+          <p className="rounded-xl bg-warning-soft p-3 text-xs text-warning">{result.disclaimer}</p>
+          <p className="whitespace-pre-wrap text-sm text-ink">{result.draft}</p>
           {result.citations.length > 0 && (
-            <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-2 text-xs text-slate-500">
+            <div className="flex flex-wrap gap-2 border-t border-edge pt-2 text-xs text-ink-3">
               {result.citations.map((c) => (
-                <Link key={c.chunk_id} to={`/documents/${c.document_id}`} className="hover:text-slate-900 hover:underline">
+                <Link key={c.chunk_id} to={`/documents/${c.document_id}`} className="hover:text-accent hover:underline">
                   [{c.marker}] {c.document_title}
                 </Link>
               ))}
