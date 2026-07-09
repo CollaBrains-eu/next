@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Boolean, Computed, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func, text
+from sqlalchemy import ARRAY, Boolean, Computed, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -84,6 +84,10 @@ class Document(Base):
     case_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("cases.id", ondelete="SET NULL"), nullable=True
     )
+    doc_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    tags: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False, default=list)
+    correspondent: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    classification_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

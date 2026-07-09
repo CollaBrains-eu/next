@@ -37,6 +37,7 @@ from api.auth import get_effective_user
 from api.chunking import chunk_text
 from api.config import settings
 from api.db import async_session, get_db
+from api.document_classification import classify_and_persist
 from api.embeddings import embed_text
 from api.entity_agent import extract_entities
 from api.events import Event, EventType, publish, subscribe
@@ -58,6 +59,9 @@ class DocumentOut(BaseModel):
     mime_type: str
     status: str
     error: str | None
+    doc_type: str | None
+    tags: list[str]
+    correspondent: str | None
     created_at: datetime
     processed_at: datetime | None
 
@@ -176,6 +180,19 @@ async def _handle_extract_vehicles(event: Event) -> None:
     await publish(EventType.VEHICLES_DETECTED, {"document_id": document_id, "vehicle_count": len(vehicles)})
 
 
+@subscribe(EventType.EMBEDDINGS_CREATED)
+async def _handle_classify_document(event: Event) -> None:
+    if not settings.auto_classify_on_ready:
+        return
+    document_id = event.payload["document_id"]
+    async with async_session() as db:
+        document = await classify_and_persist(
+            db, document_id=document_id, text=event.payload["text"], user_id=event.payload["owner_id"]
+        )
+    if document is not None and document.doc_type is not None:
+        await publish(EventType.DOCUMENT_CLASSIFIED, {"document_id": document_id, "doc_type": document.doc_type})
+
+
 @subscribe(EventType.NOTIFICATION_REQUESTED)
 async def _handle_notification_requested(event: Event) -> None:
     document_id = event.payload["document_id"]
@@ -253,6 +270,9 @@ async def get_document(
         mime_type=document.mime_type,
         status=document.status,
         error=document.error,
+        doc_type=document.doc_type,
+        tags=document.tags,
+        correspondent=document.correspondent,
         created_at=document.created_at,
         processed_at=document.processed_at,
         ocr_text=document.ocr_text,
