@@ -26,8 +26,10 @@ export default function EntityReview() {
   }
 
   async function handleApproveAll() {
-    if (!queue || queue.length === 0) return;
-    await bulkReviewEntities(queue.map((e) => ({ entity_id: e.id, action: "approve" as const })));
+    if (!queue) return;
+    const remaining = queue.slice(index);
+    if (remaining.length === 0) return;
+    await bulkReviewEntities(remaining.map((e) => ({ entity_id: e.id, action: "approve" as const })));
     setQueue([]);
     setIndex(0);
   }

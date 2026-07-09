@@ -85,4 +85,19 @@ describe("EntityReview", () => {
     );
     expect(await screen.findByText("Nothing to review")).toBeInTheDocument();
   });
+
+  it("approve all only submits entities not already individually reviewed", async () => {
+    vi.mocked(api.approveEntity).mockResolvedValue({ ...PENDING[0], status: "confirmed" });
+    vi.mocked(api.bulkReviewEntities).mockResolvedValue([{ ...PENDING[1], status: "confirmed" }]);
+    renderPage();
+    await screen.findByText("Nadia Petrov");
+    fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+    await waitFor(() => expect(api.approveEntity).toHaveBeenCalledWith("p1"));
+    await screen.findByText("Fenwick LLC");
+
+    fireEvent.click(screen.getByRole("button", { name: /approve all/i }));
+    await waitFor(() =>
+      expect(api.bulkReviewEntities).toHaveBeenCalledWith([{ entity_id: "p2", action: "approve" }])
+    );
+  });
 });
