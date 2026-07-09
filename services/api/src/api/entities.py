@@ -19,6 +19,7 @@ class EntityOut(BaseModel):
     id: UUID
     name: str
     entity_type: str
+    status: str
     created_at: datetime
 
 

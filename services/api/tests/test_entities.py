@@ -128,3 +128,18 @@ async def test_extract_entities_rejects_missing_token(client):
 async def test_list_entities_rejects_missing_token(client):
     response = await client.get("/entities")
     assert response.status_code == 401
+
+
+async def test_new_entities_are_created_as_pending_review(client):
+    token = await _login(client, "entityuser5")
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "Nadia Petrov works at Fenwick LLC.")
+
+    fake = (
+        '{"entities": [{"name": "Nadia Petrov", "type": "person"}], "relationships": []}'
+    )
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        response = await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()[0]["status"] == "pending_review"

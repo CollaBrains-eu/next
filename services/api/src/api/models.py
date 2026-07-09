@@ -187,6 +187,11 @@ class Entity(Base):
     Deduplicated by exact case-insensitive (name, entity_type) match only
     -- see docs/adr/0008-phase4-entity-graph.md for why fuzzy/LLM-based
     resolution is deliberately out of scope for now.
+
+    `status` gates whether an extracted entity is trusted: new entities
+    start `pending_review` and must be explicitly approved before they
+    appear in normal listings, case linking, or the entity graph -- see
+    docs/superpowers/specs/2026-07-09-entity-review-queue-design.md.
     """
 
     __tablename__ = "entities"
@@ -194,6 +199,7 @@ class Entity(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(500), nullable=False)
     entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending_review", server_default="pending_review")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
