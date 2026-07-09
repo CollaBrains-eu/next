@@ -43,6 +43,7 @@ class EventType:
     ENTITIES_EXTRACTED = "EntitiesExtracted"
     VEHICLES_DETECTED = "VehiclesDetected"
     DOCUMENT_CLASSIFIED = "DocumentClassified"
+    FACTS_EXTRACTED = "FactsExtracted"
     TASKS_CREATED = "TasksCreated"
     NOTIFICATION_REQUESTED = "NotificationRequested"
     WORKFLOW_STARTED = "WorkflowStarted"

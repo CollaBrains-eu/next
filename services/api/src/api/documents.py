@@ -47,6 +47,7 @@ from api.paperless_client import delete_document as paperless_delete, fetch_docu
 from api.planner_agent import extract_tasks
 from api.search_service import hybrid_search
 from api.signal_client import send_signal_message
+from api.user_facts import extract_facts_from_document
 from api.vehicle_agent import detect_and_link_vehicles
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -191,6 +192,18 @@ async def _handle_classify_document(event: Event) -> None:
         )
     if document is not None and document.doc_type is not None:
         await publish(EventType.DOCUMENT_CLASSIFIED, {"document_id": document_id, "doc_type": document.doc_type})
+
+
+@subscribe(EventType.EMBEDDINGS_CREATED)
+async def _handle_extract_facts(event: Event) -> None:
+    if not settings.auto_extract_facts_on_ready:
+        return
+    document_id = event.payload["document_id"]
+    async with async_session() as db:
+        facts = await extract_facts_from_document(
+            db, document_id=document_id, text=event.payload["text"], user_id=event.payload["owner_id"]
+        )
+    await publish(EventType.FACTS_EXTRACTED, {"document_id": document_id, "fact_count": len(facts)})
 
 
 @subscribe(EventType.NOTIFICATION_REQUESTED)

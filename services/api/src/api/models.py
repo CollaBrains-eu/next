@@ -465,3 +465,25 @@ class BugReport(Base):
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="open")  # open|analyzed|closed
     ai_analysis: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class UserFact(Base):
+    """A time-bound fact about a user (e.g. address, employer), valid over [valid_from, valid_to)
+    (Phase 26). `status` reuses Entity's pending_review/confirmed/rejected convention
+    (ADR 0008/Phase 21) rather than a separate review-queue system -- see api/user_facts.py.
+    """
+
+    __tablename__ = "user_facts"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    fact_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    value: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    valid_from: Mapped[date] = mapped_column(Date, nullable=False)
+    valid_to: Mapped[date | None] = mapped_column(Date, nullable=True)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    source_document_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("documents.id", ondelete="SET NULL"), nullable=True
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending_review", server_default="pending_review")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
