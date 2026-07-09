@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     ldap_base_dn: str = "dc=collabrains,dc=eu"
     ldap_bind_dn_template: str = "uid={username},ou=people,dc=collabrains,dc=eu"
     ldap_admin_group_dn: str = "cn=collabrains-admins,ou=groups,dc=collabrains,dc=eu"
+    ldap_admin_password: str = "changeme"
 
     paperless_url: str = "http://paperless:8000"
     paperless_admin_user: str = "admin"

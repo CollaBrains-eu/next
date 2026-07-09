@@ -1,7 +1,7 @@
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
-from api.ldap_auth import LdapIdentity
+from api.ldap_auth import LdapAdminError, LdapIdentity, LdapUserCreated
 
 
 def _unique(base: str) -> str:
@@ -101,3 +101,65 @@ async def test_analyze_unknown_bug_report_returns_404(client):
         f"/admin/bug-reports/{uuid4()}/analyze", headers={"Authorization": f"Bearer {admin_token}"}
     )
     assert response.status_code == 404
+
+
+async def test_non_admin_cannot_create_user(client):
+    token = await _login(client, _unique("createusermember"), is_admin=False)
+    response = await client.post(
+        "/admin/users",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"username": "newperson", "display_name": "New Person", "email": "new@collabrains.eu"},
+    )
+    assert response.status_code == 403
+
+
+async def test_admin_can_create_user_and_receives_temporary_password(client):
+    admin_token = await _login(client, _unique("createuseradmin"), is_admin=True)
+    with patch(
+        "api.admin_router.ldap_create_user",
+        return_value=LdapUserCreated(username="newperson", temporary_password="a-temp-pw-123"),
+    ) as mock_create:
+        response = await client.post(
+            "/admin/users",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={
+                "username": "newperson", "display_name": "New Person",
+                "email": "new@collabrains.eu", "is_admin": True,
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["username"] == "newperson"
+    assert body["temporary_password"] == "a-temp-pw-123"
+    mock_create.assert_called_once_with(
+        username="newperson", display_name="New Person", email="new@collabrains.eu", is_admin=True,
+    )
+
+
+async def test_create_user_with_duplicate_username_returns_409(client):
+    admin_token = await _login(client, _unique("dupuseradmin"), is_admin=True)
+    with patch(
+        "api.admin_router.ldap_create_user",
+        side_effect=LdapAdminError("entry already exists"),
+    ):
+        response = await client.post(
+            "/admin/users",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={"username": "existing", "display_name": "Existing Person", "email": "e@collabrains.eu"},
+        )
+    assert response.status_code == 409
+
+
+async def test_create_user_reports_ldap_bind_failure_as_502(client):
+    admin_token = await _login(client, _unique("ldapdownadmin"), is_admin=True)
+    with patch(
+        "api.admin_router.ldap_create_user",
+        side_effect=LdapAdminError("could not bind as LDAP admin"),
+    ):
+        response = await client.post(
+            "/admin/users",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={"username": "someone", "display_name": "Someone Else", "email": "s@collabrains.eu"},
+        )
+    assert response.status_code == 502

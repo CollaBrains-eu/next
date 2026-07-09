@@ -420,3 +420,19 @@ export function listBugReports(statusFilter?: string): Promise<BugReportOut[]> {
 export function analyzeBugReport(id: string): Promise<BugReportOut> {
   return request<BugReportOut>(`/admin/bug-reports/${id}/analyze`, { method: "POST" });
 }
+
+export interface AdminUserCreateInput {
+  username: string;
+  display_name: string;
+  email: string;
+  is_admin: boolean;
+}
+
+export interface AdminUserCreatedOut {
+  username: string;
+  temporary_password: string;
+}
+
+export function createAdminUser(input: AdminUserCreateInput): Promise<AdminUserCreatedOut> {
+  return request<AdminUserCreatedOut>("/admin/users", { method: "POST", body: JSON.stringify(input) });
+}

@@ -1,10 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Card from "../components/Card";
 import { Button } from "../components/ui/Button";
+import { Modal } from "../components/ui/Modal";
 import {
   ApiError,
   analyzeBugReport,
+  createAdminUser,
   type AdminStatsOut,
+  type AdminUserCreatedOut,
   type AiUsageRowOut,
   type BugReportOut,
   type ServiceHealthOut,
@@ -14,13 +17,14 @@ import {
   listBugReports,
 } from "../lib/api";
 
-type Tab = "overview" | "ai-usage" | "health" | "bugs";
+type Tab = "overview" | "ai-usage" | "health" | "bugs" | "users";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "ai-usage", label: "AI usage" },
   { id: "health", label: "Health" },
   { id: "bugs", label: "Bug reports" },
+  { id: "users", label: "Users" },
 ];
 
 export default function AdminDashboard() {
@@ -48,6 +52,7 @@ export default function AdminDashboard() {
       {tab === "ai-usage" && <AiUsageTab />}
       {tab === "health" && <HealthTab />}
       {tab === "bugs" && <BugsTab />}
+      {tab === "users" && <UsersTab />}
     </div>
   );
 }
@@ -212,6 +217,124 @@ function BugsTab() {
           )}
         </Card>
       ))}
+    </div>
+  );
+}
+
+function UsersTab() {
+  const [formOpen, setFormOpen] = useState(false);
+  const [username, setUsername] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [created, setCreated] = useState<AdminUserCreatedOut | null>(null);
+
+  function resetForm() {
+    setUsername("");
+    setDisplayName("");
+    setEmail("");
+    setIsAdmin(false);
+    setError(null);
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await createAdminUser({
+        username, display_name: displayName, email, is_admin: isAdmin,
+      });
+      setFormOpen(false);
+      resetForm();
+      setCreated(result);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to create user");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <Button
+          size="sm"
+          onClick={() => {
+            resetForm();
+            setFormOpen(true);
+          }}
+        >
+          + Add user
+        </Button>
+      </div>
+
+      {created && (
+        <Card className="flex flex-col gap-2 border-accent">
+          <p className="text-sm font-medium text-ink">
+            User <span className="font-semibold">{created.username}</span> created.
+          </p>
+          <p className="text-xs text-ink-3">
+            Temporary password — shown once, relay it to the user directly:
+          </p>
+          <code className="rounded-lg bg-accent-soft px-3 py-2 text-sm text-ink" data-testid="temp-password">
+            {created.temporary_password}
+          </code>
+          <div>
+            <Button size="sm" variant="ghost" onClick={() => setCreated(null)}>
+              Dismiss
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      <Modal open={formOpen} onClose={() => setFormOpen(false)} title="Add user">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          {error && <p className="text-sm text-danger">{error}</p>}
+          <label className="flex flex-col gap-1 text-sm text-ink-2">
+            Username
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              className="rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm text-ink-2">
+            Display name
+            <input
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              required
+              className="rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm text-ink-2">
+            Email
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+            />
+          </label>
+          <label className="flex items-center gap-2 text-sm text-ink-2">
+            <input type="checkbox" checked={isAdmin} onChange={(e) => setIsAdmin(e.target.checked)} />
+            Admin role
+          </label>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setFormOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" size="sm" disabled={submitting}>
+              {submitting ? "Creating…" : "Create user"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

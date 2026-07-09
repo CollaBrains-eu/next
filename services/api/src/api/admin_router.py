@@ -28,6 +28,8 @@ from api.admin_service import (
 )
 from api.auth import get_current_user
 from api.db import get_db
+from api.ldap_auth import LdapAdminError
+from api.ldap_auth import create_user as ldap_create_user
 from api.models import BugReport, User
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -52,6 +54,18 @@ class BugReportOut(BaseModel):
 
 class BugReportCreate(BaseModel):
     description: str
+
+
+class AdminUserCreate(BaseModel):
+    username: str
+    display_name: str
+    email: str
+    is_admin: bool = False
+
+
+class AdminUserCreated(BaseModel):
+    username: str
+    temporary_password: str
 
 
 @router.get("/stats", response_model=AdminStats)
@@ -114,3 +128,25 @@ async def admin_analyze_bug_report(
     if report is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bug report not found")
     return report
+
+
+@router.post("/users", response_model=AdminUserCreated)
+async def admin_create_user(
+    body: AdminUserCreate,
+    current_user: User = Depends(get_current_user),
+) -> AdminUserCreated:
+    """Create a new LDAP user with a one-time temporary password. The
+    Postgres User row is not created here -- it appears on first login,
+    same auto-provision path as every other user."""
+    _require_admin(current_user)
+    try:
+        created = ldap_create_user(
+            username=body.username, display_name=body.display_name, email=body.email, is_admin=body.is_admin,
+        )
+    except LdapAdminError as exc:
+        detail = str(exc)
+        status_code = (
+            status.HTTP_409_CONFLICT if "already exists" in detail.lower() else status.HTTP_502_BAD_GATEWAY
+        )
+        raise HTTPException(status_code=status_code, detail=detail) from exc
+    return AdminUserCreated(username=created.username, temporary_password=created.temporary_password)
