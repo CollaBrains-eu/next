@@ -89,14 +89,14 @@ export default function DocumentDetail() {
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Documents", to: "/" }, { label: doc.title }]} />
 
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-ink">{doc.title}</h1>
-          <p className="mt-1 flex items-center gap-2 text-sm text-ink-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="truncate text-2xl font-semibold text-ink">{doc.title}</h1>
+          <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-ink-2">
             {doc.mime_type} · <Badge variant={STATUS_VARIANT[doc.status] ?? "default"}>{doc.status}</Badge> · {doc.chunk_count} chunk(s)
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex shrink-0 gap-2">
           <Button variant="secondary" size="sm" onClick={handleSummarize} disabled={doc.status !== "ready" || summarizing}>
             {summarizing ? "Summarizing…" : doc.summary ? "Re-summarize" : "Summarize"}
           </Button>

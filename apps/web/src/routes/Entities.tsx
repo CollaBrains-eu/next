@@ -45,13 +45,13 @@ export default function Entities() {
         </p>
       </div>
 
-      <div className="flex items-center justify-between">
-        <form onSubmit={handleSubmit} className="flex gap-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <form onSubmit={handleSubmit} className="flex flex-wrap gap-2">
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search entities…"
-            className="w-full rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none transition-colors duration-fast focus:border-accent focus:ring-2 focus:ring-accent-soft"
+            className="w-full rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none transition-colors duration-fast focus:border-accent focus:ring-2 focus:ring-accent-soft sm:w-auto"
           />
           <select
             value={entityType}
@@ -75,7 +75,7 @@ export default function Entities() {
             <option value="all">All</option>
           </select>
         </form>
-        <Link to="/entities/review" className="text-sm text-accent hover:underline">
+        <Link to="/entities/review" className="shrink-0 text-sm text-accent hover:underline">
           Review pending →
         </Link>
       </div>
@@ -90,9 +90,11 @@ export default function Entities() {
             <Link
               key={entity.id}
               to={`/entities/${entity.id}`}
-              className="flex items-center justify-between px-4 py-3 transition-colors duration-fast hover:bg-hover"
+              className="flex items-center justify-between gap-3 px-4 py-3 transition-colors duration-fast hover:bg-hover"
             >
-              <span className="text-sm font-medium text-ink">{entity.name}</span>
+              <span className="min-w-0 truncate text-sm font-medium text-ink" title={entity.name}>
+                {entity.name}
+              </span>
               <TypeBadge type={entity.entity_type} />
             </Link>
           ))}

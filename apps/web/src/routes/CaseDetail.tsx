@@ -143,12 +143,12 @@ export default function CaseDetail() {
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Cases", to: "/cases" }, { label: caseData.name }]} />
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-ink">{caseData.name}</h1>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="truncate text-2xl font-semibold text-ink">{caseData.name}</h1>
           {caseData.description && <p className="mt-1 text-sm text-ink-2">{caseData.description}</p>}
         </div>
-        <button onClick={toggleStatus} className="rounded-full">
+        <button onClick={toggleStatus} className="shrink-0 rounded-full">
           <Badge variant={caseData.status === "open" ? "success" : "default"}>{caseData.status}</Badge>
         </button>
       </div>
