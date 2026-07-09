@@ -137,7 +137,9 @@ async def get_entity_graph(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_effective_user),
 ) -> EntityGraphOut:
-    """One-hop neighborhood of an entity: itself, its direct neighbors, and the edges between them."""
+    """One-hop neighborhood of an entity: itself, its direct confirmed neighbors, and the
+    confirmed-to-confirmed edges between them. Non-confirmed neighbors/edges are excluded --
+    see docs/superpowers/specs/2026-07-09-entity-review-queue-design.md."""
     center = await db.get(Entity, entity_id)
     if center is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Entity not found")
@@ -147,18 +149,28 @@ async def get_entity_graph(
             or_(EntityRelationship.source_entity_id == entity_id, EntityRelationship.target_entity_id == entity_id)
         )
     )
-    edges = list(edges_result.scalars().all())
+    all_edges = list(edges_result.scalars().all())
 
     neighbor_ids = {
         eid
-        for edge in edges
+        for edge in all_edges
         for eid in (edge.source_entity_id, edge.target_entity_id)
         if eid != entity_id
     }
     neighbors: list[Entity] = []
     if neighbor_ids:
-        neighbors_result = await db.execute(select(Entity).where(Entity.id.in_(neighbor_ids)))
+        neighbors_result = await db.execute(
+            select(Entity).where(Entity.id.in_(neighbor_ids), Entity.status == "confirmed")
+        )
         neighbors = list(neighbors_result.scalars().all())
+    confirmed_neighbor_ids = {n.id for n in neighbors}
+
+    edges = [
+        edge
+        for edge in all_edges
+        for other_id in [edge.target_entity_id if edge.source_entity_id == entity_id else edge.source_entity_id]
+        if other_id in confirmed_neighbor_ids
+    ]
 
     return EntityGraphOut(
         center=GraphNode(id=center.id, name=center.name, entity_type=center.entity_type),

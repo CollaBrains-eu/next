@@ -112,6 +112,11 @@ async def test_entity_graph_returns_one_hop_neighbors_and_edges(client):
 
     entities_by_name = {e["name"]: e["id"] for e in extracted.json()}
 
+    # The graph only shows confirmed neighbors/edges (Phase 21) -- approve
+    # both extracted entities before checking the graph.
+    await client.post(f"/entities/{entities_by_name['Priya Patel']}/approve", headers=headers)
+    await client.post(f"/entities/{entities_by_name['Zenith Ltd']}/approve", headers=headers)
+
     graph = await client.get(f"/entities/{entities_by_name['Priya Patel']}/graph", headers=headers)
     body = graph.json()
     assert body["center"]["name"] == "Priya Patel"
@@ -313,3 +318,25 @@ async def test_bulk_review_approves_and_rejects_in_one_request(client):
     results = {r["id"]: r["status"] for r in response.json()}
     assert results[ids_by_name["Tom Baker"]] == "confirmed"
     assert results[ids_by_name["14 februari 2024"]] == "rejected"
+
+
+async def test_entity_graph_excludes_non_confirmed_neighbors(client):
+    token = await _login(client, "entityuser15")
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "Elena Kravitz represents Vantage Group.")
+
+    fake = (
+        '{"entities": [{"name": "Elena Kravitz", "type": "person"}, {"name": "Vantage Group", "type": "organization"}], '
+        '"relationships": [{"source": "Elena Kravitz", "target": "Vantage Group", "type": "represents"}]}'
+    )
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        extracted = await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
+    ids_by_name = {e["name"]: e["id"] for e in extracted.json()}
+    center_id = ids_by_name["Elena Kravitz"]
+
+    # Center confirmed, neighbor still pending_review (default post-extraction state).
+    await client.post(f"/entities/{center_id}/approve", headers=headers)
+
+    graph = await client.get(f"/entities/{center_id}/graph", headers=headers)
+    assert graph.json()["nodes"] == []  # Vantage Group is still pending, so it's excluded
+    assert graph.json()["edges"] == []  # the edge to a non-confirmed neighbor is excluded too
