@@ -17,6 +17,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.communication_agent import draft_communication
 from api.documents import _generate_summary
 from api.entity_agent import extract_entities
 from api.knowledge_graph import create_decision_from_plan
@@ -34,6 +35,7 @@ GOAL_TYPES = {
     "analyze_new_upload",
     "organize_document_collection",
     "generate_timeline",
+    "draft_communication",
 }
 
 APPROVAL_REQUIRED_GOALS = {"draft_legal_document", "prepare_objection"}
@@ -82,6 +84,22 @@ def build_steps(goal_type: str, goal_params: dict[str, Any]) -> list[dict[str, A
             {
                 "agent": "legal_agent",
                 "input_data": {"instruction": instruction, "document_ids": goal_params.get("document_ids", [])},
+            }
+        ]
+
+    if goal_type == "draft_communication":
+        instruction = goal_params.get("instruction")
+        channel = goal_params.get("channel")
+        recipient = goal_params.get("recipient")
+        if not instruction or not channel or not recipient:
+            raise ValueError("draft_communication requires instruction, channel, and recipient")
+        return [
+            {
+                "agent": "communication_agent",
+                "input_data": {
+                    "instruction": instruction, "channel": channel, "recipient": recipient,
+                    "document_ids": goal_params.get("document_ids", []),
+                },
             }
         ]
 
@@ -187,6 +205,19 @@ async def _run_legal_agent(db: AsyncSession, input_data: dict[str, Any], *, user
     return {"draft": result.draft, "citation_count": len(result.citations)}
 
 
+async def _run_communication_agent(db: AsyncSession, input_data: dict[str, Any], *, user_id: UUID) -> dict[str, Any]:
+    document_ids = [UUID(doc_id) for doc_id in input_data.get("document_ids", [])]
+    draft = await draft_communication(
+        db,
+        instruction=input_data["instruction"],
+        channel=input_data["channel"],
+        recipient=input_data["recipient"],
+        user_id=user_id,
+        document_ids=document_ids,
+    )
+    return {"channel": draft.channel, "recipient": draft.recipient, "subject": draft.subject, "body": draft.body}
+
+
 async def _run_collection_agent(db: AsyncSession, input_data: dict[str, Any], *, user_id: UUID) -> dict[str, Any]:
     document_ids = [UUID(doc_id) for doc_id in input_data["document_ids"]]
     return await organize_document_collection(db, document_ids)
@@ -202,6 +233,7 @@ AGENT_DISPATCH = {
     "planner_agent": _run_planner_agent,
     "entity_agent": _run_entity_agent,
     "legal_agent": _run_legal_agent,
+    "communication_agent": _run_communication_agent,
     "collection_agent": _run_collection_agent,
     "timeline_agent": _run_timeline_agent,
 }

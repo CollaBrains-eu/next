@@ -75,6 +75,26 @@ def test_build_steps_prepare_objection_uses_canned_instruction_with_grounds():
     assert "late filing" in steps[0]["input_data"]["instruction"]
 
 
+def test_build_steps_draft_communication_one_step_with_all_fields():
+    steps = build_steps(
+        "draft_communication",
+        {"instruction": "Remind about APK", "channel": "signal", "recipient": "+31600000000", "document_ids": ["d1"]},
+    )
+    assert len(steps) == 1
+    assert steps[0]["agent"] == "communication_agent"
+    assert steps[0]["input_data"] == {
+        "instruction": "Remind about APK", "channel": "signal", "recipient": "+31600000000", "document_ids": ["d1"],
+    }
+
+
+def test_build_steps_draft_communication_requires_recipient():
+    try:
+        build_steps("draft_communication", {"instruction": "x", "channel": "signal"})
+        assert False, "expected ValueError"
+    except ValueError:
+        pass
+
+
 def test_build_steps_rejects_unknown_goal_type():
     try:
         build_steps("teleport_documents", {})
@@ -278,6 +298,40 @@ async def test_execute_plan_runs_steps_sequentially_and_completes(client):
         )
     assert [s.status for s in steps] == ["done", "done"]
     assert steps[0].result_data["summary"] == "A short summary."
+
+
+async def test_execute_plan_dispatches_communication_agent(client):
+    token, username = await _login(client, "plan-comm-user")
+    user_id = await _user_id_for(username)
+
+    with (
+        patch("api.communication_agent.hybrid_search", return_value=[]),
+        patch(
+            "api.communication_agent.chat_completion",
+            return_value='{"subject": null, "body": "Your appointment is confirmed."}',
+        ),
+    ):
+        async with async_session() as db:
+            plan = await create_plan(
+                db, user_id=user_id, goal_type="draft_communication",
+                goal_params={"instruction": "Confirm the appointment", "channel": "signal", "recipient": "+31600000002"},
+            )
+            await execute_plan(db, plan_id=plan.id)
+            await db.refresh(plan)
+
+    assert plan.status == "completed"
+
+    from api.models import PlanStep
+
+    async with async_session() as db:
+        steps = list(
+            (await db.execute(select(PlanStep).where(PlanStep.plan_id == plan.id).order_by(PlanStep.step_index)))
+            .scalars()
+            .all()
+        )
+    assert steps[0].agent == "communication_agent"
+    assert steps[0].status == "done"
+    assert steps[0].result_data["body"] == "Your appointment is confirmed."
 
 
 async def test_execute_plan_isolates_a_failing_step_as_partially_failed(client):
