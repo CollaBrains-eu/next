@@ -235,3 +235,81 @@ async def test_list_entities_defaults_to_confirmed_only(client):
 
     all_listing = await client.get("/entities", headers=headers, params={"q": "Karl Zimmer", "status": "all"})
     assert len(all_listing.json()) == 1
+
+
+async def test_approve_entity_transitions_pending_to_confirmed(client):
+    token = await _login(client, "entityuser10")
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "Liu Wei is a party.")
+    fake = '{"entities": [{"name": "Liu Wei", "type": "person"}], "relationships": []}'
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        extracted = await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
+    entity_id = extracted.json()[0]["id"]
+
+    response = await client.post(f"/entities/{entity_id}/approve", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["status"] == "confirmed"
+
+    listing = await client.get("/entities", headers=headers, params={"q": "Liu Wei"})
+    assert len(listing.json()) == 1  # now visible in the default (confirmed-only) listing
+
+
+async def test_reject_entity_transitions_pending_to_rejected(client):
+    token = await _login(client, "entityuser11")
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "23.10.2025 appears here.")
+    fake = '{"entities": [{"name": "23.10.2025", "type": "other"}], "relationships": []}'
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        extracted = await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
+    entity_id = extracted.json()[0]["id"]
+
+    response = await client.post(f"/entities/{entity_id}/reject", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["status"] == "rejected"
+
+
+async def test_approve_nonexistent_entity_returns_404(client):
+    token = await _login(client, "entityuser12")
+    headers = {"Authorization": f"Bearer {token}"}
+    response = await client.post("/entities/00000000-0000-0000-0000-000000000000/approve", headers=headers)
+    assert response.status_code == 404
+
+
+async def test_approve_already_confirmed_entity_returns_409(client):
+    token = await _login(client, "entityuser13")
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "Second approve attempt.")
+    fake = '{"entities": [{"name": "Rosa Diaz", "type": "person"}], "relationships": []}'
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        extracted = await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
+    entity_id = extracted.json()[0]["id"]
+
+    await client.post(f"/entities/{entity_id}/approve", headers=headers)
+    second = await client.post(f"/entities/{entity_id}/approve", headers=headers)
+    assert second.status_code == 409
+
+
+async def test_bulk_review_approves_and_rejects_in_one_request(client):
+    token = await _login(client, "entityuser14")
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "Two entities appear.")
+    fake = (
+        '{"entities": [{"name": "Tom Baker", "type": "person"}, {"name": "14 februari 2024", "type": "other"}], '
+        '"relationships": []}'
+    )
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        extracted = await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
+    ids_by_name = {e["name"]: e["id"] for e in extracted.json()}
+
+    response = await client.post(
+        "/entities/bulk-review",
+        headers=headers,
+        json=[
+            {"entity_id": ids_by_name["Tom Baker"], "action": "approve"},
+            {"entity_id": ids_by_name["14 februari 2024"], "action": "reject"},
+        ],
+    )
+    assert response.status_code == 200
+    results = {r["id"]: r["status"] for r in response.json()}
+    assert results[ids_by_name["Tom Baker"]] == "confirmed"
+    assert results[ids_by_name["14 februari 2024"]] == "rejected"

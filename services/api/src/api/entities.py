@@ -61,6 +61,57 @@ async def list_entities(
     return list(result.scalars().all())
 
 
+class BulkReviewItem(BaseModel):
+    entity_id: UUID
+    action: str  # "approve" | "reject"
+
+
+async def _transition_entity(db: AsyncSession, entity_id: UUID, new_status: str) -> Entity:
+    entity = await db.get(Entity, entity_id)
+    if entity is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Entity not found")
+    if entity.status != "pending_review":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Entity is not pending review (status: {entity.status})",
+        )
+    entity.status = new_status
+    await db.commit()
+    await db.refresh(entity)
+    return entity
+
+
+@router.post("/entities/{entity_id}/approve", response_model=EntityOut)
+async def approve_entity(
+    entity_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_effective_user),
+) -> Entity:
+    return await _transition_entity(db, entity_id, "confirmed")
+
+
+@router.post("/entities/{entity_id}/reject", response_model=EntityOut)
+async def reject_entity(
+    entity_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_effective_user),
+) -> Entity:
+    return await _transition_entity(db, entity_id, "rejected")
+
+
+@router.post("/entities/bulk-review", response_model=list[EntityOut])
+async def bulk_review_entities(
+    items: list[BulkReviewItem],
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_effective_user),
+) -> list[Entity]:
+    results: list[Entity] = []
+    for item in items:
+        new_status = "confirmed" if item.action == "approve" else "rejected"
+        results.append(await _transition_entity(db, item.entity_id, new_status))
+    return results
+
+
 class GraphNode(BaseModel):
     id: UUID
     name: str
