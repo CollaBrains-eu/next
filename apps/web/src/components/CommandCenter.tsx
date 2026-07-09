@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { NAV_ITEMS } from "../lib/navigation";
 import { CommandPalette } from "./ui/CommandPalette";
 import { ShortcutsSheet } from "./ui/ShortcutsSheet";
@@ -11,6 +12,7 @@ export function CommandCenter() {
   const [overlay, setOverlay] = useState<OverlayState>("none");
   const navigate = useNavigate();
   const { toggle: toggleDarkMode } = useDarkMode();
+  const { t } = useTranslation();
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -33,7 +35,7 @@ export function CommandCenter() {
   }, [toggleDarkMode]);
 
   const items = NAV_ITEMS.map((item) => ({
-    label: `Go to ${item.label}`,
+    label: `Go to ${t(item.labelKey)}`,
     onSelect: () => navigate(item.to),
   }));
 

@@ -1,15 +1,17 @@
 import { useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import Sidebar from "./Sidebar";
 
 export default function Layout({ children }: { children: ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const { t } = useTranslation();
 
   return (
     <div className="flex min-h-screen flex-col bg-page text-ink md:flex-row">
       <header className="flex items-center justify-between border-b border-edge bg-sidebar-surface px-4 py-3 md:hidden">
         <span className="text-lg font-semibold text-ink">CollaBrains</span>
         <button
-          aria-label="Open menu"
+          aria-label={t("common.openMenu")}
           onClick={() => setMobileNavOpen(true)}
           className="flex h-9 w-9 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"
         >

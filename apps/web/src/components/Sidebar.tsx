@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../lib/auth";
 import { useDarkMode } from "../hooks/useDarkMode";
 import { useEscapeToClose } from "../hooks/useEscapeToClose";
@@ -16,6 +17,7 @@ export default function Sidebar({
 }) {
   const { user, logout } = useAuth();
   const { isDark, toggle } = useDarkMode();
+  const { t } = useTranslation();
   const location = useLocation();
   const itemRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
   const [pillStyle, setPillStyle] = useState<{ top: number; height: number }>({ top: 0, height: 0 });
@@ -77,7 +79,7 @@ export default function Sidebar({
                   }`
                 }
               >
-                <span>{item.label}</span>
+                <span>{t(item.labelKey)}</span>
                 {item.to === "/entities" && pendingCount > 0 && (
                   <span
                     data-testid="entities-pending-badge"
@@ -94,10 +96,10 @@ export default function Sidebar({
           <div className="flex flex-col gap-2 border-t border-edge pt-4 text-sm">
             <span className="text-ink-2">{user.display_name}</span>
             <button onClick={logout} className="text-left text-ink-2 hover:text-ink">
-              Sign out
+              {t("common.signOut")}
             </button>
             <Button variant="ghost" size="sm" onClick={toggle} className="justify-start">
-              {isDark ? "☀️ Light mode" : "🌙 Dark mode"}
+              {isDark ? t("common.lightMode") : t("common.darkMode")}
             </Button>
           </div>
         )}

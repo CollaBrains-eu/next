@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Card from "../components/Card";
 import { Button } from "../components/ui/Button";
 import { ApiError, getPreferences, setPreferences } from "../lib/api";
+import { syncLanguage } from "../lib/auth";
 
 const LANGUAGE_OPTIONS = [
   { value: "", label: "No preference" },
@@ -30,6 +31,7 @@ export default function Settings() {
     setError(null);
     try {
       await setPreferences(language || null);
+      syncLanguage(language || null);
       setSaved(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to save preferences");

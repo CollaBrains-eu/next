@@ -1,6 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { ApiError, clearToken, fetchMe, login as apiLogin, setToken, type UserOut } from "./api";
+import { ApiError, clearToken, fetchMe, getPreferences, login as apiLogin, setToken, type UserOut } from "./api";
+import i18n, { LANGUAGE_NAME_TO_CODE } from "./i18n";
+
+// The same preferred_language setting drives both the AI response language
+// (api.preferences.build_language_instruction) and the UI language -- not a
+// separate UI-only picker. Called on login and whenever Settings saves a change.
+export function syncLanguage(preferredLanguage: string | null): void {
+  const code = preferredLanguage ? LANGUAGE_NAME_TO_CODE[preferredLanguage] : undefined;
+  i18n.changeLanguage(code ?? "en");
+}
 
 interface AuthContextValue {
   user: UserOut | null;
@@ -31,6 +40,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     refreshUser();
   }, [refreshUser]);
+
+  useEffect(() => {
+    if (!user) return;
+    getPreferences()
+      .then((prefs) => syncLanguage(prefs.preferred_language))
+      .catch(() => {
+        // Language sync is a nice-to-have; the default (English) stays in effect on failure.
+      });
+  }, [user]);
 
   const login = useCallback(
     async (username: string, password: string) => {

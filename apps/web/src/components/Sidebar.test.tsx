@@ -1,7 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Sidebar from "./Sidebar";
+import i18n from "../lib/i18n";
 import * as api from "../lib/api";
 
 vi.mock("../lib/auth", () => ({
@@ -92,5 +93,25 @@ describe("Sidebar", () => {
     renderAt("/", { mobileOpen: true, onCloseMobile });
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onCloseMobile).toHaveBeenCalledOnce();
+  });
+
+  describe("language switching", () => {
+    afterEach(() => {
+      i18n.changeLanguage("en");
+    });
+
+    it("renders nav labels in Dutch when the language is switched to nl", async () => {
+      await i18n.changeLanguage("nl");
+      renderAt("/");
+      expect(screen.getByRole("link", { name: "Documenten" })).toHaveAttribute("href", "/");
+      expect(screen.getByRole("link", { name: "Zaken" })).toHaveAttribute("href", "/cases");
+    });
+
+    it("renders nav labels in German when the language is switched to de", async () => {
+      await i18n.changeLanguage("de");
+      renderAt("/");
+      expect(screen.getByRole("link", { name: "Dokumente" })).toHaveAttribute("href", "/");
+      expect(screen.getByRole("link", { name: "Fälle" })).toHaveAttribute("href", "/cases");
+    });
   });
 });

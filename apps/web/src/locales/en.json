@@ -1,0 +1,20 @@
+{
+  "nav": {
+    "documents": "Documents",
+    "aiChat": "AI Chat",
+    "legalDraft": "Legal Draft",
+    "tasks": "Tasks",
+    "entities": "Entities",
+    "cases": "Cases",
+    "vehicles": "Vehicles",
+    "assistant": "Assistant",
+    "settings": "Settings",
+    "admin": "Admin"
+  },
+  "common": {
+    "openMenu": "Open menu",
+    "signOut": "Sign out",
+    "lightMode": "☀️ Light mode",
+    "darkMode": "🌙 Dark mode"
+  }
+}

@@ -1,16 +1,16 @@
-export const NAV_ITEMS: { to: string; label: string }[] = [
-  { to: "/", label: "Documents" },
-  { to: "/chat", label: "AI Chat" },
-  { to: "/legal", label: "Legal Draft" },
-  { to: "/tasks", label: "Tasks" },
-  { to: "/entities", label: "Entities" },
-  { to: "/cases", label: "Cases" },
-  { to: "/vehicles", label: "Vehicles" },
-  { to: "/assistant", label: "Assistant" },
-  { to: "/settings", label: "Settings" },
+export const NAV_ITEMS: { to: string; labelKey: string }[] = [
+  { to: "/", labelKey: "nav.documents" },
+  { to: "/chat", labelKey: "nav.aiChat" },
+  { to: "/legal", labelKey: "nav.legalDraft" },
+  { to: "/tasks", labelKey: "nav.tasks" },
+  { to: "/entities", labelKey: "nav.entities" },
+  { to: "/cases", labelKey: "nav.cases" },
+  { to: "/vehicles", labelKey: "nav.vehicles" },
+  { to: "/assistant", labelKey: "nav.assistant" },
+  { to: "/settings", labelKey: "nav.settings" },
 ];
 
-export function navItemsForRole(role: string | undefined): { to: string; label: string }[] {
+export function navItemsForRole(role: string | undefined): { to: string; labelKey: string }[] {
   if (role !== "admin") return NAV_ITEMS;
-  return [...NAV_ITEMS, { to: "/admin", label: "Admin" }];
+  return [...NAV_ITEMS, { to: "/admin", labelKey: "nav.admin" }];
 }

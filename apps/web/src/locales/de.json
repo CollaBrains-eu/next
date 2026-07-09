@@ -1,0 +1,20 @@
+{
+  "nav": {
+    "documents": "Dokumente",
+    "aiChat": "KI-Chat",
+    "legalDraft": "Rechtsentwurf",
+    "tasks": "Aufgaben",
+    "entities": "Entitäten",
+    "cases": "Fälle",
+    "vehicles": "Fahrzeuge",
+    "assistant": "Assistent",
+    "settings": "Einstellungen",
+    "admin": "Verwaltung"
+  },
+  "common": {
+    "openMenu": "Menü öffnen",
+    "signOut": "Abmelden",
+    "lightMode": "☀️ Heller Modus",
+    "darkMode": "🌙 Dunkler Modus"
+  }
+}

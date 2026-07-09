@@ -1,0 +1,20 @@
+{
+  "nav": {
+    "documents": "Documenten",
+    "aiChat": "AI-chat",
+    "legalDraft": "Juridisch concept",
+    "tasks": "Taken",
+    "entities": "Entiteiten",
+    "cases": "Zaken",
+    "vehicles": "Voertuigen",
+    "assistant": "Assistent",
+    "settings": "Instellingen",
+    "admin": "Beheer"
+  },
+  "common": {
+    "openMenu": "Menu openen",
+    "signOut": "Afmelden",
+    "lightMode": "☀️ Lichte modus",
+    "darkMode": "🌙 Donkere modus"
+  }
+}
