@@ -13,8 +13,8 @@ vi.mock("../lib/api", async () => {
 });
 
 const ENTITIES: api.EntityOut[] = [
-  { id: "e1", name: "Jane Smith", entity_type: "person", created_at: "2026-01-01T00:00:00Z" },
-  { id: "e2", name: "Acme Corp", entity_type: "organization", created_at: "2026-01-02T00:00:00Z" },
+  { id: "e1", name: "Jane Smith", entity_type: "person", status: "confirmed", created_at: "2026-01-01T00:00:00Z" },
+  { id: "e2", name: "Acme Corp", entity_type: "organization", status: "confirmed", created_at: "2026-01-02T00:00:00Z" },
 ];
 
 function renderPage() {

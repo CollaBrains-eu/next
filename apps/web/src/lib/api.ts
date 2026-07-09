@@ -185,15 +185,37 @@ export interface EntityOut {
   id: string;
   name: string;
   entity_type: string;
+  status: string;
   created_at: string;
 }
 
-export function listEntities(q?: string, entityType?: string): Promise<EntityOut[]> {
+export function listEntities(q?: string, entityType?: string, status?: string): Promise<EntityOut[]> {
   const params = new URLSearchParams();
   if (q) params.set("q", q);
   if (entityType) params.set("entity_type", entityType);
+  if (status) params.set("status", status);
   const query = params.toString();
   return request<EntityOut[]>(`/entities${query ? `?${query}` : ""}`);
+}
+
+export function approveEntity(id: string): Promise<EntityOut> {
+  return request<EntityOut>(`/entities/${id}/approve`, { method: "POST" });
+}
+
+export function rejectEntity(id: string): Promise<EntityOut> {
+  return request<EntityOut>(`/entities/${id}/reject`, { method: "POST" });
+}
+
+export interface BulkReviewItem {
+  entity_id: string;
+  action: "approve" | "reject";
+}
+
+export function bulkReviewEntities(items: BulkReviewItem[]): Promise<EntityOut[]> {
+  return request<EntityOut[]>("/entities/bulk-review", {
+    method: "POST",
+    body: JSON.stringify(items),
+  });
 }
 
 export interface GraphNode {

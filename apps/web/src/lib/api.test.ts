@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ApiError, clearToken, login, request, setToken } from "./api";
+import { ApiError, approveEntity, clearToken, login, request, setToken } from "./api";
 
 describe("api request()", () => {
   beforeEach(() => {
@@ -63,5 +63,30 @@ describe("api request()", () => {
     await expect(request("/chat")).rejects.toMatchObject(
       new ApiError(403, "not linked"),
     );
+  });
+});
+
+describe("approveEntity", () => {
+  beforeEach(() => {
+    clearToken();
+    vi.stubGlobal("fetch", vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("posts to /entities/:id/approve and returns the updated entity", async () => {
+    const mockEntity = { id: "e1", name: "Test", entity_type: "person", status: "confirmed", created_at: "2026-01-01T00:00:00Z" };
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(JSON.stringify(mockEntity), { status: 200 }),
+    );
+
+    const result = await approveEntity("e1");
+
+    expect(result.status).toBe("confirmed");
+    const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toContain("/entities/e1/approve");
+    expect(init.method).toBe("POST");
   });
 });
