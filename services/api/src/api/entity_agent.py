@@ -31,15 +31,26 @@ Document:
 {text}"""
 
 
-async def _get_or_create_entity(db: AsyncSession, name: str, entity_type: str) -> Entity:
+async def _get_or_create_entity(db: AsyncSession, name: str, entity_type: str) -> Entity | None:
+    """Look up an existing entity by case-insensitive (name, entity_type).
+
+    Returns the existing row if it is `confirmed` or `pending_review`
+    (reusing it rather than creating a duplicate pending row), `None` if
+    it is `rejected` (permanently suppressed -- see
+    docs/superpowers/specs/2026-07-09-entity-review-queue-design.md), or
+    creates a new `pending_review` row if there is no match at all.
+    """
     result = await db.execute(
         select(Entity).where(func.lower(Entity.name) == name.lower().strip(), Entity.entity_type == entity_type)
     )
     entity = result.scalar_one_or_none()
-    if entity is None:
-        entity = Entity(name=name.strip(), entity_type=entity_type)
-        db.add(entity)
-        await db.flush()
+    if entity is not None:
+        if entity.status == "rejected":
+            return None
+        return entity
+    entity = Entity(name=name.strip(), entity_type=entity_type)
+    db.add(entity)
+    await db.flush()
     return entity
 
 
@@ -70,6 +81,8 @@ async def extract_entities(db: AsyncSession, *, document_id: UUID, text: str, us
             continue
         entity_type = item.get("type") if item.get("type") in VALID_ENTITY_TYPES else "other"
         entity = await _get_or_create_entity(db, item["name"], entity_type)
+        if entity is None:
+            continue  # rejected entity, permanently suppressed
         entities_by_name[item["name"].strip().lower()] = entity
         persisted.append(entity)
 

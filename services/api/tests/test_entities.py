@@ -143,3 +143,76 @@ async def test_new_entities_are_created_as_pending_review(client):
 
     assert response.status_code == 200
     assert response.json()[0]["status"] == "pending_review"
+
+
+async def test_extraction_reuses_confirmed_entity_without_creating_pending_row(client):
+    token = await _login(client, "entityuser6")
+    headers = {"Authorization": f"Bearer {token}"}
+    doc_a = await _upload_ready_document(client, headers, "Omar Reyes signed the lease.")
+    doc_b = await _upload_ready_document(client, headers, "Omar Reyes called again today.")
+
+    fake = '{"entities": [{"name": "Omar Reyes", "type": "person"}], "relationships": []}'
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        first = await client.post(f"/documents/{doc_a}/extract-entities", headers=headers)
+    entity_id = first.json()[0]["id"]
+
+    # Manually confirm it, the way the approve endpoint will in Task 4.
+    from api.models import Entity
+    from api.db import async_session
+    async with async_session() as db:
+        entity = await db.get(Entity, entity_id)
+        entity.status = "confirmed"
+        await db.commit()
+
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        second = await client.post(f"/documents/{doc_b}/extract-entities", headers=headers)
+
+    assert len(second.json()) == 1
+    assert second.json()[0]["id"] == entity_id
+    assert second.json()[0]["status"] == "confirmed"
+
+    listing = await client.get("/entities", headers=headers, params={"q": "Omar", "status": "all"})
+    assert len(listing.json()) == 1  # still exactly one row, not a duplicate pending one
+
+
+async def test_extraction_attaches_new_mention_to_existing_pending_entity(client):
+    token = await _login(client, "entityuser7")
+    headers = {"Authorization": f"Bearer {token}"}
+    doc_a = await _upload_ready_document(client, headers, "Priya Nair filed a claim.")
+    doc_b = await _upload_ready_document(client, headers, "Priya Nair called the adjuster.")
+
+    fake = '{"entities": [{"name": "Priya Nair", "type": "person"}], "relationships": []}'
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        first = await client.post(f"/documents/{doc_a}/extract-entities", headers=headers)
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        second = await client.post(f"/documents/{doc_b}/extract-entities", headers=headers)
+
+    assert first.json()[0]["id"] == second.json()[0]["id"]
+    listing = await client.get("/entities", headers=headers, params={"q": "Priya Nair", "status": "all"})
+    assert len(listing.json()) == 1  # one pending row shared by both mentions, not two
+
+
+async def test_extraction_suppresses_rejected_entity(client):
+    token = await _login(client, "entityuser8")
+    headers = {"Authorization": f"Bearer {token}"}
+    doc_a = await _upload_ready_document(client, headers, "088 227 77 00 is listed.")
+
+    fake = '{"entities": [{"name": "088 227 77 00", "type": "other"}], "relationships": []}'
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        first = await client.post(f"/documents/{doc_a}/extract-entities", headers=headers)
+    entity_id = first.json()[0]["id"]
+
+    from api.models import Entity
+    from api.db import async_session
+    async with async_session() as db:
+        entity = await db.get(Entity, entity_id)
+        entity.status = "rejected"
+        await db.commit()
+
+    doc_b = await _upload_ready_document(client, headers, "Call 088 227 77 00 for support.")
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        second = await client.post(f"/documents/{doc_b}/extract-entities", headers=headers)
+
+    assert second.json() == []  # suppressed, not recreated
+    listing = await client.get("/entities", headers=headers, params={"q": "088 227 77 00", "status": "all"})
+    assert len(listing.json()) == 1  # still just the original rejected row
