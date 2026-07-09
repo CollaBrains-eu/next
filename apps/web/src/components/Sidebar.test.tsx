@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import * as api from "../lib/api";
@@ -13,10 +13,13 @@ vi.mock("../lib/api", async () => {
   return { ...actual, listEntities: vi.fn() };
 });
 
-function renderAt(path: string) {
+function renderAt(
+  path: string,
+  props: { mobileOpen?: boolean; onCloseMobile?: () => void } = {},
+) {
   return render(
     <MemoryRouter initialEntries={[path]}>
-      <Sidebar />
+      <Sidebar {...props} />
     </MemoryRouter>
   );
 }
@@ -57,5 +60,37 @@ describe("Sidebar", () => {
     renderAt("/");
     await waitFor(() => expect(api.listEntities).toHaveBeenCalled());
     expect(screen.queryByTestId("entities-pending-badge")).not.toBeInTheDocument();
+  });
+
+  it("does not render a mobile backdrop when closed", () => {
+    renderAt("/");
+    expect(screen.queryByTestId("sidebar-backdrop")).not.toBeInTheDocument();
+  });
+
+  it("renders a mobile backdrop and slides the drawer in when open", () => {
+    renderAt("/", { mobileOpen: true });
+    expect(screen.getByTestId("sidebar-backdrop")).toBeInTheDocument();
+    expect(document.querySelector("aside")).toHaveClass("translate-x-0");
+  });
+
+  it("calls onCloseMobile when the backdrop is clicked", () => {
+    const onCloseMobile = vi.fn();
+    renderAt("/", { mobileOpen: true, onCloseMobile });
+    fireEvent.click(screen.getByTestId("sidebar-backdrop"));
+    expect(onCloseMobile).toHaveBeenCalledOnce();
+  });
+
+  it("calls onCloseMobile when a nav link is clicked", () => {
+    const onCloseMobile = vi.fn();
+    renderAt("/", { mobileOpen: true, onCloseMobile });
+    fireEvent.click(screen.getByRole("link", { name: "Cases" }));
+    expect(onCloseMobile).toHaveBeenCalledOnce();
+  });
+
+  it("calls onCloseMobile on Escape when open", () => {
+    const onCloseMobile = vi.fn();
+    renderAt("/", { mobileOpen: true, onCloseMobile });
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onCloseMobile).toHaveBeenCalledOnce();
   });
 });

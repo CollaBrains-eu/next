@@ -97,8 +97,11 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
     restart: unless-stopped
-    environment:
-      VITE_API_URL: http://localhost:8000
+    # VITE_API_URL intentionally not set here -- apps/web/.env.development
+    # provides it for `pnpm dev`, and leaving it unset in the container
+    # environment means `docker compose exec web pnpm exec vite build`
+    # (the established production-deploy pattern -- see ADR 0039) doesn't
+    # inherit a dev-only value into the production bundle (see ADR 0049).
     ports:
       - "127.0.0.1:5173:5173"
     volumes:

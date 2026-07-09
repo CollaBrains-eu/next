@@ -1,4 +1,7 @@
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+// Default to same-origin (relative paths) -- correct for the production build,
+// where Caddy reverse-proxies API paths on the same domain the SPA is served
+// from. Local dev overrides this via apps/web/.env.development.
+const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 const TOKEN_KEY = "collabrains_token";
 
