@@ -232,6 +232,21 @@ class EntityRelationship(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class EntityMergeLog(Base):
+    """Audit trail of entity merges (Phase 25). `source_entity_id` is deliberately not a
+    foreign key -- the source row is deleted as part of the merge it records, so an FK
+    would force either cascading the log away (defeating its purpose) or blocking the
+    delete entirely."""
+
+    __tablename__ = "entity_merge_log"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    source_entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    target_entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("entities.id"), nullable=False)
+    merged_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    merged_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Memory(Base):
     """Persistent AI memory (Phase 8b, ADR 0018).
 

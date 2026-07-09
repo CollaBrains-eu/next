@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.auth import get_effective_user
 from api.db import get_db
 from api.entity_agent import extract_entities
-from api.models import Document, Entity, EntityRelationship, User
+from api.models import Document, Entity, EntityMention, EntityMergeLog, EntityRelationship, User
 
 router = APIRouter(tags=["entities"])
 
@@ -185,3 +185,73 @@ async def get_entity_graph(
             for edge in edges
         ],
     )
+
+
+class MergeRequest(BaseModel):
+    source_entity_id: UUID
+
+
+async def merge_entities(db: AsyncSession, *, target_id: UUID, source_id: UUID, merged_by: UUID) -> Entity:
+    """Merge `source_id` into `target_id`: move mentions/relationships, delete `source_id`.
+
+    Migrated from CollaBrains v2's `POST /entities/{target_id}/merge` -- Next's automatic
+    dedup only catches exact case-insensitive name+type matches (ADR 0008); this covers the
+    cases that misses (e.g. "Acme Corp" vs "Acme Corporation").
+    """
+    target = await db.get(Entity, target_id)
+    source = await db.get(Entity, source_id)
+    if target is None or source is None:
+        raise ValueError("target or source entity not found")
+
+    existing_mentions = await db.execute(select(EntityMention.document_id).where(EntityMention.entity_id == target_id))
+    existing_document_ids = {row[0] for row in existing_mentions.all()}
+
+    mentions_result = await db.execute(select(EntityMention).where(EntityMention.entity_id == source_id))
+    for mention in mentions_result.scalars().all():
+        if mention.document_id in existing_document_ids:
+            # Target already has a mention for this document -- moving would violate the
+            # (entity_id, document_id) unique constraint. Leave it pointed at source_id;
+            # deleting source below cascades it away (ON DELETE CASCADE) instead of an
+            # explicit delete here racing with that same cascade.
+            continue
+        mention.entity_id = target_id
+        existing_document_ids.add(mention.document_id)
+
+    relationships_result = await db.execute(
+        select(EntityRelationship).where(
+            or_(EntityRelationship.source_entity_id == source_id, EntityRelationship.target_entity_id == source_id)
+        )
+    )
+    for relationship in relationships_result.scalars().all():
+        new_source = target_id if relationship.source_entity_id == source_id else relationship.source_entity_id
+        new_target = target_id if relationship.target_entity_id == source_id else relationship.target_entity_id
+        if new_source == new_target:
+            # source and target already had a direct relationship to each other -- repointing
+            # would create a meaningless self-loop. Leave it referencing source_id; deleting
+            # source below cascades it away instead of an explicit delete racing that cascade.
+            continue
+        relationship.source_entity_id = new_source
+        relationship.target_entity_id = new_target
+
+    db.add(EntityMergeLog(source_entity_id=source_id, target_entity_id=target_id, merged_by=merged_by))
+    await db.delete(source)
+    await db.commit()
+    await db.refresh(target)
+    return target
+
+
+@router.post("/entities/{target_id}/merge", response_model=EntityOut)
+async def merge_entity(
+    target_id: UUID,
+    request: MergeRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_effective_user),
+) -> Entity:
+    if target_id == request.source_entity_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot merge an entity into itself")
+    try:
+        return await merge_entities(
+            db, target_id=target_id, source_id=request.source_entity_id, merged_by=current_user.id
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
