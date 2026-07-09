@@ -33,21 +33,35 @@ cryptomining compromise of the production host itself, not an Ollama bug.
   (2026-07-09 10:50–10:51 UTC), consistent with a single automated
   deployment, not manual interactive access.
 
-## What was ruled out as the entry vector
+## Entry vector: confirmed
 
-- `root`'s `~/.ssh/authorized_keys` contains only the key added earlier
-  this session for passwordless access — no unauthorized second key.
-- `last -20` shows no unfamiliar source IP around the infection window.
-- `/var/log/auth.log` has no entries for that window at all.
-- Caddy's logs for that window are empty (no request activity captured
-  by the query used).
+`/var/log/auth.log` had no entries for the infection window (log
+rotation or a gap, not evidence of anything), which initially pointed
+the investigation toward a web-facing service exploit instead. Checking
+`journalctl -u ssh` for the same window found the real answer:
 
-This points toward a web-facing service exploit (Caddy fronts
-Paperless-ngx and this app's own API on 80/443, both public) rather than
-SSH credential compromise, but the exact vector was not conclusively
-identified — a deeper audit of what's actually exposed on 80/443, and
-of Paperless/other services' patch levels, is a follow-up this ADR does
-NOT close out.
+```
+Jul 09 10:50:49 v78281.1blu.de sshd[643196]: Accepted password for root from 165.154.169.239 port 38980 ssh2
+```
+
+**A successful root password login, one second before the malware drop
+began.** The same journal window shows this host under constant,
+heavy SSH brute-force scanning from dozens of unrelated IPs (normal
+background internet noise for any public IPv4 address) — this attacker
+simply had the correct root password where the others didn't. Three
+contributing misconfigurations, all confirmed:
+
+- `PasswordAuthentication` was enabled (commented out in
+  `sshd_config`, which defaults to `yes`) — SSH accepted password auth
+  at all, not just keys.
+- `PermitRootLogin yes` — direct root login over SSH, no separate
+  unprivileged-user-then-`sudo` step required.
+- `fail2ban` was not installed — nothing throttled or banned repeated
+  failed attempts, so brute-forcing was unrate-limited.
+
+`root`'s `~/.ssh/authorized_keys` containing only the key added earlier
+this session (no unauthorized second key) is consistent with this: the
+attacker never needed a key at all.
 
 ## Remediation performed
 
@@ -67,18 +81,42 @@ A second server (`178.254.22.178` / `v45264.1blu.de`, the separate
 precaution — clean, idle load average, no dropped files, legitimate
 services only.
 
+## Entry vector closed
+
+- `PasswordAuthentication no` set in `/etc/ssh/sshd_config` (was a
+  commented-out `#PasswordAuthentication yes`, i.e. the compiled-in
+  default). Config validated with `sshd -t` before reload; key-based
+  access re-verified in a fresh connection immediately after; a
+  deliberate password-only auth attempt afterward confirmed rejection
+  (`Permission denied (publickey)`, no password prompt offered at all).
+  `sshd_config` backed up before editing
+  (`/etc/ssh/sshd_config.bak-<timestamp>`).
+- `fail2ban` installed and enabled with an `sshd` jail
+  (`/etc/fail2ban/jail.local`: `maxretry=4`, `findtime=600`,
+  `bantime=3600`, `backend=systemd`) — defense-in-depth in case password
+  auth is ever mistakenly re-enabled, and reduces log noise from the
+  constant background scanning either way.
+- The root password itself was **not** rotated in this pass (explicit
+  user decision) — with password auth disabled it's no longer a usable
+  credential over SSH, but it should still be treated as burned/known to
+  at least one attacker if it's reused anywhere else.
+
 ## Follow-up NOT done in this pass (explicitly deferred)
 
-- Identifying and closing the actual entry vector (likely a public
-  80/443-facing service). Without this, reinfection is possible.
-- A broader compromise audit: other dropped binaries, modified
-  crontabs beyond what was checked, outbound firewall rules, other
-  `system.slice` units, changed SSH `sshd_config`, etc. — only the
-  specific persistence mechanism found was investigated, not an
-  exhaustive sweep.
-- Rotating credentials as a precaution (LDAP admin, Postgres, any
-  secrets that were in environment/config files readable by a root-level
-  compromise).
+- Rotating the root password, and any other credentials that were
+  readable by a root-level compromise (LDAP admin, Postgres, secrets in
+  environment/config files) — the attacker had full root access for
+  roughly an hour before remediation.
+- A broader compromise audit beyond the specific persistence mechanism
+  found: other possibly-dropped binaries, modified crontabs beyond what
+  was checked, outbound firewall rules, other `system.slice` units,
+  whether the attacker read/exfiltrated anything before the miner was
+  even the visible symptom.
+- Whether `165.154.169.239`'s successful login means the password was
+  weak/guessed, leaked from a breach, or obtained some other way — not
+  investigated, since disabling password auth entirely makes the
+  specific answer less urgent (it closes the door regardless of how the
+  key was obtained).
 
 ## Chat model upgrade (found while re-verifying Ollama post-remediation)
 
