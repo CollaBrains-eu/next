@@ -58,6 +58,9 @@ async def lookup_vehicle_endpoint(
     current_user: User = Depends(get_current_user),
 ) -> Vehicle:
     try:
-        return await lookup_vehicle(kenteken=request.kenteken)
+        vehicle = await lookup_vehicle(kenteken=request.kenteken)
     except RdwLookupError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+    if vehicle is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No vehicle found for that kenteken")
+    return vehicle

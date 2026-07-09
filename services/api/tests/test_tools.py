@@ -156,3 +156,16 @@ async def test_lookup_vehicle_tool_reports_not_found():
             result = await dispatch("lookup_vehicle", db=db, user_id=user.id, kenteken="ZZ-99-ZZ")
 
     assert result["found"] is False
+
+
+async def test_lookup_vehicle_tool_reports_rdw_outage_gracefully_without_raising():
+    from api.rdw_client import RdwLookupError
+
+    user = await _create_user(f"tooluser-{uuid4().hex[:8]}")
+
+    async with async_session() as db:
+        with patch("api.vehicle_agent.fetch_vehicle_data", side_effect=RdwLookupError("boom")):
+            result = await dispatch("lookup_vehicle", db=db, user_id=user.id, kenteken="ZZ-98-ZZ")
+
+    assert result["found"] is False
+    assert "error" in result

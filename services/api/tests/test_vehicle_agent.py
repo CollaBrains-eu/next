@@ -154,3 +154,53 @@ async def test_lookup_vehicle_force_refreshes_even_if_already_fetched():
         vehicle_second = await lookup_vehicle(kenteken="TE-ST05")
     assert vehicle_first.id == vehicle_second.id
     assert vehicle_second.fetched_at >= vehicle_first.fetched_at
+
+
+async def test_detect_and_link_vehicles_skips_persisting_new_kenteken_rdw_confirms_missing():
+    document = await _create_document()
+    kenteken = _random_kenteken()
+    with patch("api.vehicle_agent.fetch_vehicle_data", return_value=None):
+        async with async_session() as db:
+            vehicles = await detect_and_link_vehicles(db, document_id=document.id, text=f"Kenteken {kenteken}.")
+    assert vehicles == []
+
+    async with async_session() as db:
+        result = await db.execute(select(Vehicle).where(Vehicle.kenteken == kenteken.replace("-", "")))
+        assert result.scalar_one_or_none() is None
+
+
+async def test_detect_and_link_vehicles_still_creates_unenriched_row_on_transient_rdw_failure():
+    document = await _create_document()
+    kenteken = _random_kenteken()
+    with patch("api.vehicle_agent.fetch_vehicle_data", side_effect=RdwLookupError("boom")):
+        async with async_session() as db:
+            vehicles = await detect_and_link_vehicles(db, document_id=document.id, text=f"Kenteken {kenteken}.")
+    assert len(vehicles) == 1
+    assert vehicles[0].merk is None
+    assert vehicles[0].fetched_at is None
+
+
+async def test_lookup_vehicle_returns_none_for_new_kenteken_rdw_confirms_missing():
+    kenteken = _random_kenteken()
+    with patch("api.vehicle_agent.fetch_vehicle_data", return_value=None):
+        vehicle = await lookup_vehicle(kenteken=kenteken)
+    assert vehicle is None
+
+    async with async_session() as db:
+        result = await db.execute(
+            select(Vehicle).where(Vehicle.kenteken == kenteken.replace("-", "").upper())
+        )
+        assert result.scalar_one_or_none() is None
+
+
+async def test_lookup_vehicle_keeps_already_known_vehicle_even_if_rdw_later_reports_missing():
+    kenteken = _random_kenteken()
+    with patch("api.vehicle_agent.fetch_vehicle_data", return_value=FAKE_RDW_DATA):
+        first = await lookup_vehicle(kenteken=kenteken)
+    assert first is not None
+
+    with patch("api.vehicle_agent.fetch_vehicle_data", return_value=None):
+        second = await lookup_vehicle(kenteken=kenteken)
+
+    assert second is not None
+    assert second.id == first.id

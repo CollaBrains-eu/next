@@ -75,3 +75,13 @@ async def test_lookup_vehicle_endpoint_returns_502_on_rdw_outage(client):
         response = await client.post("/vehicles/lookup", headers=headers, json={"kenteken": "ZZ-99-ZZ"})
 
     assert response.status_code == 502
+
+
+async def test_lookup_vehicle_endpoint_returns_404_when_rdw_confirms_not_found(client):
+    token = await _login(client, f"vehiclerouter-{uuid4().hex[:8]}")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    with patch("api.vehicles_router.lookup_vehicle", return_value=None):
+        response = await client.post("/vehicles/lookup", headers=headers, json={"kenteken": "ZZ-97-ZZ"})
+
+    assert response.status_code == 404

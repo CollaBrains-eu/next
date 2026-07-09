@@ -16,6 +16,7 @@ from api.entity_agent import extract_entities
 from api.legal import _generate_draft
 from api.models import Document
 from api.planner_agent import extract_tasks
+from api.rdw_client import RdwLookupError
 from api.search_service import hybrid_search
 from api.tool_registry import ToolDescriptor, register_tool
 from api.vehicle_agent import lookup_vehicle as _lookup_vehicle
@@ -85,7 +86,14 @@ async def _extract_entities_handler(
 
 
 async def _lookup_vehicle_handler(*, db: AsyncSession, user_id: UUID, kenteken: str) -> dict[str, Any]:
-    vehicle = await _lookup_vehicle(kenteken=kenteken)
+    try:
+        vehicle = await _lookup_vehicle(kenteken=kenteken)
+    except RdwLookupError:
+        return {"kenteken": kenteken, "found": False, "error": "RDW lookup service unavailable, try again later"}
+
+    if vehicle is None:
+        return {"kenteken": kenteken, "found": False}
+
     return {
         "kenteken": vehicle.kenteken,
         "merk": vehicle.merk,
