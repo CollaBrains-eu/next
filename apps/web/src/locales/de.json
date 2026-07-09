@@ -15,6 +15,59 @@
     "openMenu": "Menü öffnen",
     "signOut": "Abmelden",
     "lightMode": "☀️ Heller Modus",
-    "darkMode": "🌙 Dunkler Modus"
+    "darkMode": "🌙 Dunkler Modus",
+    "loading": "Lädt…",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "create": "Erstellen"
+  },
+  "documents": {
+    "title": "Dokumente",
+    "searchLabel": "Suche",
+    "searchPlaceholder": "Dokumente durchsuchen…",
+    "searchButton": "Suchen",
+    "clearButton": "Zurücksetzen",
+    "results_one": "{{count}} Ergebnis",
+    "results_other": "{{count}} Ergebnisse",
+    "emptyMessage": "Noch keine Dokumente. Laden Sie eines hoch, um zu beginnen.",
+    "columnTitle": "Titel",
+    "columnUploaded": "Hochgeladen",
+    "columnStatus": "Status",
+    "filterReady": "Status: Bereit",
+    "filterFailed": "Status: Fehlgeschlagen",
+    "filterPending": "Status: Ausstehend",
+    "deleteAction": "Löschen",
+    "deletedToast_one": "{{count}} Dokument gelöscht",
+    "deletedToast_other": "{{count}} Dokumente gelöscht"
+  },
+  "cases": {
+    "title": "Fälle",
+    "newCase": "Neuer Fall",
+    "namePlaceholder": "Name des Falls",
+    "descriptionPlaceholder": "Beschreibung (optional)",
+    "emptyMessage": "Noch keine Fälle.",
+    "loadError": "Fälle konnten nicht geladen werden",
+    "createError": "Fall konnte nicht erstellt werden"
+  },
+  "tasks": {
+    "title": "Aufgaben",
+    "filterOpen": "offen",
+    "filterDone": "erledigt",
+    "filterAll": "alle",
+    "viewList": "Liste",
+    "viewBoard": "Board",
+    "emptyMessage": "Keine {{filter}} Aufgaben.",
+    "due": "Fällig am {{date}}",
+    "assignee": "Zuständig: {{name}}",
+    "sourceDocument": "Quelldokument",
+    "loadError": "Aufgaben konnten nicht geladen werden",
+    "moveError": "Aufgabe konnte nicht verschoben werden",
+    "updateError": "Aufgabe konnte nicht aktualisiert werden"
+  },
+  "vehicles": {
+    "title": "Fahrzeuge",
+    "emptyMessage": "Noch keine Fahrzeuge erkannt.",
+    "loadError": "Fahrzeuge konnten nicht geladen werden",
+    "lookupError": "Fahrzeug konnte nicht abgerufen werden"
   }
 }

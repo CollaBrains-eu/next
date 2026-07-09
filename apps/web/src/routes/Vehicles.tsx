@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import Card from "../components/Card";
 import EmptyState from "../components/EmptyState";
 import LicensePlateInput from "../components/LicensePlateInput";
@@ -29,6 +30,7 @@ function VehicleStatus({ vehicle }: { vehicle: VehicleOut }) {
 }
 
 export default function Vehicles() {
+  const { t } = useTranslation();
   const [vehicles, setVehicles] = useState<VehicleOut[]>([]);
   const [kenteken, setKenteken] = useState("");
   const [loading, setLoading] = useState(true);
@@ -39,7 +41,7 @@ export default function Vehicles() {
     setLoading(true);
     listVehicles()
       .then(setVehicles)
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load vehicles"))
+      .catch((err) => setError(err instanceof ApiError ? err.message : t("vehicles.loadError")))
       .finally(() => setLoading(false));
   }
 
@@ -54,7 +56,7 @@ export default function Vehicles() {
       setKenteken("");
       refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to look up vehicle");
+      setError(err instanceof ApiError ? err.message : t("vehicles.lookupError"));
     } finally {
       setSearching(false);
     }
@@ -62,7 +64,7 @@ export default function Vehicles() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-semibold text-ink">Vehicles</h1>
+      <h1 className="text-2xl font-semibold text-ink">{t("vehicles.title")}</h1>
 
       <Card className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
@@ -75,9 +77,9 @@ export default function Vehicles() {
       </Card>
 
       {loading ? (
-        <p className="text-ink-3">Loading…</p>
+        <p className="text-ink-3">{t("common.loading")}</p>
       ) : vehicles.length === 0 ? (
-        <EmptyState message="No vehicles detected yet." />
+        <EmptyState message={t("vehicles.emptyMessage")} />
       ) : (
         <div className="flex flex-col gap-3">
           {vehicles.map((vehicle) => (

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { ApiError, listTasks, moveTask, updateTaskStatus, type TaskOut, type TaskStatus } from "../lib/api";
 import { Button } from "../components/ui/Button";
 import { KanbanBoard } from "../components/ui/KanbanBoard";
@@ -8,19 +9,26 @@ type Filter = "open" | "done" | "all";
 type View = "list" | "board";
 
 export default function Tasks() {
+  const { t } = useTranslation();
   const [tasks, setTasks] = useState<TaskOut[]>([]);
   const [filter, setFilter] = useState<Filter>("open");
   const [view, setView] = useState<View>("list");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const FILTER_LABELS: Record<Filter, string> = {
+    open: t("tasks.filterOpen"),
+    done: t("tasks.filterDone"),
+    all: t("tasks.filterAll"),
+  };
+
   const refresh = useCallback((currentView: View, currentFilter: Filter) => {
     setLoading(true);
     listTasks(currentView === "board" || currentFilter === "all" ? undefined : currentFilter)
       .then(setTasks)
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load tasks"))
+      .catch((err) => setError(err instanceof ApiError ? err.message : t("tasks.loadError")))
       .finally(() => setLoading(false));
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     refresh(view, filter);
@@ -32,7 +40,7 @@ export default function Tasks() {
       await updateTaskStatus(task.id, nextStatus);
       refresh(view, filter);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to update task");
+      setError(err instanceof ApiError ? err.message : t("tasks.updateError"));
     }
   }
 
@@ -41,20 +49,20 @@ export default function Tasks() {
       await moveTask(taskId, status, position);
       refresh(view, filter);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to move task");
+      setError(err instanceof ApiError ? err.message : t("tasks.moveError"));
     }
   }
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-ink">Tasks</h1>
+        <h1 className="text-2xl font-semibold text-ink">{t("tasks.title")}</h1>
         <div className="flex items-center gap-3">
           {view === "list" && (
             <div className="flex gap-1">
               {(["open", "done", "all"] as Filter[]).map((f) => (
                 <Button key={f} size="sm" variant={filter === f ? "primary" : "ghost"} onClick={() => setFilter(f)}>
-                  {f}
+                  {FILTER_LABELS[f]}
                 </Button>
               ))}
             </div>
@@ -62,7 +70,7 @@ export default function Tasks() {
           <div className="flex gap-1 border-l border-edge pl-3">
             {(["list", "board"] as View[]).map((v) => (
               <Button key={v} size="sm" variant={view === v ? "primary" : "ghost"} onClick={() => setView(v)}>
-                {v === "list" ? "List" : "Board"}
+                {v === "list" ? t("tasks.viewList") : t("tasks.viewBoard")}
               </Button>
             ))}
           </div>
@@ -72,11 +80,11 @@ export default function Tasks() {
       {error && <p className="text-sm text-danger">{error}</p>}
 
       {loading ? (
-        <p className="text-ink-3">Loading…</p>
+        <p className="text-ink-3">{t("common.loading")}</p>
       ) : view === "board" ? (
         <KanbanBoard tasks={tasks} onMove={handleMove} />
       ) : tasks.length === 0 ? (
-        <p className="text-ink-3">No {filter !== "all" ? filter : ""} tasks.</p>
+        <p className="text-ink-3">{t("tasks.emptyMessage", { filter: filter !== "all" ? FILTER_LABELS[filter] : "" })}</p>
       ) : (
         <div className="flex flex-col divide-y divide-edge rounded-2xl border border-edge bg-surface">
           {tasks.map((task) => (
@@ -93,11 +101,11 @@ export default function Tasks() {
                 </p>
                 {task.description && <p className="mt-0.5 text-xs text-ink-2">{task.description}</p>}
                 <div className="mt-1 flex gap-3 text-xs text-ink-3">
-                  {task.due_date && <span>Due {task.due_date}</span>}
-                  {task.assignee && <span>Assignee: {task.assignee}</span>}
+                  {task.due_date && <span>{t("tasks.due", { date: task.due_date })}</span>}
+                  {task.assignee && <span>{t("tasks.assignee", { name: task.assignee })}</span>}
                   {task.document_id && (
                     <Link to={`/documents/${task.document_id}`} className="hover:text-accent hover:underline">
-                      Source document
+                      {t("tasks.sourceDocument")}
                     </Link>
                   )}
                 </div>

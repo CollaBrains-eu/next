@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { listDocuments, search as searchApi, deleteDocument, type DocumentOut, type SearchResult } from "../lib/api";
 import UploadDialog from "../components/UploadDialog";
 import { DataTable, type Column } from "../components/ui/DataTable";
@@ -20,13 +21,13 @@ const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "default
   failed: "danger",
 };
 
-const STATUS_FILTER_OPTIONS = [
-  { id: "ready", label: "Status: Ready" },
-  { id: "failed", label: "Status: Failed" },
-  { id: "pending", label: "Status: Pending" },
-];
-
 export default function Workspace() {
+  const { t } = useTranslation();
+  const STATUS_FILTER_OPTIONS = [
+    { id: "ready", label: t("documents.filterReady") },
+    { id: "failed", label: t("documents.filterFailed") },
+    { id: "pending", label: t("documents.filterPending") },
+  ];
   const [documents, setDocuments] = useState<DocumentOut[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -68,7 +69,7 @@ export default function Workspace() {
     await Promise.all(ids.map((id) => deleteDocument(id)));
     clear();
     refresh();
-    showToast(`${ids.length} document${ids.length === 1 ? "" : "s"} deleted`);
+    showToast(t("documents.deletedToast", { count: ids.length }));
   }
 
   const activeFilters = useMemo(() => new Set(statusFilters), [statusFilters]);
@@ -93,7 +94,7 @@ export default function Workspace() {
     },
     {
       key: "title",
-      header: "Title",
+      header: t("documents.columnTitle"),
       sortable: true,
       sortValue: (doc) => doc.title.toLowerCase(),
       render: (doc) => (
@@ -104,14 +105,14 @@ export default function Workspace() {
     },
     {
       key: "created_at",
-      header: "Uploaded",
+      header: t("documents.columnUploaded"),
       sortable: true,
       sortValue: (doc) => doc.created_at,
       render: (doc) => new Date(doc.created_at).toLocaleString(),
     },
     {
       key: "status",
-      header: "Status",
+      header: t("documents.columnStatus"),
       render: (doc) => <Badge variant={STATUS_VARIANT[doc.status] ?? "default"}>{doc.status}</Badge>,
     },
   ];
@@ -119,16 +120,21 @@ export default function Workspace() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-ink">Documents</h1>
+        <h1 className="text-2xl font-semibold text-ink">{t("documents.title")}</h1>
         <UploadDialog onUploaded={refresh} />
       </div>
 
       <form onSubmit={handleSearch} className="flex items-end gap-2">
         <div className="flex-1">
-          <TextField label="Search" value={query} onChange={setQuery} placeholder="Search documents…" />
+          <TextField
+            label={t("documents.searchLabel")}
+            value={query}
+            onChange={setQuery}
+            placeholder={t("documents.searchPlaceholder")}
+          />
         </div>
         <Button type="submit" variant="secondary" disabled={searching}>
-          Search
+          {t("documents.searchButton")}
         </Button>
         {results !== null && (
           <Button
@@ -139,14 +145,14 @@ export default function Workspace() {
               setQuery("");
             }}
           >
-            Clear
+            {t("documents.clearButton")}
           </Button>
         )}
       </form>
 
       {results !== null ? (
         <div className="flex flex-col gap-3">
-          <h2 className="text-sm font-medium text-ink-2">{results.length} result(s)</h2>
+          <h2 className="text-sm font-medium text-ink-2">{t("documents.results", { count: results.length })}</h2>
           {results.map((r) => (
             <Link
               key={r.chunk_id}
@@ -162,9 +168,9 @@ export default function Workspace() {
           ))}
         </div>
       ) : loading ? (
-        <p className="text-ink-2">Loading…</p>
+        <p className="text-ink-2">{t("common.loading")}</p>
       ) : documents.length === 0 ? (
-        <EmptyState message="No documents yet. Upload one to get started." />
+        <EmptyState message={t("documents.emptyMessage")} />
       ) : (
         <>
           <FilterChips
@@ -177,7 +183,7 @@ export default function Workspace() {
           <BulkActionBar
             count={selectedCount}
             onCancel={clear}
-            actions={[{ label: "Delete", onClick: handleBulkDelete, variant: "danger" }]}
+            actions={[{ label: t("documents.deleteAction"), onClick: handleBulkDelete, variant: "danger" }]}
           />
         </>
       )}

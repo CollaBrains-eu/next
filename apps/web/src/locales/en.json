@@ -15,6 +15,59 @@
     "openMenu": "Open menu",
     "signOut": "Sign out",
     "lightMode": "☀️ Light mode",
-    "darkMode": "🌙 Dark mode"
+    "darkMode": "🌙 Dark mode",
+    "loading": "Loading…",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "create": "Create"
+  },
+  "documents": {
+    "title": "Documents",
+    "searchLabel": "Search",
+    "searchPlaceholder": "Search documents…",
+    "searchButton": "Search",
+    "clearButton": "Clear",
+    "results_one": "{{count}} result",
+    "results_other": "{{count}} results",
+    "emptyMessage": "No documents yet. Upload one to get started.",
+    "columnTitle": "Title",
+    "columnUploaded": "Uploaded",
+    "columnStatus": "Status",
+    "filterReady": "Status: Ready",
+    "filterFailed": "Status: Failed",
+    "filterPending": "Status: Pending",
+    "deleteAction": "Delete",
+    "deletedToast_one": "{{count}} document deleted",
+    "deletedToast_other": "{{count}} documents deleted"
+  },
+  "cases": {
+    "title": "Cases",
+    "newCase": "New case",
+    "namePlaceholder": "Case name",
+    "descriptionPlaceholder": "Description (optional)",
+    "emptyMessage": "No cases yet.",
+    "loadError": "Failed to load cases",
+    "createError": "Failed to create case"
+  },
+  "tasks": {
+    "title": "Tasks",
+    "filterOpen": "open",
+    "filterDone": "done",
+    "filterAll": "all",
+    "viewList": "List",
+    "viewBoard": "Board",
+    "emptyMessage": "No {{filter}} tasks.",
+    "due": "Due {{date}}",
+    "assignee": "Assignee: {{name}}",
+    "sourceDocument": "Source document",
+    "loadError": "Failed to load tasks",
+    "moveError": "Failed to move task",
+    "updateError": "Failed to update task"
+  },
+  "vehicles": {
+    "title": "Vehicles",
+    "emptyMessage": "No vehicles detected yet.",
+    "loadError": "Failed to load vehicles",
+    "lookupError": "Failed to look up vehicle"
   }
 }

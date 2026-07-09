@@ -15,6 +15,59 @@
     "openMenu": "Menu openen",
     "signOut": "Afmelden",
     "lightMode": "☀️ Lichte modus",
-    "darkMode": "🌙 Donkere modus"
+    "darkMode": "🌙 Donkere modus",
+    "loading": "Laden…",
+    "cancel": "Annuleren",
+    "delete": "Verwijderen",
+    "create": "Aanmaken"
+  },
+  "documents": {
+    "title": "Documenten",
+    "searchLabel": "Zoeken",
+    "searchPlaceholder": "Documenten zoeken…",
+    "searchButton": "Zoeken",
+    "clearButton": "Wissen",
+    "results_one": "{{count}} resultaat",
+    "results_other": "{{count}} resultaten",
+    "emptyMessage": "Nog geen documenten. Upload er een om te beginnen.",
+    "columnTitle": "Titel",
+    "columnUploaded": "Geüpload",
+    "columnStatus": "Status",
+    "filterReady": "Status: Gereed",
+    "filterFailed": "Status: Mislukt",
+    "filterPending": "Status: In behandeling",
+    "deleteAction": "Verwijderen",
+    "deletedToast_one": "{{count}} document verwijderd",
+    "deletedToast_other": "{{count}} documenten verwijderd"
+  },
+  "cases": {
+    "title": "Zaken",
+    "newCase": "Nieuwe zaak",
+    "namePlaceholder": "Naam van de zaak",
+    "descriptionPlaceholder": "Omschrijving (optioneel)",
+    "emptyMessage": "Nog geen zaken.",
+    "loadError": "Kon zaken niet laden",
+    "createError": "Kon zaak niet aanmaken"
+  },
+  "tasks": {
+    "title": "Taken",
+    "filterOpen": "open",
+    "filterDone": "afgerond",
+    "filterAll": "alle",
+    "viewList": "Lijst",
+    "viewBoard": "Bord",
+    "emptyMessage": "Geen {{filter}} taken.",
+    "due": "Vervalt op {{date}}",
+    "assignee": "Toegewezen aan: {{name}}",
+    "sourceDocument": "Brondocument",
+    "loadError": "Kon taken niet laden",
+    "moveError": "Kon taak niet verplaatsen",
+    "updateError": "Kon taak niet bijwerken"
+  },
+  "vehicles": {
+    "title": "Voertuigen",
+    "emptyMessage": "Nog geen voertuigen gedetecteerd.",
+    "loadError": "Kon voertuigen niet laden",
+    "lookupError": "Kon voertuig niet opzoeken"
   }
 }
