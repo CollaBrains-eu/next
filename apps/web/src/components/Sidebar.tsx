@@ -23,7 +23,11 @@ export default function Sidebar() {
   }, [location.pathname]);
 
   useEffect(() => {
-    listEntities(undefined, undefined, "pending_review").then((entities) => setPendingCount(entities.length));
+    listEntities(undefined, undefined, "pending_review")
+      .then((entities) => setPendingCount(entities.length))
+      .catch(() => {
+        // Badge is a nice-to-have signal, not core navigation -- fail silently.
+      });
   }, []);
 
   return (

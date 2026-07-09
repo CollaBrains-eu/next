@@ -21,14 +21,15 @@ export default function Entities() {
   const [entities, setEntities] = useState<EntityOut[]>([]);
   const [q, setQ] = useState("");
   const [entityType, setEntityType] = useState("");
+  const [statusFilter, setStatusFilter] = useState("confirmed");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    listEntities(q || undefined, entityType || undefined)
+    listEntities(q || undefined, entityType || undefined, statusFilter)
       .then(setEntities)
       .finally(() => setLoading(false));
-  }, [q, entityType]);
+  }, [q, entityType, statusFilter]);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -44,25 +45,40 @@ export default function Entities() {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search entities…"
-          className="w-full rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none transition-colors duration-fast focus:border-accent focus:ring-2 focus:ring-accent-soft"
-        />
-        <select
-          value={entityType}
-          onChange={(e) => setEntityType(e.target.value)}
-          className="rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft"
-        >
-          <option value="">All types</option>
-          <option value="person">Person</option>
-          <option value="organization">Organization</option>
-          <option value="location">Location</option>
-          <option value="other">Other</option>
-        </select>
-      </form>
+      <div className="flex items-center justify-between">
+        <form onSubmit={handleSubmit} className="flex gap-2">
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search entities…"
+            className="w-full rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none transition-colors duration-fast focus:border-accent focus:ring-2 focus:ring-accent-soft"
+          />
+          <select
+            value={entityType}
+            onChange={(e) => setEntityType(e.target.value)}
+            className="rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft"
+          >
+            <option value="">All types</option>
+            <option value="person">Person</option>
+            <option value="organization">Organization</option>
+            <option value="location">Location</option>
+            <option value="other">Other</option>
+          </select>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft"
+          >
+            <option value="confirmed">Confirmed</option>
+            <option value="pending_review">Pending review</option>
+            <option value="rejected">Rejected</option>
+            <option value="all">All</option>
+          </select>
+        </form>
+        <Link to="/entities/review" className="text-sm text-accent hover:underline">
+          Review pending →
+        </Link>
+      </div>
 
       {loading ? (
         <p className="text-ink-3">Loading…</p>
