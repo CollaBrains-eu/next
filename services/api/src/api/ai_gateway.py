@@ -52,7 +52,13 @@ async def _call_ollama(
     chosen_model = model or settings.chat_model
     start = time.monotonic()
     async with httpx.AsyncClient(base_url=settings.ollama_url, timeout=120.0) as client:
-        request_body: dict[str, Any] = {"model": chosen_model, "messages": messages, "stream": False}
+        # think=False: qwen3 (the default chat_model) is a reasoning model that
+        # otherwise emits a full chain-of-thought before every answer -- ~30s for
+        # a trivial prompt on this CPU-only host vs ~1.8s with thinking off.
+        # Harmless no-op for non-thinking models (confirmed against qwen2.5).
+        request_body: dict[str, Any] = {
+            "model": chosen_model, "messages": messages, "stream": False, "think": False,
+        }
         if json_mode:
             request_body["format"] = "json"
         if tools:
