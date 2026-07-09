@@ -216,3 +216,22 @@ async def test_extraction_suppresses_rejected_entity(client):
     assert second.json() == []  # suppressed, not recreated
     listing = await client.get("/entities", headers=headers, params={"q": "088 227 77 00", "status": "all"})
     assert len(listing.json()) == 1  # still just the original rejected row
+
+
+async def test_list_entities_defaults_to_confirmed_only(client):
+    token = await _login(client, "entityuser9")
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "Karl Zimmer is a witness.")
+
+    fake = '{"entities": [{"name": "Karl Zimmer", "type": "person"}], "relationships": []}'
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
+
+    default_listing = await client.get("/entities", headers=headers, params={"q": "Karl Zimmer"})
+    assert default_listing.json() == []  # pending_review entities are hidden by default
+
+    pending_listing = await client.get("/entities", headers=headers, params={"q": "Karl Zimmer", "status": "pending_review"})
+    assert len(pending_listing.json()) == 1
+
+    all_listing = await client.get("/entities", headers=headers, params={"q": "Karl Zimmer", "status": "all"})
+    assert len(all_listing.json()) == 1

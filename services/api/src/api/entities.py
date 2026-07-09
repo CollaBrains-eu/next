@@ -44,6 +44,7 @@ async def extract_entities_from_document(
 async def list_entities(
     q: str | None = Query(None, description="Filter by name (case-insensitive substring)"),
     entity_type: str | None = Query(None),
+    status: str = Query("confirmed", description="pending_review | confirmed | rejected | all"),
     limit: int = Query(50, le=200),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
@@ -54,6 +55,8 @@ async def list_entities(
         query = query.where(Entity.name.ilike(f"%{q}%"))
     if entity_type:
         query = query.where(Entity.entity_type == entity_type)
+    if status != "all":
+        query = query.where(Entity.status == status)
     result = await db.execute(query)
     return list(result.scalars().all())
 
