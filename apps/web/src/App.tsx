@@ -12,6 +12,7 @@ import Chat from "./routes/Chat";
 import Legal from "./routes/Legal";
 import Tasks from "./routes/Tasks";
 import Entities from "./routes/Entities";
+import EntityReview from "./routes/EntityReview";
 import EntityGraph from "./routes/EntityGraph";
 import Cases from "./routes/Cases";
 import CaseDetail from "./routes/CaseDetail";
@@ -93,6 +94,14 @@ export default function App() {
                   element={
                     <ProtectedRoute>
                       <Entities />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/entities/review"
+                  element={
+                    <ProtectedRoute>
+                      <EntityReview />
                     </ProtectedRoute>
                   }
                 />
