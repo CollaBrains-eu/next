@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import Card from "../components/Card";
+import { Alert } from "../components/ui/Alert";
+import { Breadcrumbs } from "../components/ui/Breadcrumbs";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 import {
@@ -80,7 +82,7 @@ export default function CaseDetail() {
   }
 
   if (loading) return <p className="text-ink-3">Loading…</p>;
-  if (error && !caseData) return <p className="text-sm text-danger">{error}</p>;
+  if (error && !caseData) return <Alert variant="danger" title="Failed to load case">{error}</Alert>;
   if (!caseData) return null;
 
   const linkedDocumentIds = new Set(caseData.documents.map((d) => d.id));
@@ -139,6 +141,8 @@ export default function CaseDetail() {
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Cases", to: "/cases" }, { label: caseData.name }]} />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-ink">{caseData.name}</h1>
@@ -149,7 +153,7 @@ export default function CaseDetail() {
         </button>
       </div>
 
-      {error && <p className="text-sm text-danger">{error}</p>}
+      {error && <Alert variant="danger" dismissible onDismiss={() => setError(null)}>{error}</Alert>}
 
       <Card>
         <div className="mb-2 flex items-center justify-between">

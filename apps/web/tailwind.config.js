@@ -46,6 +46,20 @@ export default {
         ripple: {
           to: { transform: "scale(4)", opacity: "0" },
         },
+        chipIn: {
+          from: { opacity: "0", transform: "scale(.7)" },
+          to: { opacity: "1", transform: "scale(1)" },
+        },
+        cardIn: {
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        floaty: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-8px)" },
+        },
+        shimmer: {
+          "100%": { transform: "translateX(100%)" },
+        },
       },
     },
   },

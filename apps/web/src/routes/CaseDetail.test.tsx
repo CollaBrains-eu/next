@@ -63,26 +63,26 @@ describe("CaseDetail", () => {
 
   it("renders the case name and status badge", async () => {
     renderPage();
-    expect(await screen.findByText("Alpha matter")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Alpha matter" })).toBeInTheDocument();
     expect(screen.getByText("open")).toBeInTheDocument();
   });
 
   it("shows 'Nothing linked yet.' for each empty section", async () => {
     renderPage();
-    await screen.findByText("Alpha matter");
+    await screen.findByRole("heading", { name: "Alpha matter" });
     expect(screen.getAllByText("Nothing linked yet.")).toHaveLength(4);
   });
 
   it("toggles status when the status badge is clicked", async () => {
     renderPage();
-    await screen.findByText("Alpha matter");
+    await screen.findByRole("heading", { name: "Alpha matter" });
     fireEvent.click(screen.getByText("open"));
     await waitFor(() => expect(api.updateCaseStatus).toHaveBeenCalledWith("c1", "closed"));
   });
 
   it("attaches a vehicle via the vehicles Attach control", async () => {
     renderPage();
-    await screen.findByText("Alpha matter");
+    await screen.findByRole("heading", { name: "Alpha matter" });
     const vehiclesLabel = screen.getByText("Vehicles");
     const vehiclesSection = vehiclesLabel.closest("div")!.parentElement!;
     fireEvent.click(within(vehiclesSection).getByText("+ Attach"));

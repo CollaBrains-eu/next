@@ -49,7 +49,7 @@ describe("DocumentDetail", () => {
 
   it("shows the document title and a Ready badge once loaded", async () => {
     renderAt("doc-1");
-    expect(await screen.findByText("factuur-77621.pdf")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "factuur-77621.pdf" })).toBeInTheDocument();
     expect(screen.getByText("ready")).toBeInTheDocument();
   });
 

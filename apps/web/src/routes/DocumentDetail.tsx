@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { ApiError, deleteDocument, getDocument, summarizeDocument, type DocumentDetailOut } from "../lib/api";
+import { Alert } from "../components/ui/Alert";
 import { Badge } from "../components/ui/Badge";
+import { Breadcrumbs } from "../components/ui/Breadcrumbs";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
 import { useToast } from "../lib/toast";
@@ -73,10 +75,10 @@ export default function DocumentDetail() {
   if (error) {
     return (
       <div>
-        <Link to="/" className="text-sm text-ink-2 hover:text-ink">
-          ← Back
-        </Link>
-        <p className="mt-4 text-danger">{error}</p>
+        <Breadcrumbs items={[{ label: "Documents", to: "/" }, { label: "Error" }]} />
+        <Alert variant="danger" title="Failed to load document">
+          {error}
+        </Alert>
       </div>
     );
   }
@@ -85,9 +87,7 @@ export default function DocumentDetail() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Link to="/" className="text-sm text-ink-2 hover:text-ink">
-        ← Back
-      </Link>
+      <Breadcrumbs items={[{ label: "Documents", to: "/" }, { label: doc.title }]} />
 
       <div className="flex items-start justify-between">
         <div>
@@ -106,7 +106,11 @@ export default function DocumentDetail() {
         </div>
       </div>
 
-      {doc.error && <p className="rounded-xl bg-danger-soft p-3 text-sm text-danger">Processing error: {doc.error}</p>}
+      {doc.error && (
+        <Alert variant="danger" title="Processing error">
+          {doc.error}
+        </Alert>
+      )}
 
       {doc.summary && (
         <div className="rounded-2xl border border-edge bg-surface p-4 shadow-raised">
