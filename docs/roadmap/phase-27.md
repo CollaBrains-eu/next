@@ -1,11 +1,11 @@
 # Phase 27 — Kanban board (Tasks) + Calendar (Appointments)
 
-> **Status: scoped, not built.** This is the pre-implementation spec for
-> the two remaining design-language pages flagged as deferred in ADR 0044
-> (`docs/design/violet-design-language.html`'s Kanban and Appointments
-> sections). Written before code per the discipline `docs/roadmap/README.md`
-> asks for: goal, why now, open design questions, and a smallest-safe-slice
-> scope cut, before touching the database.
+> **Status: 27a done, 27b not started.** 27a (Kanban board) is built and
+> deployed — `Task.position`, the `in_progress` status, and the
+> `KanbanBoard` component, ADR 0045. 27b (Calendar/Appointments) is still
+> just the spec below. Written before code per the discipline
+> `docs/roadmap/README.md` asks for: goal, why now, open design questions,
+> and a smallest-safe-slice scope cut, before touching the database.
 
 ## Goal
 

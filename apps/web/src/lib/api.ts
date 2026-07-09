@@ -157,6 +157,8 @@ export function legalDraft(instruction: string, documentIds: string[]): Promise<
   });
 }
 
+export type TaskStatus = "open" | "in_progress" | "done";
+
 export interface TaskOut {
   id: string;
   document_id: string | null;
@@ -165,6 +167,7 @@ export interface TaskOut {
   due_date: string | null;
   assignee: string | null;
   status: string;
+  position: number;
   source: string;
   created_at: string;
 }
@@ -178,6 +181,13 @@ export function updateTaskStatus(id: string, status: "open" | "done"): Promise<T
   return request<TaskOut>(`/tasks/${id}`, {
     method: "PATCH",
     body: JSON.stringify({ status }),
+  });
+}
+
+export function moveTask(id: string, status: TaskStatus, position: number): Promise<TaskOut> {
+  return request<TaskOut>(`/tasks/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status, position }),
   });
 }
 

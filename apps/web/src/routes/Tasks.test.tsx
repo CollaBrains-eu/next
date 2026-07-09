@@ -10,13 +10,14 @@ vi.mock("../lib/api", async () => {
     ...actual,
     listTasks: vi.fn(),
     updateTaskStatus: vi.fn(),
+    moveTask: vi.fn(),
   };
 });
 
 const OPEN_TASKS: api.TaskOut[] = [
   {
     id: "t1", document_id: "d1", title: "Review lease", description: "Check termination clause",
-    due_date: "2026-08-01", assignee: "Ada", status: "open", source: "manual", created_at: "2026-01-01T00:00:00Z",
+    due_date: "2026-08-01", assignee: "Ada", status: "open", position: 0, source: "manual", created_at: "2026-01-01T00:00:00Z",
   },
 ];
 
@@ -63,5 +64,21 @@ describe("Tasks", () => {
     vi.mocked(api.listTasks).mockResolvedValue([]);
     renderPage();
     expect(await screen.findByText("No open tasks.")).toBeInTheDocument();
+  });
+
+  it("switching to Board fetches all tasks (no status filter) and renders the Kanban board", async () => {
+    renderPage();
+    await screen.findByText("Review lease");
+    fireEvent.click(screen.getByRole("button", { name: "Board" }));
+    await waitFor(() => expect(api.listTasks).toHaveBeenLastCalledWith(undefined));
+    expect(await screen.findByRole("group", { name: "To do" })).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+  });
+
+  it("hides the open/done/all filter tabs while in Board view", async () => {
+    renderPage();
+    await screen.findByText("Review lease");
+    fireEvent.click(screen.getByRole("button", { name: "Board" }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "done" })).not.toBeInTheDocument());
   });
 });

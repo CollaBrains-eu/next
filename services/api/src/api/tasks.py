@@ -14,6 +14,8 @@ from api.planner_agent import extract_tasks
 
 router = APIRouter(tags=["tasks"])
 
+TASK_STATUSES = ("open", "in_progress", "done")
+
 
 class TaskOut(BaseModel):
     id: UUID
@@ -23,6 +25,7 @@ class TaskOut(BaseModel):
     due_date: date | None
     assignee: str | None
     status: str
+    position: int
     source: str
     created_at: datetime
 
@@ -66,6 +69,7 @@ async def list_tasks(
 
 class TaskUpdate(BaseModel):
     status: str
+    position: int | None = None
 
 
 @router.patch("/tasks/{task_id}", response_model=TaskOut)
@@ -75,12 +79,33 @@ async def update_task(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Task:
-    if update.status not in ("open", "done"):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="status must be 'open' or 'done'")
+    if update.status not in TASK_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"status must be one of: {', '.join(TASK_STATUSES)}",
+        )
 
     task = await db.get(Task, task_id)
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+
+    siblings_result = await db.execute(
+        select(Task).where(Task.status == update.status, Task.id != task.id).order_by(Task.position)
+    )
+    siblings = list(siblings_result.scalars().all())
+
+    if update.position is not None:
+        target_position = max(0, min(update.position, len(siblings)))
+    elif update.status != task.status:
+        target_position = len(siblings)
+    else:
+        target_position = None
+
+    if target_position is not None:
+        ordered = siblings[:target_position] + [task] + siblings[target_position:]
+        for idx, item in enumerate(ordered):
+            if item.position != idx:
+                item.position = idx
 
     task.status = update.status
     await db.commit()

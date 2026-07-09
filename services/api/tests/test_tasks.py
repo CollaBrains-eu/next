@@ -108,3 +108,133 @@ async def test_extract_tasks_rejects_missing_token(client):
 async def test_list_tasks_rejects_missing_token(client):
     response = await client.get("/tasks")
     assert response.status_code == 401
+
+
+async def test_update_task_accepts_in_progress_status(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "Some text.")
+
+    with patch("api.planner_agent.chat_completion", return_value='[{"title": "Do a thing"}]'):
+        extracted = await client.post(f"/documents/{document_id}/extract-tasks", headers=headers)
+    task_id = extracted.json()[0]["id"]
+
+    response = await client.patch(f"/tasks/{task_id}", headers=headers, json={"status": "in_progress"})
+    assert response.status_code == 200
+    assert response.json()["status"] == "in_progress"
+
+
+async def test_extracted_task_defaults_to_position_zero(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "Some text.")
+
+    with patch("api.planner_agent.chat_completion", return_value='[{"title": "Do a thing"}]'):
+        extracted = await client.post(f"/documents/{document_id}/extract-tasks", headers=headers)
+
+    assert extracted.json()[0]["position"] == 0
+
+
+async def test_moving_task_to_new_column_appends_to_end_when_no_position_given(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "Some text.")
+
+    with patch(
+        "api.planner_agent.chat_completion",
+        return_value='[{"title": "Task A"}, {"title": "Task B"}]',
+    ):
+        extracted = await client.post(f"/documents/{document_id}/extract-tasks", headers=headers)
+    task_a, task_b = extracted.json()
+
+    # Move both into "in_progress" without specifying a position -- each should
+    # append after the other, not collide on the same position. The column is
+    # global (not scoped to this test's document), and this DB is shared
+    # across test runs, so assert the relative order, not absolute values.
+    resp_a = await client.patch(
+        f"/tasks/{task_a['id']}", headers=headers, json={"status": "in_progress"}
+    )
+    resp_b = await client.patch(
+        f"/tasks/{task_b['id']}", headers=headers, json={"status": "in_progress"}
+    )
+
+    assert resp_b.json()["position"] == resp_a.json()["position"] + 1
+
+
+async def test_moving_task_to_explicit_position_shifts_siblings(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "Some text.")
+
+    with patch(
+        "api.planner_agent.chat_completion",
+        return_value='[{"title": "Task A"}, {"title": "Task B"}, {"title": "Task C"}]',
+    ):
+        extracted = await client.post(f"/documents/{document_id}/extract-tasks", headers=headers)
+    task_a, task_b, task_c = extracted.json()
+
+    # All three start at position 0 within "open" (each extracted task defaults
+    # to position 0 -- extraction doesn't sequence siblings). Move C to the
+    # front explicitly.
+    resp_c = await client.patch(
+        f"/tasks/{task_c['id']}", headers=headers, json={"status": "open", "position": 0}
+    )
+    assert resp_c.json()["position"] == 0
+
+    listed = await client.get("/tasks", params={"status": "open", "document_id": document_id}, headers=headers)
+    positions = {t["id"]: t["position"] for t in listed.json()}
+    assert positions[task_c["id"]] == 0
+    # A and B, previously both at position 0, must now occupy distinct slots
+    # after C's insert -- no two tasks in the same column share a position.
+    assert len({positions[task_a["id"]], positions[task_b["id"]], positions[task_c["id"]]}) == 3
+
+
+async def test_reordering_within_same_column_does_not_duplicate_positions(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "Some text.")
+
+    with patch(
+        "api.planner_agent.chat_completion",
+        return_value='[{"title": "Task A"}, {"title": "Task B"}, {"title": "Task C"}]',
+    ):
+        extracted = await client.post(f"/documents/{document_id}/extract-tasks", headers=headers)
+    task_a, task_b, task_c = extracted.json()
+
+    # Sequence them via append-moves into "in_progress" -- a column that may
+    # already hold other tasks from other tests sharing this DB.
+    for t in (task_a, task_b, task_c):
+        await client.patch(f"/tasks/{t['id']}", headers=headers, json={"status": "in_progress"})
+
+    column_before = await client.get(
+        "/tasks", params={"status": "in_progress", "limit": 200}, headers=headers
+    )
+    last_position = len(column_before.json()) - 1
+
+    # Move the first of our three tasks to the very end of the column.
+    resp = await client.patch(
+        f"/tasks/{task_a['id']}", headers=headers, json={"status": "in_progress", "position": last_position}
+    )
+    assert resp.json()["position"] == last_position
+
+    listed = await client.get(
+        "/tasks", params={"status": "in_progress", "limit": 200}, headers=headers
+    )
+    our_ids = {task_a["id"], task_b["id"], task_c["id"]}
+    our_positions = [t["position"] for t in listed.json() if t["id"] in our_ids]
+    assert len(our_positions) == 3
+    # No two of our three tasks share a position after the reorder.
+    assert len(set(our_positions)) == 3
+
+
+async def test_update_task_rejects_status_outside_allowed_set(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "Some text.")
+
+    with patch("api.planner_agent.chat_completion", return_value='[{"title": "Do a thing"}]'):
+        extracted = await client.post(f"/documents/{document_id}/extract-tasks", headers=headers)
+    task_id = extracted.json()[0]["id"]
+
+    response = await client.patch(f"/tasks/{task_id}", headers=headers, json={"status": "archived"})
+    assert response.status_code == 400
