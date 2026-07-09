@@ -71,8 +71,8 @@ export default function EntityGraph() {
       {graph.nodes.length === 0 ? (
         <p className="text-ink-3">No known relationships for this entity yet.</p>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-edge bg-surface">
-          <svg width={WIDTH} height={HEIGHT} viewBox={`0 0 ${WIDTH} ${HEIGHT}`}>
+        <div className="rounded-2xl border border-edge bg-surface">
+          <svg width="100%" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} style={{ maxWidth: WIDTH, display: "block" }}>
             <defs>
               <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
                 <path d="M0,0 L10,5 L0,10 z" fill="#94a3b8" />
