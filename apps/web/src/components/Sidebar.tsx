@@ -4,6 +4,7 @@ import { useAuth } from "../lib/auth";
 import { useDarkMode } from "../hooks/useDarkMode";
 import { Button } from "./ui/Button";
 import { NAV_ITEMS } from "../lib/navigation";
+import { listEntities } from "../lib/api";
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
@@ -11,6 +12,7 @@ export default function Sidebar() {
   const location = useLocation();
   const itemRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
   const [pillStyle, setPillStyle] = useState<{ top: number; height: number }>({ top: 0, height: 0 });
+  const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
     const activeItem = NAV_ITEMS.find((item) => (item.to === "/" ? location.pathname === "/" : location.pathname.startsWith(item.to)));
@@ -19,6 +21,14 @@ export default function Sidebar() {
       setPillStyle({ top: el.offsetTop, height: el.offsetHeight });
     }
   }, [location.pathname]);
+
+  useEffect(() => {
+    listEntities(undefined, undefined, "pending_review")
+      .then((entities) => setPendingCount(entities.length))
+      .catch(() => {
+        // Badge is a nice-to-have signal, not core navigation -- fail silently.
+      });
+  }, []);
 
   return (
     <aside className="flex h-screen w-56 shrink-0 flex-col justify-between border-r border-edge bg-sidebar-surface px-4 py-6">
@@ -39,12 +49,20 @@ export default function Sidebar() {
               to={item.to}
               end={item.to === "/"}
               className={({ isActive }) =>
-                `relative z-10 rounded-lg px-3 py-2 transition-colors duration-fast ${
+                `relative z-10 flex items-center justify-between rounded-lg px-3 py-2 transition-colors duration-fast ${
                   isActive ? "font-semibold text-accent" : "text-ink-2 hover:text-ink"
                 }`
               }
             >
-              {item.label}
+              <span>{item.label}</span>
+              {item.to === "/entities" && pendingCount > 0 && (
+                <span
+                  data-testid="entities-pending-badge"
+                  className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-white"
+                >
+                  {pendingCount}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>

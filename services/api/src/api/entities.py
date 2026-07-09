@@ -19,6 +19,7 @@ class EntityOut(BaseModel):
     id: UUID
     name: str
     entity_type: str
+    status: str
     created_at: datetime
 
 
@@ -43,6 +44,7 @@ async def extract_entities_from_document(
 async def list_entities(
     q: str | None = Query(None, description="Filter by name (case-insensitive substring)"),
     entity_type: str | None = Query(None),
+    status: str = Query("confirmed", description="pending_review | confirmed | rejected | all"),
     limit: int = Query(50, le=200),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
@@ -53,8 +55,61 @@ async def list_entities(
         query = query.where(Entity.name.ilike(f"%{q}%"))
     if entity_type:
         query = query.where(Entity.entity_type == entity_type)
+    if status != "all":
+        query = query.where(Entity.status == status)
     result = await db.execute(query)
     return list(result.scalars().all())
+
+
+class BulkReviewItem(BaseModel):
+    entity_id: UUID
+    action: str  # "approve" | "reject"
+
+
+async def _transition_entity(db: AsyncSession, entity_id: UUID, new_status: str) -> Entity:
+    entity = await db.get(Entity, entity_id)
+    if entity is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Entity not found")
+    if entity.status != "pending_review":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Entity is not pending review (status: {entity.status})",
+        )
+    entity.status = new_status
+    await db.commit()
+    await db.refresh(entity)
+    return entity
+
+
+@router.post("/entities/{entity_id}/approve", response_model=EntityOut)
+async def approve_entity(
+    entity_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_effective_user),
+) -> Entity:
+    return await _transition_entity(db, entity_id, "confirmed")
+
+
+@router.post("/entities/{entity_id}/reject", response_model=EntityOut)
+async def reject_entity(
+    entity_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_effective_user),
+) -> Entity:
+    return await _transition_entity(db, entity_id, "rejected")
+
+
+@router.post("/entities/bulk-review", response_model=list[EntityOut])
+async def bulk_review_entities(
+    items: list[BulkReviewItem],
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_effective_user),
+) -> list[Entity]:
+    results: list[Entity] = []
+    for item in items:
+        new_status = "confirmed" if item.action == "approve" else "rejected"
+        results.append(await _transition_entity(db, item.entity_id, new_status))
+    return results
 
 
 class GraphNode(BaseModel):
@@ -82,7 +137,9 @@ async def get_entity_graph(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_effective_user),
 ) -> EntityGraphOut:
-    """One-hop neighborhood of an entity: itself, its direct neighbors, and the edges between them."""
+    """One-hop neighborhood of an entity: itself, its direct confirmed neighbors, and the
+    confirmed-to-confirmed edges between them. Non-confirmed neighbors/edges are excluded --
+    see docs/superpowers/specs/2026-07-09-entity-review-queue-design.md."""
     center = await db.get(Entity, entity_id)
     if center is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Entity not found")
@@ -92,18 +149,28 @@ async def get_entity_graph(
             or_(EntityRelationship.source_entity_id == entity_id, EntityRelationship.target_entity_id == entity_id)
         )
     )
-    edges = list(edges_result.scalars().all())
+    all_edges = list(edges_result.scalars().all())
 
     neighbor_ids = {
         eid
-        for edge in edges
+        for edge in all_edges
         for eid in (edge.source_entity_id, edge.target_entity_id)
         if eid != entity_id
     }
     neighbors: list[Entity] = []
     if neighbor_ids:
-        neighbors_result = await db.execute(select(Entity).where(Entity.id.in_(neighbor_ids)))
+        neighbors_result = await db.execute(
+            select(Entity).where(Entity.id.in_(neighbor_ids), Entity.status == "confirmed")
+        )
         neighbors = list(neighbors_result.scalars().all())
+    confirmed_neighbor_ids = {n.id for n in neighbors}
+
+    edges = [
+        edge
+        for edge in all_edges
+        for other_id in [edge.target_entity_id if edge.source_entity_id == entity_id else edge.source_entity_id]
+        if other_id in confirmed_neighbor_ids
+    ]
 
     return EntityGraphOut(
         center=GraphNode(id=center.id, name=center.name, entity_type=center.entity_type),
