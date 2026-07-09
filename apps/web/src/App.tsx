@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { AuthProvider, ProtectedRoute } from "./lib/auth";
+import { AdminRoute } from "./components/AdminRoute";
 import { ToastProvider } from "./lib/toast";
 import { LoadingBarProvider, useLoadingBar } from "./lib/loadingBar";
 import { CommandCenter } from "./components/CommandCenter";
@@ -19,6 +20,7 @@ import CaseDetail from "./routes/CaseDetail";
 import Vehicles from "./routes/Vehicles";
 import Assistant from "./routes/Assistant";
 import Settings from "./routes/Settings";
+import AdminDashboard from "./routes/AdminDashboard";
 import NotFound from "./routes/NotFound";
 
 function RouteChangeLoadingBar() {
@@ -151,6 +153,14 @@ export default function App() {
                     <ProtectedRoute>
                       <Settings />
                     </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin"
+                  element={
+                    <AdminRoute>
+                      <AdminDashboard />
+                    </AdminRoute>
                   }
                 />
                 <Route path="*" element={<NotFound />} />

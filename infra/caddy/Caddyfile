@@ -17,7 +17,7 @@ v78281.1blu.de {
 	# frontend's own fetch() calls don't, so that's what disambiguates them.
 	@api {
 		not header Accept *text/html*
-		path /auth* /documents* /chat* /legal* /tasks* /entities* /search* /health* /plans* /memories* /tools* /mcp* /decisions* /manager* /preferences* /organizations* /learning* /cases* /vehicles*
+		path /auth* /documents* /chat* /legal* /tasks* /entities* /search* /health* /plans* /memories* /tools* /mcp* /decisions* /manager* /preferences* /organizations* /learning* /cases* /vehicles* /admin*
 	}
 	handle @api {
 		reverse_proxy api:8000

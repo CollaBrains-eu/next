@@ -1,0 +1,116 @@
+"""Admin Dashboard endpoints (Phase 22).
+
+admin-role-only throughout, same `_require_admin` pattern as
+`organizations_router.py`. All read/report endpoints reuse existing data
+(`AiCallLog`, `User`, `Document`) -- only the Bug Reports feature adds a
+new table, migrated from CollaBrains v2's admin tab (v2 had no AI-usage
+cost reporting to migrate; that part is new here since Next already had
+the underlying `AiCallLog` audit trail v2 never built).
+"""
+from datetime import datetime, timedelta
+from typing import Literal
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from api.admin_service import (
+    AdminStats,
+    AiUsageRow,
+    ServiceHealth,
+    analyze_bug_report,
+    create_bug_report,
+    get_admin_stats,
+    get_ai_usage_report,
+    get_service_health,
+    list_bug_reports,
+)
+from api.auth import get_current_user
+from api.db import get_db
+from api.models import BugReport, User
+
+router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+def _require_admin(current_user: User) -> None:
+    if current_user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required")
+
+
+class BugReportOut(BaseModel):
+    id: UUID
+    user_id: UUID
+    description: str
+    status: str
+    ai_analysis: str | None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class BugReportCreate(BaseModel):
+    description: str
+
+
+@router.get("/stats", response_model=AdminStats)
+async def admin_stats(
+    db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
+) -> AdminStats:
+    _require_admin(current_user)
+    return await get_admin_stats(db)
+
+
+@router.get("/ai-usage", response_model=list[AiUsageRow])
+async def admin_ai_usage(
+    group_by: Literal["user", "model", "endpoint"] = "model",
+    since_hours: int = 24 * 7,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[AiUsageRow]:
+    _require_admin(current_user)
+    since = datetime.utcnow() - timedelta(hours=since_hours)
+    return await get_ai_usage_report(db, since=since, group_by=group_by)
+
+
+@router.get("/health", response_model=list[ServiceHealth])
+async def admin_health(
+    db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
+) -> list[ServiceHealth]:
+    _require_admin(current_user)
+    return await get_service_health(db)
+
+
+@router.get("/bug-reports", response_model=list[BugReportOut])
+async def admin_list_bug_reports(
+    status_filter: str | None = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[BugReport]:
+    _require_admin(current_user)
+    return await list_bug_reports(db, status=status_filter)
+
+
+@router.post("/bug-reports", response_model=BugReportOut)
+async def admin_create_bug_report(
+    body: BugReportCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> BugReport:
+    # Deliberately not admin-only -- any authenticated user can report a bug,
+    # only *reading*/*analyzing* the queue is admin-gated.
+    return await create_bug_report(db, user_id=current_user.id, description=body.description)
+
+
+@router.post("/bug-reports/{bug_report_id}/analyze", response_model=BugReportOut)
+async def admin_analyze_bug_report(
+    bug_report_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> BugReport:
+    _require_admin(current_user)
+    report = await analyze_bug_report(db, bug_report_id=bug_report_id, requesting_user_id=current_user.id)
+    if report is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bug report not found")
+    return report

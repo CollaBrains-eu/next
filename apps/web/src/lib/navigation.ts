@@ -9,3 +9,8 @@ export const NAV_ITEMS: { to: string; label: string }[] = [
   { to: "/assistant", label: "Assistant" },
   { to: "/settings", label: "Settings" },
 ];
+
+export function navItemsForRole(role: string | undefined): { to: string; label: string }[] {
+  if (role !== "admin") return NAV_ITEMS;
+  return [...NAV_ITEMS, { to: "/admin", label: "Admin" }];
+}

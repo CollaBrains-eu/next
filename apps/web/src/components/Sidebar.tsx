@@ -3,7 +3,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { useDarkMode } from "../hooks/useDarkMode";
 import { Button } from "./ui/Button";
-import { NAV_ITEMS } from "../lib/navigation";
+import { navItemsForRole } from "../lib/navigation";
 import { listEntities } from "../lib/api";
 
 export default function Sidebar() {
@@ -13,14 +13,15 @@ export default function Sidebar() {
   const itemRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
   const [pillStyle, setPillStyle] = useState<{ top: number; height: number }>({ top: 0, height: 0 });
   const [pendingCount, setPendingCount] = useState(0);
+  const navItems = navItemsForRole(user?.role);
 
   useEffect(() => {
-    const activeItem = NAV_ITEMS.find((item) => (item.to === "/" ? location.pathname === "/" : location.pathname.startsWith(item.to)));
+    const activeItem = navItems.find((item) => (item.to === "/" ? location.pathname === "/" : location.pathname.startsWith(item.to)));
     const el = activeItem ? itemRefs.current[activeItem.to] : null;
     if (el) {
       setPillStyle({ top: el.offsetTop, height: el.offsetHeight });
     }
-  }, [location.pathname]);
+  }, [location.pathname, navItems]);
 
   useEffect(() => {
     listEntities(undefined, undefined, "pending_review")
@@ -40,7 +41,7 @@ export default function Sidebar() {
             className="absolute left-0 right-0 z-0 rounded-lg bg-accent-soft transition-all duration-base ease-spring"
             style={{ top: pillStyle.top, height: pillStyle.height }}
           />
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <NavLink
               key={item.to}
               ref={(el) => {

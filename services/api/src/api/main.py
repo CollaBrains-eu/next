@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from api import tools as _tools  # noqa: F401 - import side effect: registers built-in tools (ADR 0021)
+from api.admin_router import router as admin_router
 from api.auth import router as auth_router
 from api.cases_router import router as cases_router
 from api.chat import router as chat_router
@@ -32,6 +33,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(admin_router)
 app.include_router(auth_router)
 app.include_router(cases_router)
 app.include_router(documents_router)

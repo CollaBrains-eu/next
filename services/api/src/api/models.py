@@ -427,3 +427,22 @@ class Vehicle(Base):
     europese_voertuigcategorie: Mapped[str | None] = mapped_column(String(20), nullable=True)
     fetched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class BugReport(Base):
+    """A user-submitted bug report, optionally AI-analyzed (Admin Dashboard, Phase 22).
+
+    Migrated from CollaBrains v2's `BugReport` model/admin tab -- v2 had no
+    equivalent of `AiCallLog`'s cost tracking, so that part of the admin
+    dashboard is new, not migrated; this table covers the bug-report part
+    v2 did have.
+    """
+
+    __tablename__ = "bug_reports"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="open")  # open|analyzed|closed
+    ai_analysis: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

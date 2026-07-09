@@ -360,3 +360,53 @@ export function setPreferences(preferredLanguage: string | null): Promise<Prefer
     body: JSON.stringify({ preferred_language: preferredLanguage }),
   });
 }
+
+export interface AdminStatsOut {
+  total_users: number;
+  total_documents: number;
+  documents_by_status: Record<string, number>;
+  ai_calls_last_24h: number;
+}
+
+export function getAdminStats(): Promise<AdminStatsOut> {
+  return request<AdminStatsOut>("/admin/stats");
+}
+
+export interface AiUsageRowOut {
+  key: string;
+  call_count: number;
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
+}
+
+export function getAdminAiUsage(groupBy: "user" | "model" | "endpoint" = "model"): Promise<AiUsageRowOut[]> {
+  return request<AiUsageRowOut[]>(`/admin/ai-usage?group_by=${groupBy}`);
+}
+
+export interface ServiceHealthOut {
+  name: string;
+  status: "up" | "down";
+  detail: string | null;
+}
+
+export function getAdminHealth(): Promise<ServiceHealthOut[]> {
+  return request<ServiceHealthOut[]>("/admin/health");
+}
+
+export interface BugReportOut {
+  id: string;
+  user_id: string;
+  description: string;
+  status: string;
+  ai_analysis: string | null;
+  created_at: string;
+}
+
+export function listBugReports(statusFilter?: string): Promise<BugReportOut[]> {
+  const query = statusFilter ? `?status_filter=${statusFilter}` : "";
+  return request<BugReportOut[]>(`/admin/bug-reports${query}`);
+}
+
+export function analyzeBugReport(id: string): Promise<BugReportOut> {
+  return request<BugReportOut>(`/admin/bug-reports/${id}/analyze`, { method: "POST" });
+}
