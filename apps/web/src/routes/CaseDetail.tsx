@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import Card from "../components/Card";
 import { Alert } from "../components/ui/Alert";
 import { Breadcrumbs } from "../components/ui/Breadcrumbs";
@@ -27,6 +28,7 @@ import {
 type AttachSection = "documents" | "tasks" | "decisions" | "vehicles";
 
 export default function CaseDetail() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const [caseData, setCaseData] = useState<CaseDashboardOut | null>(null);
   const [loading, setLoading] = useState(true);
@@ -43,7 +45,7 @@ export default function CaseDetail() {
     setLoading(true);
     getCase(id)
       .then(setCaseData)
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load case"))
+      .catch((err) => setError(err instanceof ApiError ? err.message : t("caseDetail.loadError")))
       .finally(() => setLoading(false));
   }
 
@@ -62,7 +64,7 @@ export default function CaseDetail() {
       await updateCaseStatus(caseData.id, caseData.status === "open" ? "closed" : "open");
       refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to update case");
+      setError(err instanceof ApiError ? err.message : t("caseDetail.updateError"));
     }
   }
 
@@ -77,12 +79,12 @@ export default function CaseDetail() {
       setSelected("");
       refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to attach item");
+      setError(err instanceof ApiError ? err.message : t("caseDetail.attachError"));
     }
   }
 
-  if (loading) return <p className="text-ink-3">Loading…</p>;
-  if (error && !caseData) return <Alert variant="danger" title="Failed to load case">{error}</Alert>;
+  if (loading) return <p className="text-ink-3">{t("common.loading")}</p>;
+  if (error && !caseData) return <Alert variant="danger" title={t("caseDetail.loadError")}>{error}</Alert>;
   if (!caseData) return null;
 
   const linkedDocumentIds = new Set(caseData.documents.map((d) => d.id));
@@ -110,7 +112,7 @@ export default function CaseDetail() {
             setSelected("");
           }}
         >
-          + Attach
+          {t("caseDetail.attachAction")}
         </Button>
       );
     }
@@ -122,7 +124,7 @@ export default function CaseDetail() {
           onChange={(e) => setSelected(e.target.value)}
           className="rounded-xl border border-edge bg-surface px-2 py-1 text-xs text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft"
         >
-          <option value="">Select…</option>
+          <option value="">{t("caseDetail.selectPlaceholder")}</option>
           {options.map((o) => (
             <option key={o.id} value={o.id}>
               {o.label}
@@ -130,10 +132,10 @@ export default function CaseDetail() {
           ))}
         </select>
         <Button size="sm" onClick={handleAttach} disabled={!selected}>
-          Attach
+          {t("caseDetail.attachConfirm")}
         </Button>
         <Button variant="ghost" size="sm" onClick={() => setAttaching(null)}>
-          Cancel
+          {t("common.cancel")}
         </Button>
       </div>
     );
@@ -141,7 +143,7 @@ export default function CaseDetail() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs items={[{ label: "Cases", to: "/cases" }, { label: caseData.name }]} />
+      <Breadcrumbs items={[{ label: t("nav.cases"), to: "/cases" }, { label: caseData.name }]} />
 
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
@@ -157,11 +159,11 @@ export default function CaseDetail() {
 
       <Card>
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-sm font-medium text-ink">Documents</span>
+          <span className="text-sm font-medium text-ink">{t("nav.documents")}</span>
           <AttachControl section="documents" />
         </div>
         {caseData.documents.length === 0 ? (
-          <p className="text-sm text-ink-3">Nothing linked yet.</p>
+          <p className="text-sm text-ink-3">{t("caseDetail.nothingLinked")}</p>
         ) : (
           <ul className="flex flex-col gap-1">
             {caseData.documents.map((d) => (
@@ -177,11 +179,11 @@ export default function CaseDetail() {
 
       <Card>
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-sm font-medium text-ink">Tasks</span>
+          <span className="text-sm font-medium text-ink">{t("nav.tasks")}</span>
           <AttachControl section="tasks" />
         </div>
         {caseData.tasks.length === 0 ? (
-          <p className="text-sm text-ink-3">Nothing linked yet.</p>
+          <p className="text-sm text-ink-3">{t("caseDetail.nothingLinked")}</p>
         ) : (
           <ul className="flex flex-col gap-1">
             {caseData.tasks.map((t) => (
@@ -195,11 +197,11 @@ export default function CaseDetail() {
 
       <Card>
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-sm font-medium text-ink">Decisions</span>
+          <span className="text-sm font-medium text-ink">{t("caseDetail.decisions")}</span>
           <AttachControl section="decisions" />
         </div>
         {caseData.decisions.length === 0 ? (
-          <p className="text-sm text-ink-3">Nothing linked yet.</p>
+          <p className="text-sm text-ink-3">{t("caseDetail.nothingLinked")}</p>
         ) : (
           <ul className="flex flex-col gap-1">
             {caseData.decisions.map((d) => (
@@ -213,11 +215,11 @@ export default function CaseDetail() {
 
       <Card>
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-sm font-medium text-ink">Vehicles</span>
+          <span className="text-sm font-medium text-ink">{t("nav.vehicles")}</span>
           <AttachControl section="vehicles" />
         </div>
         {caseData.vehicles.length === 0 ? (
-          <p className="text-sm text-ink-3">Nothing linked yet.</p>
+          <p className="text-sm text-ink-3">{t("caseDetail.nothingLinked")}</p>
         ) : (
           <ul className="flex flex-col gap-1">
             {caseData.vehicles.map((v) => (

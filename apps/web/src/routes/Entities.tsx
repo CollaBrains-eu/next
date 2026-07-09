@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { listEntities, type EntityOut } from "../lib/api";
 
 const TYPE_STYLES: Record<string, string> = {
@@ -18,6 +19,7 @@ function TypeBadge({ type }: { type: string }) {
 }
 
 export default function Entities() {
+  const { t } = useTranslation();
   const [entities, setEntities] = useState<EntityOut[]>([]);
   const [q, setQ] = useState("");
   const [entityType, setEntityType] = useState("");
@@ -38,11 +40,8 @@ export default function Entities() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-2xl font-semibold text-ink">Entities</h1>
-        <p className="mt-1 text-sm text-ink-2">
-          People, organizations, and locations extracted from your documents. Select one to explore its
-          relationships.
-        </p>
+        <h1 className="text-2xl font-semibold text-ink">{t("entities.title")}</h1>
+        <p className="mt-1 text-sm text-ink-2">{t("entities.description")}</p>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -50,7 +49,7 @@ export default function Entities() {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search entities…"
+            placeholder={t("entities.searchPlaceholder")}
             className="w-full rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none transition-colors duration-fast focus:border-accent focus:ring-2 focus:ring-accent-soft sm:w-auto"
           />
           <select
@@ -58,32 +57,32 @@ export default function Entities() {
             onChange={(e) => setEntityType(e.target.value)}
             className="rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft"
           >
-            <option value="">All types</option>
-            <option value="person">Person</option>
-            <option value="organization">Organization</option>
-            <option value="location">Location</option>
-            <option value="other">Other</option>
+            <option value="">{t("entities.typeAll")}</option>
+            <option value="person">{t("entities.typePerson")}</option>
+            <option value="organization">{t("entities.typeOrganization")}</option>
+            <option value="location">{t("entities.typeLocation")}</option>
+            <option value="other">{t("entities.typeOther")}</option>
           </select>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft"
           >
-            <option value="confirmed">Confirmed</option>
-            <option value="pending_review">Pending review</option>
-            <option value="rejected">Rejected</option>
-            <option value="all">All</option>
+            <option value="confirmed">{t("entities.statusConfirmed")}</option>
+            <option value="pending_review">{t("entities.statusPendingReview")}</option>
+            <option value="rejected">{t("entities.statusRejected")}</option>
+            <option value="all">{t("entities.statusAll")}</option>
           </select>
         </form>
         <Link to="/entities/review" className="shrink-0 text-sm text-accent hover:underline">
-          Review pending →
+          {t("entities.reviewPending")}
         </Link>
       </div>
 
       {loading ? (
-        <p className="text-ink-3">Loading…</p>
+        <p className="text-ink-3">{t("common.loading")}</p>
       ) : entities.length === 0 ? (
-        <p className="text-ink-3">No entities found.</p>
+        <p className="text-ink-3">{t("entities.emptyMessage")}</p>
       ) : (
         <div className="flex flex-col divide-y divide-edge rounded-2xl border border-edge bg-surface">
           {entities.map((entity) => (

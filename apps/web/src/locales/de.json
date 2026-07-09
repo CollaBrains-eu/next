@@ -69,5 +69,59 @@
     "emptyMessage": "Noch keine Fahrzeuge erkannt.",
     "loadError": "Fahrzeuge konnten nicht geladen werden",
     "lookupError": "Fahrzeug konnte nicht abgerufen werden"
+  },
+  "documentDetail": {
+    "loadError": "Dokument konnte nicht geladen werden",
+    "summarizeError": "Zusammenfassen fehlgeschlagen",
+    "deleteError": "Löschen fehlgeschlagen",
+    "breadcrumbError": "Fehler",
+    "summarizing": "Wird zusammengefasst…",
+    "resummarize": "Erneut zusammenfassen",
+    "summarize": "Zusammenfassen",
+    "processingError": "Verarbeitungsfehler",
+    "summary": "Zusammenfassung",
+    "extractedText": "Extrahierter Text",
+    "chunkCount_one": "{{count}} Abschnitt",
+    "chunkCount_other": "{{count}} Abschnitte",
+    "deleteModalTitle": "\"{{title}}\" löschen?",
+    "deleteModalBody": "Dies kann nicht rückgängig gemacht werden.",
+    "deleteConfirm": "Dokument löschen",
+    "deletedToast": "\"{{title}}\" gelöscht"
+  },
+  "caseDetail": {
+    "loadError": "Fall konnte nicht geladen werden",
+    "updateError": "Fall konnte nicht aktualisiert werden",
+    "attachError": "Element konnte nicht verknüpft werden",
+    "attachAction": "+ Verknüpfen",
+    "attachConfirm": "Verknüpfen",
+    "selectPlaceholder": "Auswählen…",
+    "nothingLinked": "Noch nichts verknüpft.",
+    "decisions": "Entscheidungen"
+  },
+  "entities": {
+    "title": "Entitäten",
+    "description": "Personen, Organisationen und Orte aus Ihren Dokumenten. Wählen Sie eine aus, um die Beziehungen zu erkunden.",
+    "searchPlaceholder": "Entitäten durchsuchen…",
+    "typeAll": "Alle Typen",
+    "typePerson": "Person",
+    "typeOrganization": "Organisation",
+    "typeLocation": "Ort",
+    "typeOther": "Sonstiges",
+    "statusConfirmed": "Bestätigt",
+    "statusPendingReview": "Ausstehende Prüfung",
+    "statusRejected": "Abgelehnt",
+    "statusAll": "Alle",
+    "reviewPending": "Ausstehende prüfen →",
+    "emptyMessage": "Keine Entitäten gefunden."
+  },
+  "entityReview": {
+    "backToEntities": "← Zurück zu Entitäten",
+    "title": "Entitäten prüfen",
+    "approveAll": "Alle genehmigen",
+    "nothingToReview": "Nichts zu prüfen",
+    "progress": "{{current}} von {{total}}",
+    "reject": "Ablehnen",
+    "approve": "Genehmigen",
+    "keyboardHint": "Tastatur: J oder → zum Genehmigen, K oder ← zum Ablehnen"
   }
 }

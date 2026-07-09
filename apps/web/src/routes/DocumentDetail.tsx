@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { ApiError, deleteDocument, getDocument, summarizeDocument, type DocumentDetailOut } from "../lib/api";
 import { Alert } from "../components/ui/Alert";
 import { Badge } from "../components/ui/Badge";
@@ -17,6 +18,7 @@ const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "default
 };
 
 export default function DocumentDetail() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -30,8 +32,8 @@ export default function DocumentDetail() {
     if (!id) return;
     getDocument(id)
       .then(setDoc)
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load document"));
-  }, [id]);
+      .catch((err) => setError(err instanceof ApiError ? err.message : t("documentDetail.loadError")));
+  }, [id, t]);
 
   useEffect(() => {
     load();
@@ -51,7 +53,7 @@ export default function DocumentDetail() {
       await summarizeDocument(id);
       load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Summarize failed");
+      setError(err instanceof ApiError ? err.message : t("documentDetail.summarizeError"));
     } finally {
       setSummarizing(false);
     }
@@ -63,10 +65,10 @@ export default function DocumentDetail() {
     try {
       await deleteDocument(id);
       setConfirmOpen(false);
-      showToast(`"${doc?.title}" deleted`);
+      showToast(t("documentDetail.deletedToast", { title: doc?.title }));
       navigate("/");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Delete failed");
+      setError(err instanceof ApiError ? err.message : t("documentDetail.deleteError"));
       setConfirmOpen(false);
       setDeleting(false);
     }
@@ -75,65 +77,66 @@ export default function DocumentDetail() {
   if (error) {
     return (
       <div>
-        <Breadcrumbs items={[{ label: "Documents", to: "/" }, { label: "Error" }]} />
-        <Alert variant="danger" title="Failed to load document">
+        <Breadcrumbs items={[{ label: t("nav.documents"), to: "/" }, { label: t("documentDetail.breadcrumbError") }]} />
+        <Alert variant="danger" title={t("documentDetail.loadError")}>
           {error}
         </Alert>
       </div>
     );
   }
 
-  if (!doc) return <p className="text-ink-2">Loading…</p>;
+  if (!doc) return <p className="text-ink-2">{t("common.loading")}</p>;
 
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs items={[{ label: "Documents", to: "/" }, { label: doc.title }]} />
+      <Breadcrumbs items={[{ label: t("nav.documents"), to: "/" }, { label: doc.title }]} />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h1 className="truncate text-2xl font-semibold text-ink">{doc.title}</h1>
           <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-ink-2">
-            {doc.mime_type} · <Badge variant={STATUS_VARIANT[doc.status] ?? "default"}>{doc.status}</Badge> · {doc.chunk_count} chunk(s)
+            {doc.mime_type} · <Badge variant={STATUS_VARIANT[doc.status] ?? "default"}>{doc.status}</Badge> ·{" "}
+            {t("documentDetail.chunkCount", { count: doc.chunk_count })}
           </p>
         </div>
         <div className="flex shrink-0 gap-2">
           <Button variant="secondary" size="sm" onClick={handleSummarize} disabled={doc.status !== "ready" || summarizing}>
-            {summarizing ? "Summarizing…" : doc.summary ? "Re-summarize" : "Summarize"}
+            {summarizing ? t("documentDetail.summarizing") : doc.summary ? t("documentDetail.resummarize") : t("documentDetail.summarize")}
           </Button>
           <Button variant="danger" size="sm" onClick={() => setConfirmOpen(true)} disabled={deleting}>
-            Delete
+            {t("common.delete")}
           </Button>
         </div>
       </div>
 
       {doc.error && (
-        <Alert variant="danger" title="Processing error">
+        <Alert variant="danger" title={t("documentDetail.processingError")}>
           {doc.error}
         </Alert>
       )}
 
       {doc.summary && (
         <div className="rounded-2xl border border-edge bg-surface p-4 shadow-raised">
-          <h2 className="text-sm font-medium text-ink-2">Summary</h2>
+          <h2 className="text-sm font-medium text-ink-2">{t("documentDetail.summary")}</h2>
           <p className="mt-1 whitespace-pre-wrap text-sm text-ink">{doc.summary}</p>
         </div>
       )}
 
       {doc.ocr_text && (
         <div className="rounded-2xl border border-edge bg-surface p-4 shadow-raised">
-          <h2 className="text-sm font-medium text-ink-2">Extracted text</h2>
+          <h2 className="text-sm font-medium text-ink-2">{t("documentDetail.extractedText")}</h2>
           <p className="mt-1 max-h-96 overflow-y-auto whitespace-pre-wrap text-sm text-ink">{doc.ocr_text}</p>
         </div>
       )}
 
-      <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title={`Delete "${doc.title}"?`}>
-        <p className="mb-4 text-sm text-ink-2">This cannot be undone.</p>
+      <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title={t("documentDetail.deleteModalTitle", { title: doc.title })}>
+        <p className="mb-4 text-sm text-ink-2">{t("documentDetail.deleteModalBody")}</p>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" size="sm" onClick={() => setConfirmOpen(false)}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button variant="danger" size="sm" onClick={handleConfirmDelete} disabled={deleting}>
-            Delete document
+            {t("documentDetail.deleteConfirm")}
           </Button>
         </div>
       </Modal>

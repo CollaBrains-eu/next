@@ -69,5 +69,59 @@
     "emptyMessage": "Nog geen voertuigen gedetecteerd.",
     "loadError": "Kon voertuigen niet laden",
     "lookupError": "Kon voertuig niet opzoeken"
+  },
+  "documentDetail": {
+    "loadError": "Kon document niet laden",
+    "summarizeError": "Samenvatten mislukt",
+    "deleteError": "Verwijderen mislukt",
+    "breadcrumbError": "Fout",
+    "summarizing": "Bezig met samenvatten…",
+    "resummarize": "Opnieuw samenvatten",
+    "summarize": "Samenvatten",
+    "processingError": "Verwerkingsfout",
+    "summary": "Samenvatting",
+    "extractedText": "Geëxtraheerde tekst",
+    "chunkCount_one": "{{count}} fragment",
+    "chunkCount_other": "{{count}} fragmenten",
+    "deleteModalTitle": "\"{{title}}\" verwijderen?",
+    "deleteModalBody": "Dit kan niet ongedaan worden gemaakt.",
+    "deleteConfirm": "Document verwijderen",
+    "deletedToast": "\"{{title}}\" verwijderd"
+  },
+  "caseDetail": {
+    "loadError": "Kon zaak niet laden",
+    "updateError": "Kon zaak niet bijwerken",
+    "attachError": "Kon item niet koppelen",
+    "attachAction": "+ Koppelen",
+    "attachConfirm": "Koppelen",
+    "selectPlaceholder": "Selecteer…",
+    "nothingLinked": "Nog niets gekoppeld.",
+    "decisions": "Beslissingen"
+  },
+  "entities": {
+    "title": "Entiteiten",
+    "description": "Personen, organisaties en locaties uit uw documenten. Selecteer er een om de relaties te verkennen.",
+    "searchPlaceholder": "Entiteiten zoeken…",
+    "typeAll": "Alle typen",
+    "typePerson": "Persoon",
+    "typeOrganization": "Organisatie",
+    "typeLocation": "Locatie",
+    "typeOther": "Overig",
+    "statusConfirmed": "Bevestigd",
+    "statusPendingReview": "In afwachting van beoordeling",
+    "statusRejected": "Afgewezen",
+    "statusAll": "Alle",
+    "reviewPending": "Beoordeel openstaande →",
+    "emptyMessage": "Geen entiteiten gevonden."
+  },
+  "entityReview": {
+    "backToEntities": "← Terug naar entiteiten",
+    "title": "Entiteiten beoordelen",
+    "approveAll": "Alles goedkeuren",
+    "nothingToReview": "Niets te beoordelen",
+    "progress": "{{current}} van {{total}}",
+    "reject": "Afwijzen",
+    "approve": "Goedkeuren",
+    "keyboardHint": "Toetsenbord: J of → om goed te keuren, K of ← om af te wijzen"
   }
 }

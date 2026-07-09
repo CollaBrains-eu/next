@@ -69,5 +69,59 @@
     "emptyMessage": "No vehicles detected yet.",
     "loadError": "Failed to load vehicles",
     "lookupError": "Failed to look up vehicle"
+  },
+  "documentDetail": {
+    "loadError": "Failed to load document",
+    "summarizeError": "Summarize failed",
+    "deleteError": "Delete failed",
+    "breadcrumbError": "Error",
+    "summarizing": "Summarizing…",
+    "resummarize": "Re-summarize",
+    "summarize": "Summarize",
+    "processingError": "Processing error",
+    "summary": "Summary",
+    "extractedText": "Extracted text",
+    "chunkCount_one": "{{count}} chunk",
+    "chunkCount_other": "{{count}} chunks",
+    "deleteModalTitle": "Delete \"{{title}}\"?",
+    "deleteModalBody": "This cannot be undone.",
+    "deleteConfirm": "Delete document",
+    "deletedToast": "\"{{title}}\" deleted"
+  },
+  "caseDetail": {
+    "loadError": "Failed to load case",
+    "updateError": "Failed to update case",
+    "attachError": "Failed to attach item",
+    "attachAction": "+ Attach",
+    "attachConfirm": "Attach",
+    "selectPlaceholder": "Select…",
+    "nothingLinked": "Nothing linked yet.",
+    "decisions": "Decisions"
+  },
+  "entities": {
+    "title": "Entities",
+    "description": "People, organizations, and locations extracted from your documents. Select one to explore its relationships.",
+    "searchPlaceholder": "Search entities…",
+    "typeAll": "All types",
+    "typePerson": "Person",
+    "typeOrganization": "Organization",
+    "typeLocation": "Location",
+    "typeOther": "Other",
+    "statusConfirmed": "Confirmed",
+    "statusPendingReview": "Pending review",
+    "statusRejected": "Rejected",
+    "statusAll": "All",
+    "reviewPending": "Review pending →",
+    "emptyMessage": "No entities found."
+  },
+  "entityReview": {
+    "backToEntities": "← Back to entities",
+    "title": "Review entities",
+    "approveAll": "Approve all",
+    "nothingToReview": "Nothing to review",
+    "progress": "{{current}} of {{total}}",
+    "reject": "Reject",
+    "approve": "Approve",
+    "keyboardHint": "Keyboard: J or → to approve, K or ← to reject"
   }
 }
