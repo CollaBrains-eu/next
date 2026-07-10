@@ -38,6 +38,7 @@ def upgrade() -> None:
         'documents',
         sa.Column('category_id', UUID(as_uuid=True), sa.ForeignKey('categories.id', ondelete='SET NULL'), nullable=True),
     )
+    op.create_index('ix_documents_category_id', 'documents', ['category_id'])
 
     categories_table = sa.table(
         'categories',
@@ -70,5 +71,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.drop_index('ix_documents_category_id', table_name='documents')
     op.drop_column('documents', 'category_id')
     op.drop_table('categories')
