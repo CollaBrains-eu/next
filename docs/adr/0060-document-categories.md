@@ -1,4 +1,4 @@
-# 0059 — Document categories: v2 taxonomy port, auto-categorization, filter UI
+# 0060 — Document categories: v2 taxonomy port, auto-categorization, filter UI
 
 ## Status
 
@@ -111,12 +111,11 @@ and `listCategories` effects.
 
 - The document-categories plan is now fully closed out: taxonomy,
   auto-categorization, read API, and filter UI all shipped.
-- `DocumentDetail.test.tsx`'s `mockDoc` fixture was not updated to
-  include `category_id` — it's out of this task's file scope (the
-  plan's Task 4 file list didn't include it) and doesn't affect
-  runtime test behavior since Vitest/esbuild doesn't type-check, but a
-  future `tsc --noEmit` pass would flag it as missing the newly-required
-  `DocumentOut` field.
+- `DocumentDetail.test.tsx`'s `mockDoc` fixture initially wasn't
+  updated to include `category_id`, which broke `tsc -b` (and thus
+  `pnpm build`, since `DocumentDetailOut` extends `DocumentOut`). This
+  was caught in review and fixed by adding `category_id: null` to the
+  fixture.
 - The consolidated live-verification pass (see above) still owes a
   real end-to-end check: upload → classify → category chip appears →
   filtering by it narrows the table against a live backend, not just

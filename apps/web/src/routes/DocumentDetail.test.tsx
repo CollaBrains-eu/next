@@ -24,6 +24,7 @@ const mockDoc = {
   error: null,
   created_at: "2026-07-08T19:11:38Z",
   processed_at: "2026-07-08T19:12:00Z",
+  category_id: null,
   ocr_text: "Extracted text here",
   chunk_count: 3,
   summary: null,
