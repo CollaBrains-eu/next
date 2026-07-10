@@ -6,6 +6,7 @@ from api import tools as _tools  # noqa: F401 - import side effect: registers bu
 from api.admin_router import router as admin_router
 from api.auth import router as auth_router
 from api.cases_router import router as cases_router
+from api.categories_router import router as categories_router
 from api.chat import router as chat_router
 from api.db import engine
 from api.decisions import router as decisions_router
@@ -37,6 +38,7 @@ app.add_middleware(
 app.include_router(admin_router)
 app.include_router(auth_router)
 app.include_router(cases_router)
+app.include_router(categories_router)
 app.include_router(documents_router)
 app.include_router(search_router)
 app.include_router(chat_router)
