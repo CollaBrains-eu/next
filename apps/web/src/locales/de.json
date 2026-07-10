@@ -19,7 +19,9 @@
     "loading": "Lädt…",
     "cancel": "Abbrechen",
     "delete": "Löschen",
-    "create": "Erstellen"
+    "create": "Erstellen",
+    "send": "Senden",
+    "thinking": "Denkt nach…"
   },
   "documents": {
     "title": "Dokumente",
@@ -123,5 +125,25 @@
     "reject": "Ablehnen",
     "approve": "Genehmigen",
     "keyboardHint": "Tastatur: J oder → zum Genehmigen, K oder ← zum Ablehnen"
+  },
+  "chat": {
+    "hint": "Stellen Sie eine Frage zu Ihren Dokumenten. Antworten basieren ausschließlich auf abgerufenen Inhalten und verweisen auf Quellen.",
+    "inputPlaceholder": "Stellen Sie eine Frage…",
+    "loadError": "Chat-Anfrage fehlgeschlagen"
+  },
+  "legal": {
+    "description": "Entwürfe basieren ausschließlich auf den von Ihnen ausgewählten Dokumenten (oder allen Dokumenten, falls keine ausgewählt sind) und ersetzen niemals die Prüfung durch einen Anwalt.",
+    "instructionLabel": "Entwurfsanweisung",
+    "instructionPlaceholder": "z. B. Verfassen Sie ein Schreiben, das die Verpflichtungen des Mandanten aus der beigefügten Vereinbarung zusammenfasst.",
+    "scopeLabel": "Auf Dokumente beschränken (optional)",
+    "draftButton": "Entwerfen",
+    "drafting": "Wird entworfen…",
+    "loadError": "Entwurfsanfrage fehlgeschlagen"
+  },
+  "assistant": {
+    "hint": "Bitten Sie den Assistenten, etwas zu erledigen — er kann selbstständig Tools auswählen und aufrufen, im Gegensatz zum KI-Chat, der nur auf Basis Ihrer Dokumente antwortet.",
+    "inputPlaceholder": "Fragen Sie den Assistenten…",
+    "toolCalled": "via: {{tool}}",
+    "loadError": "Assistentenanfrage fehlgeschlagen"
   }
 }

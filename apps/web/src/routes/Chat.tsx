@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { ApiError, chat, type ChatTurn, type Citation } from "../lib/api";
 import { Button } from "../components/ui/Button";
 import { useLoadingBar } from "../lib/loadingBar";
@@ -9,6 +10,7 @@ interface DisplayTurn extends ChatTurn {
 }
 
 export default function Chat() {
+  const { t } = useTranslation();
   const [turns, setTurns] = useState<DisplayTurn[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -31,7 +33,7 @@ export default function Chat() {
       const response = await chat(message, history);
       setTurns((prev) => [...prev, { role: "assistant", content: response.answer, citations: response.citations }]);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Chat request failed");
+      setError(err instanceof ApiError ? err.message : t("chat.loadError"));
     } finally {
       setSending(false);
       done();
@@ -40,13 +42,11 @@ export default function Chat() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-semibold text-ink">AI Chat</h1>
+      <h1 className="text-2xl font-semibold text-ink">{t("nav.aiChat")}</h1>
 
       <div className="flex flex-col gap-3">
         {turns.length === 0 && (
-          <p className="text-sm text-ink-2">
-            Ask a question about your documents. Answers are grounded only in retrieved content and cite sources.
-          </p>
+          <p className="text-sm text-ink-2">{t("chat.hint")}</p>
         )}
         {turns.map((turn, i) => (
           <div
@@ -69,7 +69,7 @@ export default function Chat() {
             )}
           </div>
         ))}
-        {sending && <p className="text-sm text-ink-3">Thinking…</p>}
+        {sending && <p className="text-sm text-ink-3">{t("common.thinking")}</p>}
         {error && <p className="text-sm text-danger">{error}</p>}
       </div>
 
@@ -77,12 +77,12 @@ export default function Chat() {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask a question…"
+          placeholder={t("chat.inputPlaceholder")}
           disabled={sending}
           className="w-full rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none transition-colors duration-fast focus:border-accent focus:ring-2 focus:ring-accent-soft disabled:opacity-50"
         />
         <Button type="submit" disabled={sending || !input.trim()}>
-          Send
+          {t("common.send")}
         </Button>
       </form>
     </div>

@@ -19,7 +19,9 @@
     "loading": "Loading…",
     "cancel": "Cancel",
     "delete": "Delete",
-    "create": "Create"
+    "create": "Create",
+    "send": "Send",
+    "thinking": "Thinking…"
   },
   "documents": {
     "title": "Documents",
@@ -123,5 +125,25 @@
     "reject": "Reject",
     "approve": "Approve",
     "keyboardHint": "Keyboard: J or → to approve, K or ← to reject"
+  },
+  "chat": {
+    "hint": "Ask a question about your documents. Answers are grounded only in retrieved content and cite sources.",
+    "inputPlaceholder": "Ask a question…",
+    "loadError": "Chat request failed"
+  },
+  "legal": {
+    "description": "Drafts are grounded only in the documents you select (or all documents if none are selected) and are never a substitute for attorney review.",
+    "instructionLabel": "Drafting instruction",
+    "instructionPlaceholder": "e.g. Draft a letter summarizing the client's obligations under the attached agreement.",
+    "scopeLabel": "Scope to documents (optional)",
+    "draftButton": "Draft",
+    "drafting": "Drafting…",
+    "loadError": "Draft request failed"
+  },
+  "assistant": {
+    "hint": "Ask the assistant to do something — it can choose and call tools on its own, unlike AI Chat which only answers from your documents.",
+    "inputPlaceholder": "Ask the assistant…",
+    "toolCalled": "via: {{tool}}",
+    "loadError": "Assistant request failed"
   }
 }

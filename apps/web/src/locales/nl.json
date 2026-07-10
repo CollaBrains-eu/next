@@ -19,7 +19,9 @@
     "loading": "Laden…",
     "cancel": "Annuleren",
     "delete": "Verwijderen",
-    "create": "Aanmaken"
+    "create": "Aanmaken",
+    "send": "Verzenden",
+    "thinking": "Aan het denken…"
   },
   "documents": {
     "title": "Documenten",
@@ -123,5 +125,25 @@
     "reject": "Afwijzen",
     "approve": "Goedkeuren",
     "keyboardHint": "Toetsenbord: J of → om goed te keuren, K of ← om af te wijzen"
+  },
+  "chat": {
+    "hint": "Stel een vraag over uw documenten. Antwoorden zijn uitsluitend gebaseerd op opgehaalde inhoud en verwijzen naar bronnen.",
+    "inputPlaceholder": "Stel een vraag…",
+    "loadError": "Chatverzoek mislukt"
+  },
+  "legal": {
+    "description": "Concepten zijn uitsluitend gebaseerd op de documenten die u selecteert (of alle documenten als er geen zijn geselecteerd) en vervangen nooit de beoordeling door een advocaat.",
+    "instructionLabel": "Opstelinstructie",
+    "instructionPlaceholder": "bijv. Stel een brief op waarin de verplichtingen van de cliënt onder de bijgevoegde overeenkomst worden samengevat.",
+    "scopeLabel": "Beperken tot documenten (optioneel)",
+    "draftButton": "Opstellen",
+    "drafting": "Bezig met opstellen…",
+    "loadError": "Opstelverzoek mislukt"
+  },
+  "assistant": {
+    "hint": "Vraag de assistent iets te doen — deze kan zelf tools kiezen en aanroepen, in tegenstelling tot AI-chat, die alleen antwoordt op basis van uw documenten.",
+    "inputPlaceholder": "Vraag de assistent…",
+    "toolCalled": "via: {{tool}}",
+    "loadError": "Assistentverzoek mislukt"
   }
 }
