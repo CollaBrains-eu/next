@@ -85,6 +85,9 @@ class Document(Base):
         UUID(as_uuid=True), ForeignKey("cases.id", ondelete="SET NULL"), nullable=True
     )
     doc_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    category_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("categories.id", ondelete="SET NULL"), nullable=True
+    )
     tags: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False, default=list)
     correspondent: Mapped[str | None] = mapped_column(String(255), nullable=True)
     classification_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
@@ -118,6 +121,35 @@ class DocumentChunk(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     document: Mapped["Document"] = relationship(back_populates="chunks")
+
+
+class Category(Base):
+    """A generic, hierarchical category/tag taxonomy (Phase 24, ported from
+    CollaBrains v2's `categories` table -- see docs/superpowers/plans/2026-07-10-document-categories.md).
+
+    `category_type` is a discriminator so this table can hold more than one
+    independent taxonomy (documents today; entities or anything else later)
+    without needing a separate table per concern -- `slug` only needs to be
+    unique *within* a category_type, not globally.
+    """
+
+    __tablename__ = "categories"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    slug: Mapped[str] = mapped_column(String(255), nullable=False)
+    category_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    icon: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    color: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    parent_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("categories.id", ondelete="CASCADE"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (UniqueConstraint("slug", "category_type", name="uq_category_slug_type"),)
 
 
 class AiCallLog(Base):
