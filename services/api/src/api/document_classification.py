@@ -15,16 +15,15 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.ai_gateway import chat_completion
+from api.document_categories import DOC_TYPE_TO_CATEGORY_SLUG, VALID_DOC_TYPES
 from api.models import Document
 
 logger = logging.getLogger(__name__)
 
-VALID_DOC_TYPES = {"invoice", "contract", "correspondence", "legal", "other"}
-
 CLASSIFICATION_PROMPT = """Classify the following document. Return ONLY a JSON object \
 (no prose, no markdown fences) with this shape:
 
-{{"doc_type": "invoice"|"contract"|"correspondence"|"legal"|"other", \
+{{"doc_type": one of {doc_types}, \
 "tags": [str, ...], "correspondent": str|null, "confidence": float}}
 
 "tags" should be short, lowercase keywords (max 5). "correspondent" is the sender/counterparty \
@@ -65,11 +64,25 @@ async def classify_document(*, text: str, user_id: UUID) -> DocumentClassificati
     """Classify `text` via the AI Gateway. Returns None on unparseable model output
     (graceful degradation, same as memory.py/entity_agent.py -- a bad classification
     call must never crash the document pipeline it's a subscriber of)."""
-    prompt = CLASSIFICATION_PROMPT.format(text=text[:8000])
+    prompt = CLASSIFICATION_PROMPT.format(
+        doc_types=" | ".join(f'"{t}"' for t in sorted(VALID_DOC_TYPES)), text=text[:8000],
+    )
     raw = await chat_completion(
         [{"role": "user", "content": prompt}], user_id=user_id, endpoint="document.classify", json_mode=True
     )
     return _parse_classification(raw)
+
+
+async def _category_id_for_doc_type(db: AsyncSession, doc_type: str) -> UUID | None:
+    from sqlalchemy import select
+
+    from api.models import Category
+
+    slug = DOC_TYPE_TO_CATEGORY_SLUG.get(doc_type, "other_documents")
+    category = (
+        await db.execute(select(Category).where(Category.slug == slug, Category.category_type == "document"))
+    ).scalar_one_or_none()
+    return category.id if category is not None else None
 
 
 async def classify_and_persist(db: AsyncSession, *, document_id: UUID, text: str, user_id: UUID) -> Document | None:
@@ -85,6 +98,7 @@ async def classify_and_persist(db: AsyncSession, *, document_id: UUID, text: str
     document.tags = result.tags
     document.correspondent = result.correspondent
     document.classification_confidence = result.confidence
+    document.category_id = await _category_id_for_doc_type(db, result.doc_type)
     await db.commit()
     await db.refresh(document)
     return document

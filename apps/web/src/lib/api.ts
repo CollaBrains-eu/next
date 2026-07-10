@@ -81,6 +81,7 @@ export interface DocumentOut {
   error: string | null;
   created_at: string;
   processed_at: string | null;
+  category_id: string | null;
 }
 
 export interface DocumentDetailOut extends DocumentOut {
@@ -109,6 +110,18 @@ export function uploadDocument(file: File): Promise<DocumentOut> {
 
 export function summarizeDocument(id: string): Promise<{ summary: string }> {
   return request<{ summary: string }>(`/documents/${id}/summarize`, { method: "POST" });
+}
+
+export interface CategoryOut {
+  id: string;
+  slug: string;
+  icon: string | null;
+  color: string | null;
+  parent_id: string | null;
+}
+
+export function listCategories(categoryType = "document"): Promise<CategoryOut[]> {
+  return request<CategoryOut[]>(`/categories?category_type=${categoryType}`);
 }
 
 export interface SearchResult {

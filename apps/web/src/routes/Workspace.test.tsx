@@ -10,6 +10,7 @@ vi.mock("../lib/api", async () => {
   return {
     ...actual,
     listDocuments: vi.fn(),
+    listCategories: vi.fn(),
     search: vi.fn(),
     deleteDocument: vi.fn(),
   };
@@ -24,6 +25,7 @@ const docs: api.DocumentOut[] = Array.from({ length: 12 }, (_, i) => ({
   error: null,
   created_at: "2026-07-08T19:11:38Z",
   processed_at: "2026-07-08T19:12:00Z",
+  category_id: null,
 }));
 
 function renderPage() {
@@ -40,6 +42,7 @@ describe("Workspace (Documents list)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(api.listDocuments).mockResolvedValue(docs);
+    vi.mocked(api.listCategories).mockResolvedValue([]);
   });
 
   it("renders documents in a paginated DataTable (only 10 of 12 rows visible on page 1)", async () => {
@@ -87,6 +90,42 @@ describe("Workspace (Documents list)", () => {
     fireEvent.click(checkboxes[0]);
     fireEvent.click(checkboxes[1]);
     expect(screen.getByText((_, el) => el?.textContent === "2 selected")).toBeInTheDocument();
+  });
+
+  it("shows a category filter chip and toggling it narrows the table to matching documents", async () => {
+    vi.mocked(api.listCategories).mockResolvedValue([
+      { id: "cat-1", slug: "payslip", icon: "Banknote", color: "#FF9500", parent_id: null },
+      { id: "cat-2", slug: "invoice", icon: "Receipt", color: "#FF3B30", parent_id: null },
+    ]);
+    vi.mocked(api.listDocuments).mockResolvedValue([
+      { ...docs[0], category_id: "cat-1" },
+      { ...docs[1], category_id: "cat-2" },
+    ]);
+    renderPage();
+    await screen.findByText("document-0.pdf");
+    await waitFor(() => expect(screen.getAllByText("+ Add filter")).toHaveLength(2));
+    fireEvent.click(screen.getAllByText("+ Add filter")[1]);
+    fireEvent.click(await screen.findByText("Payslip & Salary"));
+    expect(screen.getByText("document-0.pdf")).toBeInTheDocument();
+    expect(screen.queryByText("document-1.pdf")).not.toBeInTheDocument();
+  });
+
+  it("removing an active category filter chip restores the full table", async () => {
+    vi.mocked(api.listCategories).mockResolvedValue([
+      { id: "cat-1", slug: "payslip", icon: "Banknote", color: "#FF9500", parent_id: null },
+      { id: "cat-2", slug: "invoice", icon: "Receipt", color: "#FF3B30", parent_id: null },
+    ]);
+    vi.mocked(api.listDocuments).mockResolvedValue([
+      { ...docs[0], category_id: "cat-1" },
+      { ...docs[1], category_id: "cat-2" },
+    ]);
+    renderPage();
+    await screen.findByText("document-0.pdf");
+    await waitFor(() => expect(screen.getAllByText("+ Add filter")).toHaveLength(2));
+    fireEvent.click(screen.getAllByText("+ Add filter")[1]);
+    fireEvent.click(await screen.findByText("Payslip & Salary"));
+    fireEvent.click(screen.getByLabelText("Remove Payslip & Salary"));
+    expect(screen.getByText("document-1.pdf")).toBeInTheDocument();
   });
 
   it("bulk-deleting selected rows calls deleteDocument for each and shows a toast", async () => {
