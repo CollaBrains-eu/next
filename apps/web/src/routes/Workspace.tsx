@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { listDocuments, search as searchApi, deleteDocument, type DocumentOut, type SearchResult } from "../lib/api";
+import {
+  listDocuments,
+  listCategories,
+  search as searchApi,
+  deleteDocument,
+  type DocumentOut,
+  type CategoryOut,
+  type SearchResult,
+} from "../lib/api";
 import UploadDialog from "../components/UploadDialog";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { Badge } from "../components/ui/Badge";
@@ -34,8 +42,11 @@ export default function Workspace() {
   const [results, setResults] = useState<SearchResult[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
+  const [categories, setCategories] = useState<CategoryOut[]>([]);
+  const [categoryFilters, setCategoryFilters] = useState<string[]>([]);
   const { isSelected, toggle, clear, selectedCount, selectedKeys } = useBulkSelection<DocumentOut>((doc) => doc.id);
   const { showToast } = useToast();
+  const CATEGORY_FILTER_OPTIONS = categories.map((c) => ({ id: c.id, label: t(`categories.${c.slug}`) }));
 
   const refresh = useCallback((showLoading = false) => {
     if (showLoading) setLoading(true);
@@ -49,6 +60,10 @@ export default function Workspace() {
     const interval = setInterval(() => refresh(false), 5000);
     return () => clearInterval(interval);
   }, [refresh]);
+
+  useEffect(() => {
+    listCategories().then(setCategories);
+  }, []);
 
   async function handleSearch(e: FormEvent) {
     e.preventDefault();
@@ -73,9 +88,15 @@ export default function Workspace() {
   }
 
   const activeFilters = useMemo(() => new Set(statusFilters), [statusFilters]);
+  const activeCategoryFilters = useMemo(() => new Set(categoryFilters), [categoryFilters]);
   const filteredDocuments = useMemo(
-    () => (activeFilters.size === 0 ? documents : documents.filter((doc) => activeFilters.has(doc.status))),
-    [documents, activeFilters]
+    () =>
+      documents.filter(
+        (doc) =>
+          (activeFilters.size === 0 || activeFilters.has(doc.status)) &&
+          (activeCategoryFilters.size === 0 || (doc.category_id !== null && activeCategoryFilters.has(doc.category_id)))
+      ),
+    [documents, activeFilters, activeCategoryFilters]
   );
 
   const columns: Column<DocumentOut>[] = [
@@ -179,6 +200,14 @@ export default function Workspace() {
             addOptions={STATUS_FILTER_OPTIONS.filter((opt) => !statusFilters.includes(opt.id))}
             onAdd={(opt) => setStatusFilters((prev) => [...prev, opt.id])}
           />
+          {categories.length > 0 && (
+            <FilterChips
+              chips={CATEGORY_FILTER_OPTIONS.filter((opt) => categoryFilters.includes(opt.id))}
+              onRemove={(id) => setCategoryFilters((prev) => prev.filter((c) => c !== id))}
+              addOptions={CATEGORY_FILTER_OPTIONS.filter((opt) => !categoryFilters.includes(opt.id))}
+              onAdd={(opt) => setCategoryFilters((prev) => [...prev, opt.id])}
+            />
+          )}
           <DataTable columns={columns} rows={filteredDocuments} rowKey={(doc) => doc.id} />
           <BulkActionBar
             count={selectedCount}
