@@ -7,6 +7,7 @@ import { LoadingBarProvider, useLoadingBar } from "./lib/loadingBar";
 import { CommandCenter } from "./components/CommandCenter";
 import Layout from "./components/Layout";
 import Login from "./routes/Login";
+import Dashboard from "./routes/Dashboard";
 import Workspace from "./routes/Workspace";
 import DocumentDetail from "./routes/DocumentDetail";
 import Chat from "./routes/Chat";
@@ -53,6 +54,14 @@ export default function App() {
                 <Route path="/login" element={<Login />} />
                 <Route
                   path="/"
+                  element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/documents"
                   element={
                     <ProtectedRoute>
                       <Workspace />

@@ -66,7 +66,7 @@ export default function DocumentDetail() {
       await deleteDocument(id);
       setConfirmOpen(false);
       showToast(t("documentDetail.deletedToast", { title: doc?.title }));
-      navigate("/");
+      navigate("/documents");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("documentDetail.deleteError"));
       setConfirmOpen(false);
@@ -77,7 +77,7 @@ export default function DocumentDetail() {
   if (error) {
     return (
       <div>
-        <Breadcrumbs items={[{ label: t("nav.documents"), to: "/" }, { label: t("documentDetail.breadcrumbError") }]} />
+        <Breadcrumbs items={[{ label: t("nav.documents"), to: "/documents" }, { label: t("documentDetail.breadcrumbError") }]} />
         <Alert variant="danger" title={t("documentDetail.loadError")}>
           {error}
         </Alert>
@@ -89,7 +89,7 @@ export default function DocumentDetail() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs items={[{ label: t("nav.documents"), to: "/" }, { label: doc.title }]} />
+      <Breadcrumbs items={[{ label: t("nav.documents"), to: "/documents" }, { label: doc.title }]} />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">

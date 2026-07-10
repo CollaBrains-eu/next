@@ -1,5 +1,6 @@
 export const NAV_ITEMS: { to: string; labelKey: string }[] = [
-  { to: "/", labelKey: "nav.documents" },
+  { to: "/", labelKey: "nav.dashboard" },
+  { to: "/documents", labelKey: "nav.documents" },
   { to: "/chat", labelKey: "nav.aiChat" },
   { to: "/legal", labelKey: "nav.legalDraft" },
   { to: "/tasks", labelKey: "nav.tasks" },

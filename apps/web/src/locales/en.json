@@ -1,5 +1,6 @@
 {
   "nav": {
+    "dashboard": "Dashboard",
     "documents": "Documents",
     "aiChat": "AI Chat",
     "legalDraft": "Legal Draft",
