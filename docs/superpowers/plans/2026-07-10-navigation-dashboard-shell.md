@@ -1496,13 +1496,14 @@ Expected: PASS, 0 failures.
 
 - [ ] **Step 2: Typecheck**
 
-Run: `pnpm --filter web exec tsc --noEmit`
-Expected: no errors.
+Run: `pnpm --filter web build`
+Expected: **pre-existing baseline noise only** — this repo's `tsconfig.json` doesn't pick up `@testing-library/jest-dom`'s matcher type augmentation under `tsc -b`, so every `*.test.tsx` file in the repo (48 files, 227 errors on `main` before this plan's changes — confirmed by running this exact command against `main`) reports `TS2339: Property 'toBeInTheDocument' does not exist on type 'Assertion<...>'` and similar for `toHaveAttribute`/`toHaveValue`/`toBeDisabled`/etc. Vitest itself does not type-check (esbuild strips types), which is why the real test suite still passes 219/219 despite this. This is out of scope to fix here (pre-existing, repo-wide, unrelated to this plan).
+The bar for this plan: zero errors in any non-`.test.tsx` file this plan touches or creates (`DashboardWidgetCard.tsx`, `Dashboard.tsx`, `App.tsx`, `navigation.ts`, `DocumentDetail.tsx`, `AlertsBell.tsx`, `commandCenter.tsx`, `CommandCenter.tsx`, `Sidebar.tsx`), and any errors in the new `*.test.tsx` files this plan adds must be exactly this same pre-existing `TS2339` matcher pattern (not a new error type, not a missing-import, not a signature mismatch) — confirm by grepping the output for the new files' paths and checking every reported line matches this pattern.
 
 - [ ] **Step 3: Lint**
 
-Run: `pnpm --filter web lint` (check `apps/web/package.json` for the exact script name if this differs)
-Expected: no errors.
+Run: `pnpm --filter web lint`
+Expected: this is currently a **broken pre-existing script** in this repo — `package.json` defines `"lint": "eslint ."` but `eslint` is not a declared dependency anywhere in `apps/web/package.json`, so this fails with `eslint: command not found` on a clean install, before any of this plan's changes. Confirmed against `main`. Skip this step (nothing to compare a regression against); do not attempt to install or configure ESLint as part of this plan — that is a separate, unrelated initiative.
 
 - [ ] **Step 4: Manual smoke test in the dev server**
 
