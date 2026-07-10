@@ -16,6 +16,8 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.ai_gateway import chat_completion, chat_completion_with_tools
+from api.chat import Citation
+from api.legal import DraftResponse
 from api.permissions import has_permission
 from api.preferences import build_language_instruction, get_preferences
 from api.tool_registry import ToolPermissionError, dispatch, list_tools, to_ollama_tools
@@ -42,6 +44,8 @@ def _tools_for_role(role: str) -> list[dict[str, Any]]:
 
 MAX_TOOL_ROUNDS = 5
 
+TERMINAL_TOOLS = {"answer_from_documents", "draft_legal_document"}
+
 
 async def handle_request(db: AsyncSession, *, user_id: UUID, role: str, message: str) -> dict[str, Any]:
     """Answer a free-form request, autonomously chaining up to MAX_TOOL_ROUNDS tool calls."""
@@ -60,7 +64,7 @@ async def handle_request(db: AsyncSession, *, user_id: UUID, role: str, message:
     tools = _tools_for_role(role)
     if not tools:
         answer = await chat_completion(messages, user_id=user_id, endpoint="manager_agent")
-        return {"answer": answer, "tools_called": []}
+        return {"answer": answer, "tools_called": [], "citations": None, "legal_draft": None}
 
     tools_called: list[str] = []
     for _round in range(MAX_TOOL_ROUNDS):
@@ -69,7 +73,10 @@ async def handle_request(db: AsyncSession, *, user_id: UUID, role: str, message:
         )
         tool_calls = response_message.get("tool_calls")
         if not tool_calls:
-            return {"answer": response_message.get("content", ""), "tools_called": tools_called}
+            return {
+                "answer": response_message.get("content", ""), "tools_called": tools_called,
+                "citations": None, "legal_draft": None,
+            }
 
         call = tool_calls[0]
         function = call.get("function", {})
@@ -78,17 +85,38 @@ async def handle_request(db: AsyncSession, *, user_id: UUID, role: str, message:
 
         try:
             result = await dispatch(tool_name, db=db, user_id=user_id, **arguments)
-            result_content = json.dumps(result)
         except (KeyError, ValueError, ToolPermissionError) as exc:
-            result_content = json.dumps({"error": str(exc)})
             logger.info("manager agent tool call %r failed: %s", tool_name, exc)
+            tools_called.append(tool_name)
+            messages = [
+                *messages,
+                {"role": "assistant", "content": "", "tool_calls": tool_calls},
+                {"role": "tool", "content": json.dumps({"error": str(exc)})},
+            ]
+            continue
 
         tools_called.append(tool_name)
+
+        if tool_name in TERMINAL_TOOLS:
+            if tool_name == "answer_from_documents":
+                return {
+                    "answer": result["answer"],
+                    "tools_called": tools_called,
+                    "citations": [Citation(**c) for c in result["citations"]],
+                    "legal_draft": None,
+                }
+            return {  # tool_name == "draft_legal_document"
+                "answer": result["draft"],
+                "tools_called": tools_called,
+                "citations": None,
+                "legal_draft": DraftResponse(**result),
+            }
+
         messages = [
             *messages,
             {"role": "assistant", "content": "", "tool_calls": tool_calls},
-            {"role": "tool", "content": result_content},
+            {"role": "tool", "content": json.dumps(result)},
         ]
 
     answer = await chat_completion(messages, user_id=user_id, endpoint="manager_agent")
-    return {"answer": answer, "tools_called": tools_called}
+    return {"answer": answer, "tools_called": tools_called, "citations": None, "legal_draft": None}

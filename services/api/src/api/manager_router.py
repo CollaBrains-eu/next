@@ -8,7 +8,9 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth import get_current_user
+from api.chat import Citation
 from api.db import get_db
+from api.legal import DraftResponse
 from api.manager_agent import handle_request
 from api.models import User
 
@@ -22,6 +24,8 @@ class AskRequest(BaseModel):
 class AskResponse(BaseModel):
     answer: str
     tools_called: list[str]
+    citations: list[Citation] | None = None
+    legal_draft: DraftResponse | None = None
 
 
 @router.post("/ask", response_model=AskResponse)

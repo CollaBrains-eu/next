@@ -242,3 +242,76 @@ async def test_handle_request_omits_language_instruction_when_no_preference_set(
     sent_messages = mock_completion.call_args.args[0]
     system_message = sent_messages[0]["content"]
     assert "respond only in" not in system_message.lower()
+
+
+async def test_handle_request_treats_answer_from_documents_as_terminal():
+    from api.chat import Citation, GroundedAnswer
+
+    user = await _create_user(_unique("manageruser"))
+    tool_call_response = {
+        "content": "", "tool_calls": [{"function": {"name": "answer_from_documents", "arguments": {"message": "what is x"}}}],
+    }
+    fake_answer = GroundedAnswer(
+        answer="grounded answer", citations=[Citation(marker=1, document_id=uuid4(), document_title="t", chunk_id=uuid4())],
+    )
+
+    async with async_session() as db:
+        with (
+            patch("api.manager_agent.chat_completion_with_tools", return_value=tool_call_response) as mock_with_tools,
+            patch("api.tools.answer_grounded_question", return_value=fake_answer),
+        ):
+            result = await handle_request(db, user_id=user.id, role="member", message="what is x")
+
+    assert result["answer"] == "grounded answer"
+    assert result["tools_called"] == ["answer_from_documents"]
+    assert result["citations"][0].document_title == "t"
+    assert result.get("legal_draft") is None
+    mock_with_tools.assert_called_once()  # no second round-trip to re-synthesize
+
+
+async def test_handle_request_treats_draft_legal_document_as_terminal():
+    from api.legal import DraftResponse
+
+    user = await _create_user(_unique("manageruser"))
+    tool_call_response = {
+        "content": "", "tool_calls": [{"function": {"name": "draft_legal_document", "arguments": {"instruction": "draft a letter"}}}],
+    }
+    fake_draft = DraftResponse(draft="Dear Sir or Madam...", citations=[])
+
+    async with async_session() as db:
+        with (
+            patch("api.manager_agent.chat_completion_with_tools", return_value=tool_call_response) as mock_with_tools,
+            patch("api.tools._generate_draft", return_value=fake_draft),
+        ):
+            result = await handle_request(db, user_id=user.id, role="member", message="draft a letter")
+
+    assert result["answer"] == "Dear Sir or Madam..."
+    assert result["tools_called"] == ["draft_legal_document"]
+    assert result["legal_draft"].disclaimer
+    mock_with_tools.assert_called_once()
+
+
+async def test_handle_request_non_terminal_tool_still_gets_a_synthesis_round():
+    user = await _create_user(_unique("manageruser"))
+    tool_call_response = {
+        "content": "", "tool_calls": [{"function": {"name": "search", "arguments": {"query": "hello"}}}],
+    }
+    final_response = {"content": "synthesized"}
+
+    async with async_session() as db:
+        with (
+            patch(
+                "api.manager_agent.chat_completion_with_tools",
+                side_effect=[tool_call_response, final_response],
+            ) as mock_with_tools,
+            patch("api.tools.hybrid_search", return_value=[]),
+        ):
+            result = await handle_request(db, user_id=user.id, role="member", message="find hello")
+
+    assert result["answer"] == "synthesized"
+    assert result.get("citations") is None
+    assert result.get("legal_draft") is None
+    # search is non-terminal: the loop needs a second chat_completion_with_tools
+    # call (which happens to return no tool_calls this time) to produce a final
+    # answer, unlike the terminal-tool tests above which return after one call.
+    assert mock_with_tools.call_count == 2
