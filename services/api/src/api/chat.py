@@ -48,6 +48,21 @@ router = APIRouter(tags=["chat"])
 
 REFLECTION_RETRY_CAP = 20
 
+# The event loop only holds a *weak* reference to asyncio.Task objects (see
+# asyncio docs, "Task Object"). If nothing else holds a strong reference, a
+# fire-and-forget task can be garbage-collected mid-flight, silently dropping
+# whatever it was doing. This module-level set + done-callback is the pattern
+# the docs themselves recommend for background tasks like memory extraction.
+_background_tasks: set[asyncio.Task] = set()
+
+
+def _spawn_background_task(coro) -> asyncio.Task:
+    task = asyncio.create_task(coro)
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+    return task
+
+
 SYSTEM_PROMPT = (
     "You are the CollaBrains assistant. Answer the user's question using ONLY the "
     "provided context excerpts. If the context doesn't contain the answer, say so "
@@ -136,8 +151,10 @@ async def answer_grounded_question(
 
     Runs outside a request lifecycle for tool-handler callers (no
     BackgroundTasks available), so the background memory-extraction step
-    uses asyncio.create_task directly instead -- same fire-and-forget
-    semantics as the route's background_tasks.add_task call.
+    uses _spawn_background_task (asyncio.create_task plus a strong
+    reference held until completion) instead -- same fire-and-forget
+    semantics as the route's background_tasks.add_task call, without the
+    risk of the task being garbage-collected mid-flight.
     """
     history = history or []
     citations, context_text = await _retrieve(db, message, context_chunks)
@@ -178,7 +195,7 @@ async def answer_grounded_question(
     except Exception:  # noqa: BLE001 - reflection is a quality check, must never fail the answer
         logger.exception("reflection failed for grounded question from user %s", user_id)
 
-    asyncio.create_task(_extract_and_store_memory(user_id, message, answer))
+    _spawn_background_task(_extract_and_store_memory(user_id, message, answer))
 
     return GroundedAnswer(answer=answer, citations=citations)
 
