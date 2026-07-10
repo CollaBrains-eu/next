@@ -113,9 +113,16 @@ users will see long waits on compound requests.
 - Schema: `{instruction: string, document_ids?: string[]}` —
   `document_ids` omitted means "all documents," matching today's
   no-checkboxes-selected behavior. Since there's no more checkbox UI,
-  resolving which documents are meant comes from the model matching
-  document titles mentioned in the message text, or omitting the
-  field entirely.
+  the model has to resolve titles mentioned in the message to IDs
+  itself: the tool's registry description includes a compact
+  `{id, title}` list of the caller's documents directly in its
+  schema/description text (small enough to inline — this project's
+  existing document counts don't approach a size where that stops
+  being cheap; `lookup_vehicle` already sets the precedent of tools
+  taking human-readable identifiers rather than requiring a separate
+  resolution step). If titles don't match confidently, the model
+  omits `document_ids` and falls back to "all documents," same as
+  today's no-selection behavior.
 - Returns a structured result: `{draft, citations, disclaimer}`. The
   disclaimer is a **data-shape guarantee** attached to the tool's
   result, not prose the model has to remember to include — compliance
@@ -192,8 +199,9 @@ new onboarding component in `apps/web/src/`
   `User` row, checks this table for the username, consumes (reads +
   deletes) a match if present, and sets `phone_number` on the new row.
 - New `User.phone_prompt_dismissed: bool = False` column.
-- New endpoint `PATCH /auth/me/dismiss-phone-prompt` (or similar) —
-  sets the flag, no body needed.
+- New endpoint `PATCH /auth/me/dismiss-phone-prompt`, no request body,
+  sets `phone_prompt_dismissed = True` on the caller and returns the
+  updated `UserOut`, same response shape as `PUT /auth/me/phone`.
 - Frontend: a one-time modal shown post-login when
   `phone_number is None and not phone_prompt_dismissed` — "Set phone
   number" (calls existing `PUT /auth/me/phone`) or "Skip" (calls the
