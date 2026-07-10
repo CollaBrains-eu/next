@@ -169,3 +169,36 @@ async def test_lookup_vehicle_tool_reports_rdw_outage_gracefully_without_raising
 
     assert result["found"] is False
     assert "error" in result
+
+
+async def test_answer_from_documents_tool_returns_grounded_answer():
+    from api.chat import Citation, GroundedAnswer
+
+    user = await _create_user(f"tooluser-{uuid4().hex[:8]}")
+    fake_answer = GroundedAnswer(
+        answer="the answer",
+        citations=[Citation(marker=1, document_id=uuid4(), document_title="t", chunk_id=uuid4())],
+    )
+
+    async with async_session() as db:
+        with patch("api.tools.answer_grounded_question", return_value=fake_answer):
+            result = await dispatch("answer_from_documents", db=db, user_id=user.id, message="what is x")
+
+    assert result["answer"] == "the answer"
+    assert result["citations"][0]["document_title"] == "t"
+
+
+async def test_answer_from_documents_tool_passes_history_through():
+    from api.chat import GroundedAnswer
+
+    user = await _create_user(f"tooluser-{uuid4().hex[:8]}")
+    fake_answer = GroundedAnswer(answer="ok", citations=[])
+
+    async with async_session() as db:
+        with patch("api.tools.answer_grounded_question", return_value=fake_answer) as mock_answer:
+            await dispatch(
+                "answer_from_documents", db=db, user_id=user.id, message="follow-up",
+                history=[{"role": "user", "content": "earlier question"}],
+            )
+
+    assert mock_answer.call_args.kwargs["history"] == [{"role": "user", "content": "earlier question"}]

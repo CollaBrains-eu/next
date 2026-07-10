@@ -11,6 +11,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.chat import answer_grounded_question
 from api.documents import _generate_summary
 from api.entity_agent import extract_entities
 from api.legal import _generate_draft
@@ -39,6 +40,13 @@ async def _search_handler(
             for hit in hits
         ]
     }
+
+
+async def _answer_from_documents_handler(
+    *, db: AsyncSession, user_id: UUID, message: str, history: list[dict] | None = None,
+) -> dict[str, Any]:
+    result = await answer_grounded_question(db, user_id=user_id, message=message, history=history)
+    return result.model_dump(mode="json")
 
 
 async def _summarize_document_handler(
@@ -120,6 +128,24 @@ register_tool(ToolDescriptor(
     },
     output_schema={"documents": "array of {chunk_id, document_id, content, score}"},
     handler=_search_handler,
+))
+
+register_tool(ToolDescriptor(
+    name="answer_from_documents",
+    description=(
+        "Answer a question using only the content of indexed documents, with "
+        "citations. Use this for any question that should be answered from the "
+        "user's documents -- it retrieves, grounds, and fact-checks its own "
+        "answer before returning it. Prefer this over 'search' when the goal is "
+        "a finished answer rather than raw search results to reason over further."
+    ),
+    permissions=["documents.read"],
+    input_schema={
+        "message": "string",
+        "history": "array of {role, content} (optional, prior conversation turns)",
+    },
+    output_schema={"answer": "string", "citations": "array of {marker, document_id, document_title, chunk_id}"},
+    handler=_answer_from_documents_handler,
 ))
 
 register_tool(ToolDescriptor(
