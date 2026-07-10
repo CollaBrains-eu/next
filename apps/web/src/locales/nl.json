@@ -39,6 +39,12 @@
     "systemStatusEmpty": "Alle systemen operationeel.",
     "viewAll": "Alles bekijken →"
   },
+  "alerts": {
+    "title": "Meldingen",
+    "empty": "Je bent helemaal bij",
+    "pendingReviews_one": "{{count}} entiteit wacht op beoordeling",
+    "pendingReviews_other": "{{count}} entiteiten wachten op beoordeling"
+  },
   "common": {
     "openMenu": "Menu openen",
     "signOut": "Afmelden",

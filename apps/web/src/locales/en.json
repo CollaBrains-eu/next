@@ -39,6 +39,12 @@
     "systemStatusEmpty": "All systems nominal.",
     "viewAll": "View all →"
   },
+  "alerts": {
+    "title": "Alerts",
+    "empty": "You're all caught up",
+    "pendingReviews_one": "{{count}} entity pending review",
+    "pendingReviews_other": "{{count}} entities pending review"
+  },
   "common": {
     "openMenu": "Open menu",
     "signOut": "Sign out",

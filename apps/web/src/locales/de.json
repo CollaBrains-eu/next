@@ -39,6 +39,12 @@
     "systemStatusEmpty": "Alle Systeme funktionsfähig.",
     "viewAll": "Alle anzeigen →"
   },
+  "alerts": {
+    "title": "Benachrichtigungen",
+    "empty": "Alles erledigt",
+    "pendingReviews_one": "{{count}} Entität wartet auf Prüfung",
+    "pendingReviews_other": "{{count}} Entitäten warten auf Prüfung"
+  },
   "common": {
     "openMenu": "Menü öffnen",
     "signOut": "Abmelden",
