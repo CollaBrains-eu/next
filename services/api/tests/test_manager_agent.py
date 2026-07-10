@@ -51,8 +51,7 @@ async def test_handle_request_with_no_permitted_tools_falls_back_to_plain_comple
         ):
             result = await handle_request(db, user_id=user.id, role="service", message="hello")
 
-    assert result["answer"] == "a direct answer"
-    assert result["tools_called"] == []
+    assert result == {"answer": "a direct answer", "tool_called": None}
     mock_plain.assert_called_once()
     mock_with_tools.assert_not_called()
 
@@ -64,8 +63,7 @@ async def test_handle_request_returns_direct_answer_when_model_requests_no_tool(
         with patch("api.manager_agent.chat_completion_with_tools", return_value={"content": "just an answer"}):
             result = await handle_request(db, user_id=user.id, role="member", message="what's the weather")
 
-    assert result["answer"] == "just an answer"
-    assert result["tools_called"] == []
+    assert result == {"answer": "just an answer", "tool_called": None}
 
 
 async def test_handle_request_dispatches_a_real_tool_end_to_end():
@@ -91,8 +89,7 @@ async def test_handle_request_dispatches_a_real_tool_end_to_end():
         ):
             result = await handle_request(db, user_id=user.id, role="member", message="find hello")
 
-    assert result["answer"] == "Here's what I found."
-    assert result["tools_called"] == ["search"]
+    assert result == {"answer": "Here's what I found.", "tool_called": "search"}
     follow_up_messages = mock_final.call_args.args[0]
     assert follow_up_messages[-1]["role"] == "tool"
     assert "found this" in follow_up_messages[-1]["content"]
@@ -112,8 +109,7 @@ async def test_handle_request_feeds_a_tool_error_back_to_the_model():
         ):
             result = await handle_request(db, user_id=user.id, role="member", message="summarize doc x")
 
-    assert result["answer"] == "I couldn't find that document."
-    assert result["tools_called"] == ["summarize_document"]
+    assert result == {"answer": "I couldn't find that document.", "tool_called": "summarize_document"}
     follow_up_messages = mock_final.call_args.args[0]
     assert "error" in follow_up_messages[-1]["content"]
 
@@ -137,7 +133,7 @@ async def test_handle_request_denies_a_tool_the_role_lacks_permission_for():
         ):
             result = await handle_request(db, user_id=user.id, role="service", message="find hello")
 
-    assert result["tools_called"] == ["search"]
+    assert result["tool_called"] == "search"
     follow_up_messages = mock_final.call_args.args[0]
     assert "error" in follow_up_messages[-1]["content"]
 

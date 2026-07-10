@@ -24,7 +24,7 @@ async def test_ask_returns_a_direct_answer_when_no_tool_is_needed(client):
     assert response.status_code == 200
     body = response.json()
     assert body["answer"] == "hi there"
-    assert body["tools_called"] == []
+    assert body["tool_called"] is None
 
 
 async def test_ask_dispatches_a_tool_end_to_end(client):
@@ -53,7 +53,7 @@ async def test_ask_dispatches_a_tool_end_to_end(client):
     assert response.status_code == 200
     body = response.json()
     assert body["answer"] == "Found it."
-    assert body["tools_called"] == ["search"]
+    assert body["tool_called"] == "search"
 
 
 async def test_ask_rejects_missing_token(client):

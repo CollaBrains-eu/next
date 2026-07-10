@@ -57,14 +57,14 @@ async def handle_request(db: AsyncSession, *, user_id: UUID, role: str, message:
     tools = _tools_for_role(role)
     if not tools:
         answer = await chat_completion(messages, user_id=user_id, endpoint="manager_agent")
-        return {"answer": answer, "tools_called": []}
+        return {"answer": answer, "tool_called": None}
 
     response_message = await chat_completion_with_tools(
         messages, user_id=user_id, endpoint="manager_agent", tools=tools,
     )
     tool_calls = response_message.get("tool_calls")
     if not tool_calls:
-        return {"answer": response_message.get("content", ""), "tools_called": []}
+        return {"answer": response_message.get("content", ""), "tool_called": None}
 
     call = tool_calls[0]
     function = call.get("function", {})
@@ -85,4 +85,4 @@ async def handle_request(db: AsyncSession, *, user_id: UUID, role: str, message:
     ]
     answer = await chat_completion(follow_up_messages, user_id=user_id, endpoint="manager_agent")
 
-    return {"answer": answer, "tools_called": [tool_name]}
+    return {"answer": answer, "tool_called": tool_name}
