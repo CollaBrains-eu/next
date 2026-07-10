@@ -79,23 +79,25 @@ async def test_handle_request_dispatches_a_real_tool_end_to_end():
 
     fake_hit = SearchHit(chunk=_FakeChunk(), score=0.7)
     tool_call_response = {
-        "content": "",
-        "tool_calls": [{"function": {"name": "search", "arguments": {"query": "hello"}}}],
+        "content": "", "tool_calls": [{"function": {"name": "search", "arguments": {"query": "hello"}}}],
     }
+    final_response = {"content": "Here's what I found."}
 
     async with async_session() as db:
         with (
-            patch("api.manager_agent.chat_completion_with_tools", return_value=tool_call_response),
+            patch(
+                "api.manager_agent.chat_completion_with_tools",
+                side_effect=[tool_call_response, final_response],
+            ) as mock_with_tools,
             patch("api.tools.hybrid_search", return_value=[fake_hit]),
-            patch("api.manager_agent.chat_completion", return_value="Here's what I found.") as mock_final,
         ):
             result = await handle_request(db, user_id=user.id, role="member", message="find hello")
 
     assert result["answer"] == "Here's what I found."
     assert result["tools_called"] == ["search"]
-    follow_up_messages = mock_final.call_args.args[0]
-    assert follow_up_messages[-1]["role"] == "tool"
-    assert "found this" in follow_up_messages[-1]["content"]
+    second_round_messages = mock_with_tools.call_args_list[1].args[0]
+    assert second_round_messages[-1]["role"] == "tool"
+    assert "found this" in second_round_messages[-1]["content"]
 
 
 async def test_handle_request_feeds_a_tool_error_back_to_the_model():
@@ -104,18 +106,19 @@ async def test_handle_request_feeds_a_tool_error_back_to_the_model():
         "content": "",
         "tool_calls": [{"function": {"name": "summarize_document", "arguments": {"document_id": str(uuid4())}}}],
     }
+    final_response = {"content": "I couldn't find that document."}
 
     async with async_session() as db:
-        with (
-            patch("api.manager_agent.chat_completion_with_tools", return_value=tool_call_response),
-            patch("api.manager_agent.chat_completion", return_value="I couldn't find that document.") as mock_final,
-        ):
+        with patch(
+            "api.manager_agent.chat_completion_with_tools",
+            side_effect=[tool_call_response, final_response],
+        ) as mock_with_tools:
             result = await handle_request(db, user_id=user.id, role="member", message="summarize doc x")
 
     assert result["answer"] == "I couldn't find that document."
     assert result["tools_called"] == ["summarize_document"]
-    follow_up_messages = mock_final.call_args.args[0]
-    assert "error" in follow_up_messages[-1]["content"]
+    second_round_messages = mock_with_tools.call_args_list[1].args[0]
+    assert "error" in second_round_messages[-1]["content"]
 
 
 async def test_handle_request_denies_a_tool_the_role_lacks_permission_for():
@@ -125,21 +128,94 @@ async def test_handle_request_denies_a_tool_the_role_lacks_permission_for():
     user = await _create_user(_unique("manageruser"), role="service")
     fake_tools = [{"type": "function", "function": {"name": "search", "description": "d", "parameters": {}}}]
     tool_call_response = {
-        "content": "",
-        "tool_calls": [{"function": {"name": "search", "arguments": {"query": "hello"}}}],
+        "content": "", "tool_calls": [{"function": {"name": "search", "arguments": {"query": "hello"}}}],
     }
+    final_response = {"content": "Sorry, I can't do that."}
 
     async with async_session() as db:
         with (
             patch("api.manager_agent._tools_for_role", return_value=fake_tools),
-            patch("api.manager_agent.chat_completion_with_tools", return_value=tool_call_response),
-            patch("api.manager_agent.chat_completion", return_value="Sorry, I can't do that.") as mock_final,
+            patch(
+                "api.manager_agent.chat_completion_with_tools",
+                side_effect=[tool_call_response, final_response],
+            ) as mock_with_tools,
         ):
             result = await handle_request(db, user_id=user.id, role="service", message="find hello")
 
     assert result["tools_called"] == ["search"]
-    follow_up_messages = mock_final.call_args.args[0]
-    assert "error" in follow_up_messages[-1]["content"]
+    second_round_messages = mock_with_tools.call_args_list[1].args[0]
+    assert "error" in second_round_messages[-1]["content"]
+
+
+async def test_handle_request_chains_two_tool_calls():
+    user = await _create_user(_unique("manageruser"))
+    first_call = {
+        "content": "", "tool_calls": [{"function": {"name": "lookup_vehicle", "arguments": {"kenteken": "AB-12-CD"}}}],
+    }
+    second_call = {
+        "content": "", "tool_calls": [{"function": {"name": "search", "arguments": {"query": "owner"}}}],
+    }
+    final = {"content": "Here's the combined answer."}
+
+    async with async_session() as db:
+        with (
+            patch(
+                "api.manager_agent.chat_completion_with_tools",
+                side_effect=[first_call, second_call, final],
+            ),
+            patch("api.tools._lookup_vehicle", return_value=None),
+            patch("api.tools.hybrid_search", return_value=[]),
+        ):
+            result = await handle_request(db, user_id=user.id, role="member", message="look up then search")
+
+    assert result["answer"] == "Here's the combined answer."
+    assert result["tools_called"] == ["lookup_vehicle", "search"]
+
+
+async def test_handle_request_stops_at_max_rounds_without_a_final_answer():
+    user = await _create_user(_unique("manageruser"))
+    always_calls_search = {
+        "content": "", "tool_calls": [{"function": {"name": "search", "arguments": {"query": "x"}}}],
+    }
+
+    async with async_session() as db:
+        with (
+            patch("api.manager_agent.chat_completion_with_tools", return_value=always_calls_search),
+            patch("api.tools.hybrid_search", return_value=[]),
+            # MAX_TOOL_ROUNDS is exhausted without the model ever returning a
+            # tool_calls-less response, so the loop falls through to one plain
+            # chat_completion() call (not chat_completion_with_tools) to produce
+            # a final answer -- this must be mocked separately or the test would
+            # hit real Ollama.
+            patch("api.manager_agent.chat_completion", return_value="ran out of steps") as mock_final,
+        ):
+            result = await handle_request(db, user_id=user.id, role="member", message="loop forever")
+
+    assert result["answer"] == "ran out of steps"
+    assert result["tools_called"] == ["search"] * 5
+    mock_final.assert_called_once()
+
+
+async def test_handle_request_recovers_from_a_mid_chain_tool_error():
+    user = await _create_user(_unique("manageruser"))
+    failing_call = {
+        "content": "", "tool_calls": [{"function": {"name": "summarize_document", "arguments": {"document_id": str(uuid4())}}}],
+    }
+    recovery_call = {"content": "", "tool_calls": [{"function": {"name": "search", "arguments": {"query": "x"}}}]}
+    final = {"content": "Found it a different way."}
+
+    async with async_session() as db:
+        with (
+            patch(
+                "api.manager_agent.chat_completion_with_tools",
+                side_effect=[failing_call, recovery_call, final],
+            ),
+            patch("api.tools.hybrid_search", return_value=[]),
+        ):
+            result = await handle_request(db, user_id=user.id, role="member", message="try then recover")
+
+    assert result["answer"] == "Found it a different way."
+    assert result["tools_called"] == ["summarize_document", "search"]
 
 
 async def test_handle_request_includes_preferred_language_in_system_prompt():

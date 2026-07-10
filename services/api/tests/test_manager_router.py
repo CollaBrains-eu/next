@@ -39,14 +39,16 @@ async def test_ask_dispatches_a_tool_end_to_end(client):
 
     fake_hit = SearchHit(chunk=_FakeChunk(), score=0.5)
     tool_call_response = {
-        "content": "",
-        "tool_calls": [{"function": {"name": "search", "arguments": {"query": "hello"}}}],
+        "content": "", "tool_calls": [{"function": {"name": "search", "arguments": {"query": "hello"}}}],
     }
+    final_response = {"content": "Found it."}
 
     with (
-        patch("api.manager_agent.chat_completion_with_tools", return_value=tool_call_response),
+        patch(
+            "api.manager_agent.chat_completion_with_tools",
+            side_effect=[tool_call_response, final_response],
+        ),
         patch("api.tools.hybrid_search", return_value=[fake_hit]),
-        patch("api.manager_agent.chat_completion", return_value="Found it."),
     ):
         response = await client.post("/manager/ask", headers=headers, json={"message": "find hello"})
 
