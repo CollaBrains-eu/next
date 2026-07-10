@@ -96,37 +96,65 @@ existing `useLoadingBar` (`start()`/`done()`) already covers the
 "still working" indicator — no new UI infrastructure needed, but
 users will see long waits on compound requests.
 
-**New tool: `search_documents_grounded`**
-- Schema: `{query: string}`.
-- Implementation: calls the same hybrid-search function `/chat`
-  already uses; returns retrieved chunks + citation metadata as the
-  tool result.
-- Grounding preserved at the tool level, not the page level: the
-  tool's registry description carries a strong "only answer from
-  what this tool returns, say so if nothing is relevant" instruction,
-  **and** the `chat_completion()` call made immediately after this
-  specific tool fires gets that same instruction appended to its
-  context — not left to the model to remember from a generic system
-  prompt.
+**Correction from the original brainstorming pass**: both tools this
+section originally proposed as "new" already exist in
+`services/api/src/api/tools.py` (Phase 9a/ADR 0021) — `search` (raw
+hybrid-search results) and `draft_legal_document` (already wraps
+`api.legal._generate_draft`, already returns `{draft, citations,
+disclaimer}`). The real gap is different and larger than first
+assumed:
 
-**New tool: `draft_legal_document`**
-- Schema: `{instruction: string, document_ids?: string[]}` —
-  `document_ids` omitted means "all documents," matching today's
-  no-checkboxes-selected behavior. Since there's no more checkbox UI,
-  the model has to resolve titles mentioned in the message to IDs
-  itself: the tool's registry description includes a compact
-  `{id, title}` list of the caller's documents directly in its
-  schema/description text (small enough to inline — this project's
-  existing document counts don't approach a size where that stops
-  being cheap; `lookup_vehicle` already sets the precedent of tools
-  taking human-readable identifiers rather than requiring a separate
-  resolution step). If titles don't match confidently, the model
-  omits `document_ids` and falls back to "all documents," same as
-  today's no-selection behavior.
-- Returns a structured result: `{draft, citations, disclaimer}`. The
-  disclaimer is a **data-shape guarantee** attached to the tool's
-  result, not prose the model has to remember to include — compliance
-  doesn't depend on model behavior.
+**`/chat` is not a thin retrieval wrapper.** `chat.py`'s route handler
+does retrieve → build messages → generate → **Reflection** (ADR 0020:
+checks whether the answer was actually supported by context, retries
+with wider retrieval once if not) → **long-term memory** (ADR 0018:
+retrieves relevant past-conversation memories, injects them, reinforces
+the ones that contributed to a good answer) → background memory
+extraction. None of that exists in the `search` tool or the Manager
+Agent's flow. Routing document questions through `search` +
+generic follow-up synthesis would silently drop reflection and memory
+— a real quality regression, not a neutral simplification. Decision:
+**preserve them.**
+
+**New tool: `answer_from_documents`** (distinct from the existing raw
+`search` tool, which stays as-is for cases where the model wants raw
+chunks as intermediate context for further reasoning rather than a
+finished answer).
+- Schema: `{message: string, history?: array of {role, content}}`.
+- Implementation: `chat.py`'s route handler logic (everything except
+  the FastAPI request/response adaptation and `BackgroundTasks`
+  scheduling) is extracted into a standalone function,
+  `answer_grounded_question(db, *, user_id, message, history=None,
+  context_chunks=5) -> GroundedAnswer` (`GroundedAnswer = {answer:
+  str, citations: list[Citation]}`), reused by both the existing
+  `/chat` route (now a thin wrapper) and this tool's handler. The
+  handler's own background-memory-extraction call uses
+  `asyncio.create_task(...)` directly instead of FastAPI's
+  `BackgroundTasks` (unavailable outside a request handler) — same
+  fire-and-forget semantics.
+- **Terminal tool**: its result already went through Reflection, so
+  it's a finished, grounded answer — not raw data for another
+  `chat_completion()` round to re-synthesize (which would risk
+  distorting an already-correct answer and burns an extra generation
+  for no benefit). The Manager Agent's loop special-cases this tool
+  name: on dispatch, return its `{answer, citations}` directly as the
+  response instead of continuing the loop.
+
+**`draft_legal_document` becomes the loop's other terminal case**, for
+the same reason: its result is already a finished draft with citations
+and disclaimer attached, not intermediate data. Its `disclaimer` field
+is a **data-shape guarantee** threaded straight through to the API
+response, not prose the model has to remember to include.
+
+All other existing tools (`search`, `summarize_document`,
+`extract_tasks`, `extract_entities`, `lookup_vehicle`, plus whatever
+`create_case`-style tools exist) remain **informational**: their
+results feed back into the loop for further reasoning, same as
+today's single-round pattern, just now potentially repeated up to
+`MAX_TOOL_ROUNDS` times — this is what makes a chain like "look up
+this plate, then draft a letter to the owner" work (`lookup_vehicle`
+result feeds the next round, which calls the terminal
+`draft_legal_document`).
 
 **`AskResponse` shape change** (`manager_router.py`):
 ```python
