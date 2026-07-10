@@ -11,7 +11,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.chat import answer_grounded_question
+from api.chat import ChatTurn, answer_grounded_question
 from api.documents import _generate_summary
 from api.entity_agent import extract_entities
 from api.legal import _generate_draft
@@ -45,7 +45,10 @@ async def _search_handler(
 async def _answer_from_documents_handler(
     *, db: AsyncSession, user_id: UUID, message: str, history: list[dict] | None = None,
 ) -> dict[str, Any]:
-    result = await answer_grounded_question(db, user_id=user_id, message=message, history=history)
+    result = await answer_grounded_question(
+        db, user_id=user_id, message=message,
+        history=[ChatTurn(**h) for h in history] if history else None,
+    )
     return result.model_dump(mode="json")
 
 

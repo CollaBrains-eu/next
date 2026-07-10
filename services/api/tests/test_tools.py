@@ -189,7 +189,7 @@ async def test_answer_from_documents_tool_returns_grounded_answer():
 
 
 async def test_answer_from_documents_tool_passes_history_through():
-    from api.chat import GroundedAnswer
+    from api.chat import ChatTurn, GroundedAnswer
 
     user = await _create_user(f"tooluser-{uuid4().hex[:8]}")
     fake_answer = GroundedAnswer(answer="ok", citations=[])
@@ -201,4 +201,7 @@ async def test_answer_from_documents_tool_passes_history_through():
                 history=[{"role": "user", "content": "earlier question"}],
             )
 
-    assert mock_answer.call_args.kwargs["history"] == [{"role": "user", "content": "earlier question"}]
+    forwarded_history = mock_answer.call_args.kwargs["history"]
+    assert isinstance(forwarded_history[0], ChatTurn)
+    assert forwarded_history[0].role == "user"
+    assert forwarded_history[0].content == "earlier question"
