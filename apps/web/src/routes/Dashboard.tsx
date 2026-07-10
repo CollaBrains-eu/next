@@ -195,7 +195,7 @@ export default function Dashboard() {
             title={t("dashboard.systemStatusTitle")}
             loading={healthLoading}
             isEmpty={health.length === 0}
-            emptyMessage={t("dashboard.recentDocumentsEmpty")}
+            emptyMessage={t("dashboard.systemStatusEmpty")}
           >
             <ul className="flex flex-col gap-2">
               {health.map((service) => (

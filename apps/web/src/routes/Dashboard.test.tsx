@@ -108,6 +108,14 @@ describe("Dashboard", () => {
     expect(screen.queryByText("System status")).not.toBeInTheDocument();
     expect(api.getAdminHealth).not.toHaveBeenCalled();
   });
+
+  it("shows system status empty state with correct message for admins with no health data", async () => {
+    mockUseAuth.mockReturnValue({ user: { display_name: "Ada Admin", role: "admin" } });
+    vi.mocked(api.getAdminHealth).mockResolvedValue([]);
+    renderPage();
+    expect(await screen.findByText("System status")).toBeInTheDocument();
+    expect(await screen.findByText("All systems nominal.")).toBeInTheDocument();
+  });
 });
 
 describe("getGreetingKey", () => {
