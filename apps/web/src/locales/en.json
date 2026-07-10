@@ -47,6 +47,7 @@
   },
   "common": {
     "openMenu": "Open menu",
+    "search": "Search",
     "signOut": "Sign out",
     "lightMode": "☀️ Light mode",
     "darkMode": "🌙 Dark mode",

@@ -47,6 +47,7 @@
   },
   "common": {
     "openMenu": "Menü öffnen",
+    "search": "Suchen",
     "signOut": "Abmelden",
     "lightMode": "☀️ Heller Modus",
     "darkMode": "🌙 Dunkler Modus",
