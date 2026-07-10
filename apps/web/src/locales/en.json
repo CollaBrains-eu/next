@@ -13,6 +13,8 @@
     "admin": "Admin"
   },
   "dashboard": {
+    "expandWidget": "Expand {{title}}",
+    "collapseWidget": "Collapse {{title}}",
     "greetingMorning": "Good morning, {{name}}",
     "greetingAfternoon": "Good afternoon, {{name}}",
     "greetingEvening": "Good evening, {{name}}",

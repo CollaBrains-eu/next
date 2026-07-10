@@ -13,6 +13,8 @@
     "admin": "Beheer"
   },
   "dashboard": {
+    "expandWidget": "{{title}} uitklappen",
+    "collapseWidget": "{{title}} inklappen",
     "greetingMorning": "Goedemorgen, {{name}}",
     "greetingAfternoon": "Goedemiddag, {{name}}",
     "greetingEvening": "Goedenavond, {{name}}",

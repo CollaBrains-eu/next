@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import Card from "./Card";
 import { Skeleton } from "./ui/Skeleton";
 
@@ -18,6 +19,7 @@ export function DashboardWidgetCard({
   actions?: ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(false);
+  const { t } = useTranslation();
 
   return (
     <Card className="flex flex-col gap-3">
@@ -28,7 +30,9 @@ export function DashboardWidgetCard({
           <button
             type="button"
             aria-expanded={!collapsed}
-            aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
+            aria-label={
+              collapsed ? t("dashboard.expandWidget", { title }) : t("dashboard.collapseWidget", { title })
+            }
             onClick={() => setCollapsed((v) => !v)}
             className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-ink-3 transition-colors duration-fast hover:bg-hover hover:text-ink"
           >
