@@ -12,7 +12,63 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
 
-from api.document_categories import DOCUMENT_CATEGORIES
+# Inlined rather than imported from api.document_categories: migrations must
+# not depend on application code, which can change after this revision is
+# written (and, concretely, alembic resolves the revision graph -- including
+# loading this file -- before env.py's src/ sys.path hack runs, so an
+# `api.*` import here raises ModuleNotFoundError for any command that walks
+# the graph, e.g. `alembic heads`/`upgrade head`).
+DOCUMENT_CATEGORIES: list[dict] = [
+    # -- Finance --
+    {"slug": "finance", "icon": "Coins", "color": "#FF9500", "parent": None, "doc_types": []},
+    {"slug": "payslip", "icon": "Banknote", "color": "#FF9500", "parent": "finance",
+     "doc_types": ["payslip", "salary", "annual_statement"]},
+    {"slug": "tax", "icon": "Landmark", "color": "#FF3B30", "parent": "finance", "doc_types": ["tax"]},
+    {"slug": "pension_benefits", "icon": "PiggyBank", "color": "#FFCC00", "parent": "finance",
+     "doc_types": ["pension", "benefits"]},
+    {"slug": "bank_statement", "icon": "Building2", "color": "#34AADC", "parent": "finance",
+     "doc_types": ["bank_statement", "bank"]},
+    {"slug": "invoice", "icon": "Receipt", "color": "#FF3B30", "parent": "finance", "doc_types": ["invoice"]},
+    {"slug": "guardianship", "icon": "Gavel", "color": "#FF9500", "parent": "finance",
+     "doc_types": ["guardianship"]},
+
+    # -- Housing & Vehicle --
+    {"slug": "housing_vehicle", "icon": "Home", "color": "#34C759", "parent": None, "doc_types": []},
+    {"slug": "mortgage_housing", "icon": "Home", "color": "#007AFF", "parent": "housing_vehicle",
+     "doc_types": ["mortgage", "housing", "notarial"]},
+    {"slug": "vehicle", "icon": "Car", "color": "#FF6B35", "parent": "housing_vehicle", "doc_types": ["vehicle"]},
+    {"slug": "rental_contract", "icon": "Key", "color": "#34C759", "parent": "housing_vehicle", "doc_types": []},
+
+    # -- Insurance & Care --
+    {"slug": "insurance_care", "icon": "Shield", "color": "#4CD964", "parent": None, "doc_types": []},
+    {"slug": "insurance", "icon": "Shield", "color": "#4CD964", "parent": "insurance_care",
+     "doc_types": ["policy", "insurance"]},
+    {"slug": "medical_care", "icon": "HeartPulse", "color": "#5AC8FA", "parent": "insurance_care",
+     "doc_types": ["medical", "care"]},
+
+    # -- Work & Education --
+    {"slug": "work_education", "icon": "Briefcase", "color": "#5856D6", "parent": None, "doc_types": []},
+    {"slug": "employment_contract", "icon": "FileText", "color": "#5856D6", "parent": "work_education",
+     "doc_types": ["contract"]},
+    {"slug": "education", "icon": "GraduationCap", "color": "#5856D6", "parent": "work_education",
+     "doc_types": ["education"]},
+    {"slug": "cv_references", "icon": "User", "color": "#5856D6", "parent": "work_education", "doc_types": ["cv"]},
+
+    # -- Government & Identity --
+    {"slug": "government_identity", "icon": "Shield", "color": "#8E8E93", "parent": None, "doc_types": []},
+    {"slug": "government", "icon": "Landmark", "color": "#8E8E93", "parent": "government_identity",
+     "doc_types": ["government"]},
+    {"slug": "identity_document", "icon": "CreditCard", "color": "#8E8E93", "parent": "government_identity",
+     "doc_types": ["identity_document"]},
+    {"slug": "notarial", "icon": "Scale", "color": "#8E8E93", "parent": "government_identity", "doc_types": []},
+
+    # -- Other --
+    {"slug": "other_group", "icon": "Inbox", "color": "#8E8E93", "parent": None, "doc_types": []},
+    {"slug": "correspondence", "icon": "Mail", "color": "#8E8E93", "parent": "other_group",
+     "doc_types": ["correspondence"]},
+    {"slug": "other_documents", "icon": "File", "color": "#8E8E93", "parent": "other_group",
+     "doc_types": ["other", "legal"]},
+]
 
 revision: str = '0026aa5966bf'
 down_revision: Union[str, None] = 'd1a4e7f9c2b6'
