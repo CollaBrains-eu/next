@@ -67,7 +67,7 @@ export default function Vehicles() {
       <h1 className="text-2xl font-semibold text-ink">{t("vehicles.title")}</h1>
 
       <Card className="flex flex-col gap-3">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <LicensePlateInput value={kenteken} onChange={setKenteken} />
           <Button onClick={handleSearch} disabled={searching || !kenteken.trim()}>
             Zoek op

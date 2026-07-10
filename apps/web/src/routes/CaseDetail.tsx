@@ -118,7 +118,7 @@ export default function CaseDetail() {
     }
     const options = attachOptions[section];
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <select
           value={selected}
           onChange={(e) => setSelected(e.target.value)}

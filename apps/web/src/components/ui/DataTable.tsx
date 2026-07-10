@@ -50,35 +50,37 @@ export function DataTable<T>({
 
   return (
     <div className="overflow-hidden rounded-2xl border border-edge bg-surface shadow-raised">
-      <table className="w-full border-collapse text-sm">
-        <thead>
-          <tr>
-            {columns.map((column) => (
-              <th
-                key={column.key}
-                onClick={() => handleSort(column)}
-                className={`border-b border-edge px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-ink-3 ${
-                  column.sortable ? "cursor-pointer select-none hover:text-ink" : ""
-                }`}
-              >
-                {column.header}
-                {sort?.key === column.key && <span className="ml-1">{sort.direction === "asc" ? "▲" : "▼"}</span>}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {pageRows.map((row) => (
-            <tr key={rowKey(row)} className="transition-colors duration-fast hover:bg-hover">
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr>
               {columns.map((column) => (
-                <td key={column.key} className="border-b border-edge px-4 py-2.5 tabular-nums last:border-b-0">
-                  {column.render(row)}
-                </td>
+                <th
+                  key={column.key}
+                  onClick={() => handleSort(column)}
+                  className={`whitespace-nowrap border-b border-edge px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-ink-3 ${
+                    column.sortable ? "cursor-pointer select-none hover:text-ink" : ""
+                  }`}
+                >
+                  {column.header}
+                  {sort?.key === column.key && <span className="ml-1">{sort.direction === "asc" ? "▲" : "▼"}</span>}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {pageRows.map((row) => (
+              <tr key={rowKey(row)} className="transition-colors duration-fast hover:bg-hover">
+                {columns.map((column) => (
+                  <td key={column.key} className="border-b border-edge px-4 py-2.5 tabular-nums last:border-b-0">
+                    {column.render(row)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-1 py-3">
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (

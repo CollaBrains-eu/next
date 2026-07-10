@@ -55,9 +55,9 @@ export default function Tasks() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold text-ink">{t("tasks.title")}</h1>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {view === "list" && (
             <div className="flex gap-1">
               {(["open", "done", "all"] as Filter[]).map((f) => (
