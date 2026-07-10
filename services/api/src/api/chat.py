@@ -24,10 +24,11 @@ If the user has set a preferred_language (Phase 13, ADR 0028), it's
 appended to the system prompt on every request without needing to be
 restated -- the one Personal AI integration point this phase adds.
 """
+import asyncio
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -76,6 +77,11 @@ class ChatResponse(BaseModel):
     citations: list[Citation]
 
 
+class GroundedAnswer(BaseModel):
+    answer: str
+    citations: list[Citation]
+
+
 async def _retrieve(db: AsyncSession, query: str, limit: int) -> tuple[list[Citation], str]:
     hits = await hybrid_search(db, query, limit=limit)
 
@@ -119,20 +125,27 @@ def _build_messages(
     return messages
 
 
-@router.post("/chat", response_model=ChatResponse)
-async def chat(
-    background_tasks: BackgroundTasks,
-    request: ChatRequest,
-    context_chunks: int = Query(5, le=20),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_effective_user),
-) -> ChatResponse:
-    citations, context_text = await _retrieve(db, request.message, context_chunks)
+async def answer_grounded_question(
+    db: AsyncSession, *, user_id: UUID, message: str,
+    history: list[ChatTurn] | None = None, context_chunks: int = 5,
+) -> GroundedAnswer:
+    """The full /chat pipeline (retrieve, memory, generate, Reflection, retry,
+    background memory extraction) as a reusable function -- both the /chat
+    route and api.tools' answer_from_documents tool call this, so document
+    Q&A keeps Reflection and long-term memory no matter which caller reaches it.
+
+    Runs outside a request lifecycle for tool-handler callers (no
+    BackgroundTasks available), so the background memory-extraction step
+    uses asyncio.create_task directly instead -- same fire-and-forget
+    semantics as the route's background_tasks.add_task call.
+    """
+    history = history or []
+    citations, context_text = await _retrieve(db, message, context_chunks)
 
     try:
-        memories = await retrieve_relevant_memories(db, user_id=current_user.id, query=request.message)
-    except Exception:  # noqa: BLE001 - memory retrieval must never fail the chat response
-        logger.exception("memory retrieval failed for chat request")
+        memories = await retrieve_relevant_memories(db, user_id=user_id, query=message)
+    except Exception:  # noqa: BLE001 - memory retrieval must never fail the answer
+        logger.exception("memory retrieval failed for grounded question")
         memories = []
 
     memory_text = ""
@@ -142,37 +155,43 @@ async def chat(
 
     language_instruction = ""
     try:
-        preferences = await get_preferences(db, user_id=current_user.id)
+        preferences = await get_preferences(db, user_id=user_id)
         language_instruction = build_language_instruction(preferences.preferred_language if preferences else None)
-    except Exception:  # noqa: BLE001 - preference lookup must never fail the chat response
-        logger.exception("preference lookup failed for chat request")
+    except Exception:  # noqa: BLE001 - preference lookup must never fail the answer
+        logger.exception("preference lookup failed for grounded question")
 
-    messages = _build_messages(request.history, context_text, request.message, memory_text, language_instruction)
-    answer = await chat_completion(messages, user_id=current_user.id, endpoint="chat")
+    messages = _build_messages(history, context_text, message, memory_text, language_instruction)
+    answer = await chat_completion(messages, user_id=user_id, endpoint="chat")
 
     try:
-        result = await reflect(
-            question=request.message, answer=answer, context_text=context_text,
-            user_id=current_user.id, endpoint="chat",
-        )
+        result = await reflect(question=message, answer=answer, context_text=context_text, user_id=user_id, endpoint="chat")
         retried = False
         if not result.sufficient_evidence and context_chunks < REFLECTION_RETRY_CAP:
             retry_limit = min(context_chunks * 2, REFLECTION_RETRY_CAP)
-            citations, context_text = await _retrieve(db, request.message, retry_limit)
-            messages = _build_messages(
-                request.history, context_text, request.message, memory_text, language_instruction,
-            )
-            answer = await chat_completion(messages, user_id=current_user.id, endpoint="chat")
+            citations, context_text = await _retrieve(db, message, retry_limit)
+            messages = _build_messages(history, context_text, message, memory_text, language_instruction)
+            answer = await chat_completion(messages, user_id=user_id, endpoint="chat")
             retried = True
-        await log_reflection(
-            db, user_id=current_user.id, endpoint="chat", question=request.message,
-            result=result, retried=retried,
-        )
+        await log_reflection(db, user_id=user_id, endpoint="chat", question=message, result=result, retried=retried)
         if result.sufficient_evidence and memories:
             await reinforce_memories(db, [memory.id for memory in memories])
-    except Exception:  # noqa: BLE001 - reflection is a quality check, must never fail the chat response
-        logger.exception("reflection failed for chat request from user %s", current_user.id)
+    except Exception:  # noqa: BLE001 - reflection is a quality check, must never fail the answer
+        logger.exception("reflection failed for grounded question from user %s", user_id)
 
-    background_tasks.add_task(_extract_and_store_memory, current_user.id, request.message, answer)
+    asyncio.create_task(_extract_and_store_memory(user_id, message, answer))
 
-    return ChatResponse(answer=answer, citations=citations)
+    return GroundedAnswer(answer=answer, citations=citations)
+
+
+@router.post("/chat", response_model=ChatResponse)
+async def chat(
+    request: ChatRequest,
+    context_chunks: int = Query(5, le=20),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_effective_user),
+) -> ChatResponse:
+    result = await answer_grounded_question(
+        db, user_id=current_user.id, message=request.message,
+        history=request.history, context_chunks=context_chunks,
+    )
+    return ChatResponse(answer=result.answer, citations=result.citations)
