@@ -31,7 +31,7 @@ export default function Assistant() {
 
     try {
       const response = await askManager(message);
-      setTurns((prev) => [...prev, { role: "assistant", content: response.answer, toolCalled: response.tool_called }]);
+      setTurns((prev) => [...prev, { role: "assistant", content: response.answer, toolCalled: response.tools_called[0] ?? null }]);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("assistant.loadError"));
     } finally {

@@ -23,7 +23,7 @@ function renderPage() {
 describe("Assistant", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(api.askManager).mockResolvedValue({ answer: "I created the case.", tool_called: "create_case" });
+    vi.mocked(api.askManager).mockResolvedValue({ answer: "I created the case.", tools_called: ["create_case"] });
   });
 
   it("shows the hint text before any messages are sent", () => {

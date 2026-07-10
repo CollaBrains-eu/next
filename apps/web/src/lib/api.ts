@@ -349,7 +349,7 @@ export function linkVehicleToCase(caseId: string, vehicleId: string): Promise<vo
 
 export interface AskResponse {
   answer: string;
-  tool_called: string | null;
+  tools_called: string[];
 }
 
 export function askManager(message: string): Promise<AskResponse> {
