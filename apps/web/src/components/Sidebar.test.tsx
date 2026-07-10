@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import i18n from "../lib/i18n";
+import { CommandCenterStateProvider, useCommandCenterState } from "../lib/commandCenter";
 import * as api from "../lib/api";
 
 vi.mock("../lib/auth", () => ({
@@ -14,13 +15,21 @@ vi.mock("../lib/api", async () => {
   return { ...actual, listEntities: vi.fn() };
 });
 
+function OverlayProbe() {
+  const { overlay } = useCommandCenterState();
+  return <span data-testid="overlay-probe">{overlay}</span>;
+}
+
 function renderAt(
   path: string,
   props: { mobileOpen?: boolean; onCloseMobile?: () => void } = {},
 ) {
   return render(
     <MemoryRouter initialEntries={[path]}>
-      <Sidebar {...props} />
+      <CommandCenterStateProvider>
+        <OverlayProbe />
+        <Sidebar {...props} />
+      </CommandCenterStateProvider>
     </MemoryRouter>
   );
 }
@@ -32,7 +41,8 @@ describe("Sidebar", () => {
 
   it("renders every nav item as a link to the right route", () => {
     renderAt("/");
-    expect(screen.getByRole("link", { name: "Documents" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Documents" })).toHaveAttribute("href", "/documents");
     expect(screen.getByRole("link", { name: "Cases" })).toHaveAttribute("href", "/cases");
     expect(screen.getByRole("link", { name: "Vehicles" })).toHaveAttribute("href", "/vehicles");
   });
@@ -40,7 +50,7 @@ describe("Sidebar", () => {
   it("marks the item matching the current route as active", () => {
     renderAt("/cases");
     expect(screen.getByRole("link", { name: "Cases" })).toHaveClass("text-accent");
-    expect(screen.getByRole("link", { name: "Documents" })).not.toHaveClass("text-accent");
+    expect(screen.getByRole("link", { name: "Dashboard" })).not.toHaveClass("text-accent");
   });
 
   it("renders a sliding pill element behind the nav list", () => {
@@ -48,19 +58,15 @@ describe("Sidebar", () => {
     expect(document.querySelector("[data-testid=\"nav-pill\"]")).toBeInTheDocument();
   });
 
-  it("shows a pending-review count badge on Entities when there are pending entities", async () => {
-    vi.mocked(api.listEntities).mockResolvedValue([
-      { id: "p1", name: "X", entity_type: "person", status: "pending_review", created_at: "2026-01-01T00:00:00Z" },
-      { id: "p2", name: "Y", entity_type: "person", status: "pending_review", created_at: "2026-01-01T00:00:00Z" },
-    ]);
+  it("renders the AlertsBell", async () => {
     renderAt("/");
-    expect(await screen.findByText("2")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Alerts")).toBeInTheDocument();
   });
 
-  it("shows no badge when there are no pending entities", async () => {
+  it("opens the command palette when the search button is clicked", () => {
     renderAt("/");
-    await waitFor(() => expect(api.listEntities).toHaveBeenCalled());
-    expect(screen.queryByTestId("entities-pending-badge")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Search"));
+    expect(screen.getByTestId("overlay-probe")).toHaveTextContent("palette");
   });
 
   it("does not render a mobile backdrop when closed", () => {
@@ -103,14 +109,14 @@ describe("Sidebar", () => {
     it("renders nav labels in Dutch when the language is switched to nl", async () => {
       await i18n.changeLanguage("nl");
       renderAt("/");
-      expect(screen.getByRole("link", { name: "Documenten" })).toHaveAttribute("href", "/");
+      expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/");
       expect(screen.getByRole("link", { name: "Zaken" })).toHaveAttribute("href", "/cases");
     });
 
     it("renders nav labels in German when the language is switched to de", async () => {
       await i18n.changeLanguage("de");
       renderAt("/");
-      expect(screen.getByRole("link", { name: "Dokumente" })).toHaveAttribute("href", "/");
+      expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/");
       expect(screen.getByRole("link", { name: "Fälle" })).toHaveAttribute("href", "/cases");
     });
   });

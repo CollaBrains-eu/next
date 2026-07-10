@@ -5,6 +5,7 @@ import { AdminRoute } from "./components/AdminRoute";
 import { ToastProvider } from "./lib/toast";
 import { LoadingBarProvider, useLoadingBar } from "./lib/loadingBar";
 import { CommandCenter } from "./components/CommandCenter";
+import { CommandCenterStateProvider } from "./lib/commandCenter";
 import Layout from "./components/Layout";
 import Login from "./routes/Login";
 import Dashboard from "./routes/Dashboard";
@@ -47,134 +48,136 @@ export default function App() {
       <AuthProvider>
         <ToastProvider>
           <LoadingBarProvider>
-            <CommandCenter />
-            <RouteChangeLoadingBar />
-            <Layout>
-              <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route
-                  path="/"
-                  element={
-                    <ProtectedRoute>
-                      <Dashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/documents"
-                  element={
-                    <ProtectedRoute>
-                      <Workspace />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/documents/:id"
-                  element={
-                    <ProtectedRoute>
-                      <DocumentDetail />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/chat"
-                  element={
-                    <ProtectedRoute>
-                      <Chat />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/legal"
-                  element={
-                    <ProtectedRoute>
-                      <Legal />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/tasks"
-                  element={
-                    <ProtectedRoute>
-                      <Tasks />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/entities"
-                  element={
-                    <ProtectedRoute>
-                      <Entities />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/entities/review"
-                  element={
-                    <ProtectedRoute>
-                      <EntityReview />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/entities/:id"
-                  element={
-                    <ProtectedRoute>
-                      <EntityGraph />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/cases"
-                  element={
-                    <ProtectedRoute>
-                      <Cases />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/cases/:id"
-                  element={
-                    <ProtectedRoute>
-                      <CaseDetail />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/vehicles"
-                  element={
-                    <ProtectedRoute>
-                      <Vehicles />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/assistant"
-                  element={
-                    <ProtectedRoute>
-                      <Assistant />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/settings"
-                  element={
-                    <ProtectedRoute>
-                      <Settings />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin"
-                  element={
-                    <AdminRoute>
-                      <AdminDashboard />
-                    </AdminRoute>
-                  }
-                />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Layout>
+            <CommandCenterStateProvider>
+              <CommandCenter />
+              <RouteChangeLoadingBar />
+              <Layout>
+                <Routes>
+                  <Route path="/login" element={<Login />} />
+                  <Route
+                    path="/"
+                    element={
+                      <ProtectedRoute>
+                        <Dashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/documents"
+                    element={
+                      <ProtectedRoute>
+                        <Workspace />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/documents/:id"
+                    element={
+                      <ProtectedRoute>
+                        <DocumentDetail />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/chat"
+                    element={
+                      <ProtectedRoute>
+                        <Chat />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/legal"
+                    element={
+                      <ProtectedRoute>
+                        <Legal />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/tasks"
+                    element={
+                      <ProtectedRoute>
+                        <Tasks />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/entities"
+                    element={
+                      <ProtectedRoute>
+                        <Entities />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/entities/review"
+                    element={
+                      <ProtectedRoute>
+                        <EntityReview />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/entities/:id"
+                    element={
+                      <ProtectedRoute>
+                        <EntityGraph />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/cases"
+                    element={
+                      <ProtectedRoute>
+                        <Cases />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/cases/:id"
+                    element={
+                      <ProtectedRoute>
+                        <CaseDetail />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/vehicles"
+                    element={
+                      <ProtectedRoute>
+                        <Vehicles />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/assistant"
+                    element={
+                      <ProtectedRoute>
+                        <Assistant />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/settings"
+                    element={
+                      <ProtectedRoute>
+                        <Settings />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin"
+                    element={
+                      <AdminRoute>
+                        <AdminDashboard />
+                      </AdminRoute>
+                    }
+                  />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Layout>
+            </CommandCenterStateProvider>
           </LoadingBarProvider>
         </ToastProvider>
       </AuthProvider>

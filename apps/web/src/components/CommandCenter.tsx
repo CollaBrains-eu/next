@@ -1,15 +1,15 @@
-import { useEffect, useState } from "react";
+// apps/web/src/components/CommandCenter.tsx
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { NAV_ITEMS } from "../lib/navigation";
 import { CommandPalette } from "./ui/CommandPalette";
 import { ShortcutsSheet } from "./ui/ShortcutsSheet";
 import { useDarkMode } from "../hooks/useDarkMode";
-
-type OverlayState = "none" | "palette" | "shortcuts";
+import { useCommandCenterState } from "../lib/commandCenter";
 
 export function CommandCenter() {
-  const [overlay, setOverlay] = useState<OverlayState>("none");
+  const { overlay, setOverlay } = useCommandCenterState();
   const navigate = useNavigate();
   const { toggle: toggleDarkMode } = useDarkMode();
   const { t } = useTranslation();
@@ -21,18 +21,18 @@ export function CommandCenter() {
 
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        setOverlay((prev) => (prev === "palette" ? "none" : "palette"));
+        setOverlay(overlay === "palette" ? "none" : "palette");
       } else if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "d") {
         event.preventDefault();
         toggleDarkMode();
       } else if (event.key === "?" && !isTyping) {
         event.preventDefault();
-        setOverlay((prev) => (prev === "shortcuts" ? "none" : "shortcuts"));
+        setOverlay(overlay === "shortcuts" ? "none" : "shortcuts");
       }
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [toggleDarkMode]);
+  }, [toggleDarkMode, overlay, setOverlay]);
 
   const items = NAV_ITEMS.map((item) => ({
     label: `Go to ${t(item.labelKey)}`,
