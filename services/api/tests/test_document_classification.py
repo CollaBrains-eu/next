@@ -110,3 +110,58 @@ async def test_classify_and_persist_returns_none_for_unknown_document():
     async with async_session() as db:
         result = await classify_and_persist(db, document_id=uuid4(), text="x", user_id=user.id)
     assert result is None
+
+
+async def test_classify_document_accepts_the_full_expanded_taxonomy():
+    user = await _create_user(_unique("classifyrichuser"))
+    fake = '{"doc_type": "payslip", "tags": [], "correspondent": null, "confidence": 0.9}'
+    with patch("api.document_classification.chat_completion", AsyncMock(return_value=fake)):
+        result = await classify_document(text="whatever", user_id=user.id)
+
+    assert result is not None
+    assert result.doc_type == "payslip"
+
+
+async def test_classify_and_persist_sets_category_from_doc_type():
+    from sqlalchemy import select
+    from api.models import Category
+
+    user = await _create_user(_unique("classifycatuser"))
+    document = await _create_document(user.id)
+    fake = '{"doc_type": "payslip", "tags": [], "correspondent": null, "confidence": 0.9}'
+
+    with patch("api.document_classification.chat_completion", AsyncMock(return_value=fake)):
+        async with async_session() as db:
+            updated = await classify_and_persist(
+                db, document_id=document.id, text=document.ocr_text, user_id=user.id
+            )
+
+    assert updated is not None
+    assert updated.category_id is not None
+
+    async with async_session() as db:
+        category = (
+            await db.execute(select(Category).where(Category.id == updated.category_id))
+        ).scalar_one()
+    assert category.slug == "payslip"
+
+
+async def test_classify_and_persist_falls_back_to_other_documents_category_for_unmapped_doc_type():
+    from sqlalchemy import select
+    from api.models import Category
+
+    user = await _create_user(_unique("classifyfallbackuser"))
+    document = await _create_document(user.id)
+    fake = '{"doc_type": "other", "tags": [], "correspondent": null, "confidence": 0.2}'
+
+    with patch("api.document_classification.chat_completion", AsyncMock(return_value=fake)):
+        async with async_session() as db:
+            updated = await classify_and_persist(
+                db, document_id=document.id, text=document.ocr_text, user_id=user.id
+            )
+
+    async with async_session() as db:
+        category = (
+            await db.execute(select(Category).where(Category.id == updated.category_id))
+        ).scalar_one()
+    assert category.slug == "other_documents"
