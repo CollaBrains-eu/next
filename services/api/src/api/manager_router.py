@@ -21,7 +21,7 @@ class AskRequest(BaseModel):
 
 class AskResponse(BaseModel):
     answer: str
-    tool_called: str | None
+    tools_called: list[str]
 
 
 @router.post("/ask", response_model=AskResponse)
