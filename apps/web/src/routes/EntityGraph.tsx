@@ -10,6 +10,7 @@ const TYPE_COLORS: Record<string, string> = {
   person: "#2563eb",
   organization: "#7c3aed",
   location: "#16a34a",
+  address: "#ea580c",
   other: "#64748b",
 };
 
@@ -17,6 +18,7 @@ const TYPE_LABEL_KEYS: Record<string, string> = {
   person: "entities.typePerson",
   organization: "entities.typeOrganization",
   location: "entities.typeLocation",
+  address: "entities.typeAddress",
   other: "entities.typeOther",
 };
 

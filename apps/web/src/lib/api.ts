@@ -484,3 +484,46 @@ export function listAdminUsers(limit?: number, offset?: number): Promise<AdminUs
   const query = params.toString();
   return request<AdminUserOut[]>(`/admin/users${query ? `?${query}` : ""}`);
 }
+
+export interface AddressOut {
+  id: string;
+  name: string;
+  street: string | null;
+  house_number: string | null;
+  postal_code: string | null;
+  city: string | null;
+  country: string | null;
+}
+
+export interface ResidencyOut {
+  id: string;
+  address: AddressOut;
+  valid_from: string | null;
+  valid_to: string | null;
+  status: string;
+  source_document_id: string | null;
+  linked_document_count: number;
+  created_at: string;
+}
+
+export function listMyResidencies(): Promise<ResidencyOut[]> {
+  return request<ResidencyOut[]>("/users/me/residencies");
+}
+
+export function listUserResidencies(userId: string): Promise<ResidencyOut[]> {
+  return request<ResidencyOut[]>(`/admin/users/${userId}/residencies`);
+}
+
+export function approveResidency(id: string): Promise<ResidencyOut> {
+  return request<ResidencyOut>(`/residencies/${id}/approve`, { method: "POST" });
+}
+
+export function rejectResidency(id: string): Promise<ResidencyOut> {
+  return request<ResidencyOut>(`/residencies/${id}/reject`, { method: "POST" });
+}
+
+export function correctResidency(
+  id: string, input: { valid_from?: string; valid_to?: string }
+): Promise<ResidencyOut> {
+  return request<ResidencyOut>(`/residencies/${id}`, { method: "PATCH", body: JSON.stringify(input) });
+}

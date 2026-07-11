@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AddressHistory } from "../components/AddressHistory";
 import Card from "../components/Card";
 import { Button } from "../components/ui/Button";
 import { ApiError, getPreferences, setPreferences } from "../lib/api";
@@ -78,6 +79,14 @@ export default function Settings() {
           {t("settings.save")}
         </Button>
       </Card>
+
+      <div className="flex flex-col gap-2">
+        <div>
+          <h2 className="text-lg font-semibold text-ink">{t("addressHistory.title")}</h2>
+          <p className="text-xs text-ink-3">{t("addressHistory.description")}</p>
+        </div>
+        <AddressHistory />
+      </div>
     </div>
   );
 }

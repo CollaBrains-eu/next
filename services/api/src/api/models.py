@@ -104,6 +104,9 @@ class Document(Base):
     category_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("categories.id", ondelete="SET NULL"), nullable=True
     )
+    residency_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("residencies.id", ondelete="SET NULL"), nullable=True
+    )
     tags: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False, default=list)
     correspondent: Mapped[str | None] = mapped_column(String(255), nullable=True)
     classification_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
@@ -294,6 +297,57 @@ class EntityMergeLog(Base):
     target_entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("entities.id"), nullable=False)
     merged_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     merged_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AddressDetail(Base):
+    """Structured fields for an `Entity` where `entity_type = 'address'`.
+
+    Kept as a side table rather than adding columns to `Entity` itself --
+    same pattern as `Vehicle` enriching `Entity(entity_type="vehicle")` --
+    so entity dedup, mentions, relationships, and the review queue all
+    apply to addresses for free. `normalized_key` (postal_code + house_number
+    + street, lowercased) is what dedup actually keys on, not `Entity.name`
+    -- two differently-formatted LLM extractions of the same real address
+    must resolve to the same entity for relocation detection to work.
+    """
+
+    __tablename__ = "address_details"
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), primary_key=True
+    )
+    street: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    house_number: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    postal_code: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    city: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    country: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    normalized_key: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+
+
+class Residency(Base):
+    """A period during which a user lived at a given address (ADR pending).
+
+    `valid_to IS NULL` means "current" -- enforced to be unique per user at
+    the DB level (see migration's partial unique index), not just in
+    application code, after the `pending_user_phone_numbers` uniqueness gap
+    found in the phone-at-creation feature made DB-level enforcement the
+    default assumption for this kind of "at most one active X" invariant.
+    `status` mirrors `Entity.status` (pending_review/confirmed/rejected) --
+    a single document revealing a new address is evidence, not proof.
+    """
+
+    __tablename__ = "residencies"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    address_entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("entities.id"), nullable=False)
+    valid_from: Mapped[date | None] = mapped_column(Date, nullable=True)
+    valid_to: Mapped[date | None] = mapped_column(Date, nullable=True)
+    source_document_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("documents.id", ondelete="SET NULL"), nullable=True
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending_review", server_default="pending_review")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Memory(Base):

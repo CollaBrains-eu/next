@@ -179,6 +179,7 @@
     "typePerson": "Person",
     "typeOrganization": "Organization",
     "typeLocation": "Location",
+    "typeAddress": "Address",
     "typeOther": "Other",
     "statusConfirmed": "Confirmed",
     "statusPendingReview": "Pending review",
@@ -295,5 +296,23 @@
     "setPhone": "Set phone number",
     "skip": "Skip",
     "error": "Failed to set phone number"
+  },
+  "addressHistory": {
+    "title": "Address history",
+    "description": "Addresses detected from your documents, and which ones were current when.",
+    "empty": "No address history yet. It fills in automatically as ID documents, rental contracts, or mortgage paperwork are processed.",
+    "loadError": "Failed to load address history",
+    "actionError": "Action failed",
+    "current": "Current",
+    "statusPendingReview": "Needs review",
+    "statusConfirmed": "Confirmed",
+    "statusRejected": "Rejected",
+    "linkedDocuments_one": "{{count}} linked contract",
+    "linkedDocuments_other": "{{count}} linked contracts",
+    "viewSourceDocument": "View source document",
+    "approve": "Confirm",
+    "reject": "Reject",
+    "correctDate": "Correct date",
+    "correctValidFromPrompt": "Move-in date (YYYY-MM-DD)"
   }
 }
