@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ApiError, chat, type ChatTurn, type Citation } from "../lib/api";
 import { Button } from "../components/ui/Button";
+import { ChatLog, type ChatTurnDisplay } from "../components/ui/ChatLog";
 import { useLoadingBar } from "../lib/loadingBar";
 
 interface DisplayTurn extends ChatTurn {
@@ -40,36 +41,26 @@ export default function Chat() {
     }
   }
 
+  const displayTurns: ChatTurnDisplay[] = turns.map((turn) => ({
+    role: turn.role,
+    content: turn.content,
+    footer: turn.citations && turn.citations.length > 0 && (
+      <div className="mt-2 flex flex-wrap gap-2 border-t border-edge pt-2 text-xs text-ink-3">
+        {turn.citations.map((c) => (
+          <Link key={c.chunk_id} to={`/documents/${c.document_id}`} className="hover:text-accent hover:underline">
+            [{c.marker}] {c.document_title}
+          </Link>
+        ))}
+      </div>
+    ),
+  }));
+
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-2xl font-semibold text-ink">{t("nav.aiChat")}</h1>
 
       <div className="flex flex-col gap-3">
-        {turns.length === 0 && (
-          <p className="text-sm text-ink-2">{t("chat.hint")}</p>
-        )}
-        {turns.map((turn, i) => (
-          <div
-            key={i}
-            className={
-              turn.role === "user"
-                ? "self-end max-w-[80%] rounded-2xl bg-accent px-4 py-2 text-sm text-white"
-                : "max-w-[80%] rounded-2xl border border-edge bg-surface px-4 py-2 text-sm text-ink"
-            }
-          >
-            <p className="whitespace-pre-wrap">{turn.content}</p>
-            {turn.citations && turn.citations.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-2 border-t border-edge pt-2 text-xs text-ink-3">
-                {turn.citations.map((c) => (
-                  <Link key={c.chunk_id} to={`/documents/${c.document_id}`} className="hover:text-accent hover:underline">
-                    [{c.marker}] {c.document_title}
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-        {sending && <p className="text-sm text-ink-3">{t("common.thinking")}</p>}
+        <ChatLog turns={displayTurns} sending={sending} hint={t("chat.hint")} thinkingLabel={t("common.thinking")} />
         {error && <p className="text-sm text-danger">{error}</p>}
       </div>
 

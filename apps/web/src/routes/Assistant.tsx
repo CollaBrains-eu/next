@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { ApiError, askManager } from "../lib/api";
 import { Button } from "../components/ui/Button";
+import { ChatLog, type ChatTurnDisplay } from "../components/ui/ChatLog";
 import { useLoadingBar } from "../lib/loadingBar";
 
 interface DisplayTurn {
@@ -40,32 +41,22 @@ export default function Assistant() {
     }
   }
 
+  const displayTurns: ChatTurnDisplay[] = turns.map((turn) => ({
+    role: turn.role,
+    content: turn.content,
+    footer: turn.toolCalled && (
+      <div className="mt-2 border-t border-edge pt-2 text-xs text-ink-3">
+        {t("assistant.toolCalled", { tool: turn.toolCalled })}
+      </div>
+    ),
+  }));
+
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-2xl font-semibold text-ink">{t("nav.assistant")}</h1>
 
       <div className="flex flex-col gap-3">
-        {turns.length === 0 && (
-          <p className="text-sm text-ink-2">{t("assistant.hint")}</p>
-        )}
-        {turns.map((turn, i) => (
-          <div
-            key={i}
-            className={
-              turn.role === "user"
-                ? "self-end max-w-[80%] rounded-2xl bg-accent px-4 py-2 text-sm text-white"
-                : "max-w-[80%] rounded-2xl border border-edge bg-surface px-4 py-2 text-sm text-ink"
-            }
-          >
-            <p className="whitespace-pre-wrap">{turn.content}</p>
-            {turn.toolCalled && (
-              <div className="mt-2 border-t border-edge pt-2 text-xs text-ink-3">
-                {t("assistant.toolCalled", { tool: turn.toolCalled })}
-              </div>
-            )}
-          </div>
-        ))}
-        {sending && <p className="text-sm text-ink-3">{t("common.thinking")}</p>}
+        <ChatLog turns={displayTurns} sending={sending} hint={t("assistant.hint")} thinkingLabel={t("common.thinking")} />
         {error && <p className="text-sm text-danger">{error}</p>}
       </div>
 
