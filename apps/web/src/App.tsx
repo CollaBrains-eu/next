@@ -6,6 +6,7 @@ import { ToastProvider } from "./lib/toast";
 import { LoadingBarProvider, useLoadingBar } from "./lib/loadingBar";
 import { CommandCenter } from "./components/CommandCenter";
 import { CommandCenterStateProvider } from "./lib/commandCenter";
+import { PhonePromptModal } from "./components/PhonePromptModal";
 import Layout from "./components/Layout";
 import Login from "./routes/Login";
 import Dashboard from "./routes/Dashboard";
@@ -50,6 +51,7 @@ export default function App() {
           <LoadingBarProvider>
             <CommandCenterStateProvider>
               <CommandCenter />
+              <PhonePromptModal />
               <RouteChangeLoadingBar />
               <Layout>
                 <Routes>

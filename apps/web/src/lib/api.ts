@@ -56,6 +56,7 @@ export interface UserOut {
   email: string | null;
   role: string;
   phone_number: string | null;
+  phone_prompt_dismissed: boolean;
 }
 
 export async function login(username: string, password: string): Promise<string> {
@@ -70,6 +71,17 @@ export async function login(username: string, password: string): Promise<string>
 
 export function fetchMe(): Promise<UserOut> {
   return request<UserOut>("/auth/me");
+}
+
+export function linkPhoneNumber(phoneNumber: string): Promise<UserOut> {
+  return request<UserOut>("/auth/me/phone", {
+    method: "PUT",
+    body: JSON.stringify({ phone_number: phoneNumber }),
+  });
+}
+
+export function dismissPhonePrompt(): Promise<UserOut> {
+  return request<UserOut>("/auth/me/dismiss-phone-prompt", { method: "PATCH" });
 }
 
 export interface DocumentOut {
@@ -442,6 +454,7 @@ export interface AdminUserCreateInput {
   display_name: string;
   email: string;
   is_admin: boolean;
+  phone_number?: string | null;
 }
 
 export interface AdminUserCreatedOut {
@@ -451,4 +464,23 @@ export interface AdminUserCreatedOut {
 
 export function createAdminUser(input: AdminUserCreateInput): Promise<AdminUserCreatedOut> {
   return request<AdminUserCreatedOut>("/admin/users", { method: "POST", body: JSON.stringify(input) });
+}
+
+export interface AdminUserOut {
+  id: string;
+  username: string;
+  display_name: string;
+  email: string | null;
+  role: string;
+  phone_number: string | null;
+  created_at: string;
+  last_login_at: string | null;
+}
+
+export function listAdminUsers(limit?: number, offset?: number): Promise<AdminUserOut[]> {
+  const params = new URLSearchParams();
+  if (limit !== undefined) params.set("limit", String(limit));
+  if (offset !== undefined) params.set("offset", String(offset));
+  const query = params.toString();
+  return request<AdminUserOut[]>(`/admin/users${query ? `?${query}` : ""}`);
 }

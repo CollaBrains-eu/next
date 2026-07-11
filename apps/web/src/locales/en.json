@@ -271,7 +271,12 @@
     "adminRoleLabel": "Admin role",
     "creating": "Creating…",
     "createUser": "Create user",
-    "createUserError": "Failed to create user"
+    "createUserError": "Failed to create user",
+    "usersLoadError": "Failed to load users",
+    "roleColumn": "Role",
+    "phoneColumn": "Phone",
+    "createdAtColumn": "Created",
+    "loadMore": "Load more"
   },
   "settings": {
     "title": "Settings",
@@ -282,5 +287,13 @@
     "saveError": "Failed to save preferences",
     "saved": "Saved.",
     "save": "Save"
+  },
+  "phonePrompt": {
+    "title": "Set your phone number",
+    "description": "Add a phone number to use CollaBrains over Signal. You can always do this later in Settings.",
+    "phoneLabel": "Phone number",
+    "setPhone": "Set phone number",
+    "skip": "Skip",
+    "error": "Failed to set phone number"
   }
 }

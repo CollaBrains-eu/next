@@ -257,7 +257,12 @@
     "adminRoleLabel": "Administratorrolle",
     "creating": "Wird erstellt…",
     "createUser": "Benutzer erstellen",
-    "createUserError": "Benutzer konnte nicht erstellt werden"
+    "createUserError": "Benutzer konnte nicht erstellt werden",
+    "usersLoadError": "Benutzer konnten nicht geladen werden",
+    "roleColumn": "Rolle",
+    "phoneColumn": "Telefon",
+    "createdAtColumn": "Erstellt",
+    "loadMore": "Mehr laden"
   },
   "auth": {
     "title": "Anmelden",
@@ -282,5 +287,13 @@
     "saveError": "Einstellungen konnten nicht gespeichert werden",
     "saved": "Gespeichert.",
     "save": "Speichern"
+  },
+  "phonePrompt": {
+    "title": "Telefonnummer festlegen",
+    "description": "Fügen Sie eine Telefonnummer hinzu, um CollaBrains über Signal zu nutzen. Sie können dies auch später in den Einstellungen tun.",
+    "phoneLabel": "Telefonnummer",
+    "setPhone": "Telefonnummer festlegen",
+    "skip": "Überspringen",
+    "error": "Telefonnummer konnte nicht festgelegt werden"
   }
 }
