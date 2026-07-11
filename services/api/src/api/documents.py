@@ -257,9 +257,10 @@ async def list_documents(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_effective_user),
 ) -> list[Document]:
-    result = await db.execute(
-        select(Document).order_by(Document.created_at.desc()).limit(limit).offset(offset)
-    )
+    query = select(Document).order_by(Document.created_at.desc()).limit(limit).offset(offset)
+    if current_user.role != "admin":
+        query = query.where(Document.owner_id == current_user.id)
+    result = await db.execute(query)
     return list(result.scalars().all())
 
 
@@ -272,6 +273,8 @@ async def get_document(
     document = await db.get(Document, document_id)
     if document is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    if document.owner_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to view this document")
 
     count_result = await db.execute(
         select(func.count()).select_from(DocumentChunk).where(DocumentChunk.document_id == document_id)
@@ -383,7 +386,7 @@ async def search(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_effective_user),
 ) -> list[SearchResult]:
-    hits = await hybrid_search(db, q, limit=limit)
+    hits = await hybrid_search(db, q, limit=limit, owner_id=current_user.id)
     if not hits:
         return []
 

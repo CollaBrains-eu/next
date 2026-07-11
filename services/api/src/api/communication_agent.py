@@ -48,7 +48,7 @@ async def draft_communication(
         raise ValueError(f"unknown channel: {channel!r}")
 
     scope = set(document_ids) if document_ids else None
-    hits = await hybrid_search(db, instruction, limit=8, document_ids=scope)
+    hits = await hybrid_search(db, instruction, limit=8, owner_id=user_id, document_ids=scope)
     context_text = (
         "\n\n".join(f"[{i}] {hit.chunk.content}" for i, hit in enumerate(hits, start=1))
         if hits else "(no relevant documents found)"
