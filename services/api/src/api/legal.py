@@ -73,9 +73,9 @@ class DraftResponse(BaseModel):
 
 
 async def _retrieve(
-    db: AsyncSession, instruction: str, limit: int, scope: set[UUID] | None
+    db: AsyncSession, instruction: str, limit: int, scope: set[UUID] | None, owner_id: UUID
 ) -> tuple[list[Citation], str]:
-    hits = await hybrid_search(db, instruction, limit=limit, document_ids=scope)
+    hits = await hybrid_search(db, instruction, limit=limit, owner_id=owner_id, document_ids=scope)
 
     citations: list[Citation] = []
     context_blocks: list[str] = []
@@ -104,7 +104,7 @@ async def _generate_draft(
     context_chunks: int = 8,
 ) -> DraftResponse:
     scope = set(document_ids) if document_ids else None
-    citations, context_text = await _retrieve(db, instruction, context_chunks, scope)
+    citations, context_text = await _retrieve(db, instruction, context_chunks, scope, user_id)
 
     language_instruction = ""
     try:
@@ -127,7 +127,7 @@ async def _generate_draft(
         retried = False
         if not result.sufficient_evidence and context_chunks < REFLECTION_RETRY_CAP:
             retry_limit = min(context_chunks * 2, REFLECTION_RETRY_CAP)
-            citations, context_text = await _retrieve(db, instruction, retry_limit, scope)
+            citations, context_text = await _retrieve(db, instruction, retry_limit, scope, user_id)
             messages = [
                 {"role": "system", "content": SYSTEM_PROMPT + language_instruction},
                 {"role": "user", "content": f"Context:\n{context_text}\n\nDrafting instruction: {instruction}"},

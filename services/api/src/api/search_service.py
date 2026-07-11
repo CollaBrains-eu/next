@@ -12,7 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.embeddings import embed_text
-from api.models import DocumentChunk
+from api.models import Document, DocumentChunk
 
 
 @dataclass
@@ -26,13 +26,30 @@ async def hybrid_search(
     query: str,
     limit: int = 10,
     *,
+    owner_id: UUID,
     document_ids: set[UUID] | None = None,
 ) -> list[SearchHit]:
+    """Search chunks belonging only to `owner_id`'s own documents.
+
+    `owner_id` is mandatory (not an optional narrowing filter like
+    `document_ids`) so no future caller can add a new hybrid_search call
+    site and forget access control -- Python raises TypeError instead of
+    silently searching every user's documents. `document_ids`, when
+    given, still only narrows within that owner's own documents; it
+    can never widen scope to someone else's, closing the IDOR where a
+    caller (e.g. /legal/draft) could previously pass another user's
+    document id and have it searched.
+    """
     candidate_pool = max(limit * 3, 20)
     rrf_k = 60
 
     query_vector = await embed_text(query)
-    semantic_query = select(DocumentChunk).order_by(DocumentChunk.embedding.cosine_distance(query_vector))
+    semantic_query = (
+        select(DocumentChunk)
+        .join(Document, DocumentChunk.document_id == Document.id)
+        .where(Document.owner_id == owner_id)
+        .order_by(DocumentChunk.embedding.cosine_distance(query_vector))
+    )
     if document_ids:
         semantic_query = semantic_query.where(DocumentChunk.document_id.in_(document_ids))
     semantic_result = await db.execute(semantic_query.limit(candidate_pool))
@@ -41,6 +58,8 @@ async def hybrid_search(
     tsquery = func.plainto_tsquery("english", query)
     keyword_query = (
         select(DocumentChunk)
+        .join(Document, DocumentChunk.document_id == Document.id)
+        .where(Document.owner_id == owner_id)
         .where(DocumentChunk.content_tsv.op("@@")(tsquery))
         .order_by(func.ts_rank(DocumentChunk.content_tsv, tsquery).desc())
     )

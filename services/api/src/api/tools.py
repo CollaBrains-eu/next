@@ -28,7 +28,7 @@ async def _search_handler(
     document_ids: list[UUID] | None = None,
 ) -> dict[str, Any]:
     scope = set(document_ids) if document_ids else None
-    hits = await hybrid_search(db, query, limit=limit, document_ids=scope)
+    hits = await hybrid_search(db, query, limit=limit, owner_id=user_id, document_ids=scope)
     return {
         "documents": [
             {
