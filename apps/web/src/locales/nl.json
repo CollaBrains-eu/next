@@ -271,7 +271,12 @@
     "adminRoleLabel": "Beheerdersrol",
     "creating": "Bezig met aanmaken…",
     "createUser": "Gebruiker aanmaken",
-    "createUserError": "Kon gebruiker niet aanmaken"
+    "createUserError": "Kon gebruiker niet aanmaken",
+    "usersLoadError": "Kon gebruikers niet laden",
+    "roleColumn": "Rol",
+    "phoneColumn": "Telefoon",
+    "createdAtColumn": "Aangemaakt",
+    "loadMore": "Meer laden"
   },
   "settings": {
     "title": "Instellingen",
@@ -282,5 +287,13 @@
     "saveError": "Kon voorkeuren niet opslaan",
     "saved": "Opgeslagen.",
     "save": "Opslaan"
+  },
+  "phonePrompt": {
+    "title": "Stel uw telefoonnummer in",
+    "description": "Voeg een telefoonnummer toe om CollaBrains via Signal te gebruiken. U kunt dit ook later doen bij Instellingen.",
+    "phoneLabel": "Telefoonnummer",
+    "setPhone": "Telefoonnummer instellen",
+    "skip": "Overslaan",
+    "error": "Kon telefoonnummer niet instellen"
   }
 }

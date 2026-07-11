@@ -12,6 +12,7 @@ vi.mock("../lib/api", async () => {
     getAdminHealth: vi.fn(),
     listBugReports: vi.fn(),
     createAdminUser: vi.fn(),
+    listAdminUsers: vi.fn(),
   };
 });
 
@@ -19,6 +20,7 @@ function goToUsersTab() {
   vi.mocked(api.getAdminStats).mockResolvedValue({
     total_users: 0, total_documents: 0, documents_by_status: {}, ai_calls_last_24h: 0,
   });
+  vi.mocked(api.listAdminUsers).mockResolvedValue([]);
   render(<AdminDashboard />);
   fireEvent.click(screen.getByRole("button", { name: "Users" }));
 }
@@ -50,6 +52,7 @@ describe("AdminDashboard Users tab", () => {
         display_name: "New Person",
         email: "new@collabrains.eu",
         is_admin: false,
+        phone_number: null,
       }),
     );
 
@@ -89,5 +92,69 @@ describe("AdminDashboard Users tab", () => {
     await screen.findByTestId("temp-password");
     fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
     expect(screen.queryByTestId("temp-password")).not.toBeInTheDocument();
+  });
+
+  it("submits the phone number when one is entered", async () => {
+    vi.mocked(api.createAdminUser).mockResolvedValue({
+      username: "newperson", temporary_password: "a-temp-pw-123",
+    });
+    goToUsersTab();
+    fireEvent.click(screen.getByRole("button", { name: "+ Add user" }));
+
+    fireEvent.change(screen.getByLabelText("Username"), { target: { value: "newperson" } });
+    fireEvent.change(screen.getByLabelText("Display name"), { target: { value: "New Person" } });
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "new@collabrains.eu" } });
+    fireEvent.change(screen.getByLabelText("Phone"), { target: { value: "+491511234567" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create user" }));
+
+    await waitFor(() =>
+      expect(api.createAdminUser).toHaveBeenCalledWith(
+        expect.objectContaining({ phone_number: "+491511234567" }),
+      ),
+    );
+  });
+
+  it("lists existing users", async () => {
+    vi.mocked(api.getAdminStats).mockResolvedValue({
+      total_users: 0, total_documents: 0, documents_by_status: {}, ai_calls_last_24h: 0,
+    });
+    vi.mocked(api.listAdminUsers).mockResolvedValue([
+      {
+        id: "u1", username: "alice", display_name: "Alice", email: "alice@collabrains.eu",
+        role: "member", phone_number: "+15551230001", created_at: "2026-01-01T00:00:00Z", last_login_at: null,
+      },
+    ]);
+    render(<AdminDashboard />);
+    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+
+    expect(await screen.findByText("alice")).toBeInTheDocument();
+    expect(screen.getByText("Alice")).toBeInTheDocument();
+    expect(screen.getByText("+15551230001")).toBeInTheDocument();
+  });
+
+  it("shows a load-more button when a full page comes back, and loads the next page", async () => {
+    vi.mocked(api.getAdminStats).mockResolvedValue({
+      total_users: 0, total_documents: 0, documents_by_status: {}, ai_calls_last_24h: 0,
+    });
+    const fullPage = Array.from({ length: 50 }, (_, i) => ({
+      id: `u${i}`, username: `user${i}`, display_name: `User ${i}`, email: null,
+      role: "member", phone_number: null, created_at: "2026-01-01T00:00:00Z", last_login_at: null,
+    }));
+    vi.mocked(api.listAdminUsers)
+      .mockResolvedValueOnce(fullPage)
+      .mockResolvedValueOnce([
+        {
+          id: "u50", username: "user50", display_name: "User 50", email: null,
+          role: "member", phone_number: null, created_at: "2026-01-01T00:00:00Z", last_login_at: null,
+        },
+      ]);
+    render(<AdminDashboard />);
+    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+
+    const loadMore = await screen.findByRole("button", { name: "Load more" });
+    fireEvent.click(loadMore);
+
+    expect(await screen.findByText("user50")).toBeInTheDocument();
+    await waitFor(() => expect(api.listAdminUsers).toHaveBeenCalledWith(50, 50));
   });
 });

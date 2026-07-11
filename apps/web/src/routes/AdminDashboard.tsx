@@ -3,12 +3,16 @@ import { useTranslation } from "react-i18next";
 import Card from "../components/Card";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
+import { TextField } from "../components/ui/form";
+import { DataTable, type Column } from "../components/ui/DataTable";
 import {
   ApiError,
   analyzeBugReport,
   createAdminUser,
+  listAdminUsers,
   type AdminStatsOut,
   type AdminUserCreatedOut,
+  type AdminUserOut,
   type AiUsageRowOut,
   type BugReportOut,
   type ServiceHealthOut,
@@ -17,6 +21,8 @@ import {
   getAdminStats,
   listBugReports,
 } from "../lib/api";
+
+const USERS_PAGE_SIZE = 50;
 
 type Tab = "overview" | "ai-usage" | "health" | "bugs" | "users";
 
@@ -233,15 +239,39 @@ function UsersTab() {
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<AdminUserCreatedOut | null>(null);
 
+  const [users, setUsers] = useState<AdminUserOut[]>([]);
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [usersError, setUsersError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+
+  async function loadUsers(offset: number) {
+    try {
+      const page = await listAdminUsers(USERS_PAGE_SIZE, offset);
+      setUsers((prev) => (offset === 0 ? page : [...prev, ...page]));
+      setHasMore(page.length === USERS_PAGE_SIZE);
+    } catch (err) {
+      setUsersError(err instanceof ApiError ? err.message : t("admin.usersLoadError"));
+    } finally {
+      setUsersLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadUsers(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function resetForm() {
     setUsername("");
     setDisplayName("");
     setEmail("");
+    setPhoneNumber("");
     setIsAdmin(false);
     setError(null);
   }
@@ -253,16 +283,31 @@ function UsersTab() {
     try {
       const result = await createAdminUser({
         username, display_name: displayName, email, is_admin: isAdmin,
+        phone_number: phoneNumber.trim() || null,
       });
       setFormOpen(false);
       resetForm();
       setCreated(result);
+      loadUsers(0);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("admin.createUserError"));
     } finally {
       setSubmitting(false);
     }
   }
+
+  const columns: Column<AdminUserOut>[] = [
+    { key: "username", header: t("admin.usernameLabel"), render: (row) => row.username },
+    { key: "display_name", header: t("admin.displayNameLabel"), render: (row) => row.display_name },
+    { key: "email", header: t("admin.emailLabel"), render: (row) => row.email ?? "" },
+    { key: "role", header: t("admin.roleColumn"), render: (row) => row.role },
+    { key: "phone_number", header: t("admin.phoneColumn"), render: (row) => row.phone_number ?? "" },
+    {
+      key: "created_at",
+      header: t("admin.createdAtColumn"),
+      render: (row) => new Date(row.created_at).toLocaleDateString(),
+    },
+  ];
 
   return (
     <div className="flex flex-col gap-4">
@@ -326,6 +371,12 @@ function UsersTab() {
               className="rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
             />
           </label>
+          <TextField
+            label={t("admin.phoneColumn")}
+            value={phoneNumber}
+            onChange={setPhoneNumber}
+            placeholder="+491511234567"
+          />
           <label className="flex items-center gap-2 text-sm text-ink-2">
             <input type="checkbox" checked={isAdmin} onChange={(e) => setIsAdmin(e.target.checked)} />
             {t("admin.adminRoleLabel")}
@@ -340,6 +391,23 @@ function UsersTab() {
           </div>
         </form>
       </Modal>
+
+      {usersError ? (
+        <p className="text-danger">{usersError}</p>
+      ) : usersLoading ? (
+        <p className="text-ink-3">{t("common.loading")}</p>
+      ) : (
+        <>
+          <DataTable columns={columns} rows={users} rowKey={(row) => row.id} pageSize={Math.max(users.length, 1)} />
+          {hasMore && (
+            <div>
+              <Button size="sm" variant="secondary" onClick={() => loadUsers(users.length)}>
+                {t("admin.loadMore")}
+              </Button>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
