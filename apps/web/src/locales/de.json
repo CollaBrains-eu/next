@@ -197,6 +197,12 @@
     "approve": "Genehmigen",
     "keyboardHint": "Tastatur: J oder → zum Genehmigen, K oder ← zum Ablehnen"
   },
+  "entityGraph": {
+    "loadError": "Graph konnte nicht geladen werden",
+    "relationshipCount_one": "{{type}} · {{count}} direkte Beziehung",
+    "relationshipCount_other": "{{type}} · {{count}} direkte Beziehungen",
+    "noRelationships": "Noch keine bekannten Beziehungen für diese Entität."
+  },
   "chat": {
     "hint": "Stellen Sie eine Frage zu Ihren Dokumenten. Antworten basieren ausschließlich auf abgerufenen Inhalten und verweisen auf Quellen.",
     "inputPlaceholder": "Stellen Sie eine Frage…",
@@ -216,5 +222,29 @@
     "inputPlaceholder": "Fragen Sie den Assistenten…",
     "toolCalled": "via: {{tool}}",
     "loadError": "Assistentenanfrage fehlgeschlagen"
+  },
+  "auth": {
+    "title": "Anmelden",
+    "subtitle": "Verwenden Sie Ihre CollaBrains-Zugangsdaten.",
+    "username": "Benutzername",
+    "password": "Passwort",
+    "submit": "Anmelden",
+    "submitting": "Wird angemeldet…",
+    "loginError": "Anmeldung fehlgeschlagen"
+  },
+  "notFound": {
+    "title": "Seite nicht gefunden",
+    "message": "Die gesuchte Seite existiert nicht oder wurde verschoben.",
+    "action": "Zurück zum Dashboard"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "preferredLanguage": "Bevorzugte Sprache",
+    "preferredLanguageHint": "Wird von KI-Chat verwendet, um in Ihrer bevorzugten Sprache zu antworten.",
+    "noPreference": "Keine Präferenz",
+    "loadError": "Einstellungen konnten nicht geladen werden",
+    "saveError": "Einstellungen konnten nicht gespeichert werden",
+    "saved": "Gespeichert.",
+    "save": "Speichern"
   }
 }
