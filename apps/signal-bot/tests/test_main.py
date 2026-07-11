@@ -162,6 +162,42 @@ def test_ask_collabrains_treats_403_as_unlinked():
     assert answer == main.UNLINKED_REPLY
 
 
+def test_ask_collabrains_posts_to_manager_ask_endpoint():
+    client = MagicMock()
+    client.post.return_value.status_code = 200
+    client.post.return_value.json.return_value = {"answer": "hi there", "legal_draft": None}
+
+    main.ask_collabrains(client, "hi", "+15559998888")
+
+    called_url = client.post.call_args.args[0]
+    assert called_url == f"{main.COLLABRAINS_API_URL}/manager/ask"
+
+
+def test_ask_collabrains_returns_plain_answer_when_no_legal_draft():
+    client = MagicMock()
+    client.post.return_value.status_code = 200
+    client.post.return_value.json.return_value = {"answer": "hi there", "legal_draft": None}
+
+    answer, forbidden = main.ask_collabrains(client, "hi", "+15559998888")
+
+    assert forbidden is False
+    assert answer == "hi there"
+
+
+def test_ask_collabrains_prepends_legal_draft_disclaimer():
+    client = MagicMock()
+    client.post.return_value.status_code = 200
+    client.post.return_value.json.return_value = {
+        "answer": "Dear Sir or Madam, ...",
+        "legal_draft": {"draft": "Dear Sir or Madam, ...", "citations": [], "disclaimer": "Not legal advice."},
+    }
+
+    answer, forbidden = main.ask_collabrains(client, "draft a letter", "+15559998888")
+
+    assert forbidden is False
+    assert answer == "Not legal advice.\n\nDear Sir or Madam, ..."
+
+
 def test_handle_attachment_message_uploads_each_attachment_and_acks(monkeypatch):
     client = MagicMock()
     monkeypatch.setattr(main, "resolve_phone_number", lambda c, sender: "+15559998888")
