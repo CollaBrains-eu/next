@@ -58,6 +58,22 @@ class User(Base):
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    phone_prompt_dismissed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
+class PendingUserPhoneNumber(Base):
+    """A phone number set by an admin at user-creation time, before the
+    Postgres `User` row exists (it's only created on first LDAP login).
+    `_get_or_provision_user` (auth.py) consumes -- reads and deletes --
+    the matching row on first login, same "LDAP is identity, Postgres is
+    authorization" division as everything else in this table's docstring.
+    """
+
+    __tablename__ = "pending_user_phone_numbers"
+
+    username: Mapped[str] = mapped_column(String(255), primary_key=True)
+    phone_number: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Document(Base):

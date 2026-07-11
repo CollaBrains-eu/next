@@ -163,3 +163,151 @@ async def test_create_user_reports_ldap_bind_failure_as_502(client):
             json={"username": "someone", "display_name": "Someone Else", "email": "s@collabrains.eu"},
         )
     assert response.status_code == 502
+
+
+async def test_admin_can_create_user_with_phone_number_stages_a_pending_row(client):
+    from sqlalchemy import select
+
+    from api.db import async_session
+    from api.models import PendingUserPhoneNumber
+
+    admin_token = await _login(client, _unique("phoneuseradmin"), is_admin=True)
+    username = _unique("phonependinguser")
+    with patch(
+        "api.admin_router.ldap_create_user",
+        return_value=LdapUserCreated(username=username, temporary_password="a-temp-pw-456"),
+    ):
+        response = await client.post(
+            "/admin/users",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={
+                "username": username, "display_name": "Phone Pending User",
+                "email": "phonepending@collabrains.eu", "phone_number": "+15559990321",
+            },
+        )
+    assert response.status_code == 200
+
+    async with async_session() as db:
+        result = await db.execute(select(PendingUserPhoneNumber).where(PendingUserPhoneNumber.username == username))
+        pending = result.scalar_one()
+    assert pending.phone_number == "+15559990321"
+
+
+async def test_admin_create_user_with_invalid_phone_number_returns_400(client):
+    admin_token = await _login(client, _unique("badphoneadmin"), is_admin=True)
+    username = _unique("badphoneuser")
+    with patch(
+        "api.admin_router.ldap_create_user",
+        return_value=LdapUserCreated(username=username, temporary_password="a-temp-pw-789"),
+    ):
+        response = await client.post(
+            "/admin/users",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={
+                "username": username, "display_name": "Bad Phone User",
+                "email": "badphone@collabrains.eu", "phone_number": "0491511234567",
+            },
+        )
+    assert response.status_code == 400
+
+
+async def test_admin_create_user_with_duplicate_phone_number_returns_409(client):
+    admin_token = await _login(client, _unique("duppphoneadmin"), is_admin=True)
+    username1 = _unique("dupphoneuser1")
+    username2 = _unique("dupphoneuser2")
+
+    with patch(
+        "api.admin_router.ldap_create_user",
+        return_value=LdapUserCreated(username=username1, temporary_password="pw1"),
+    ):
+        first = await client.post(
+            "/admin/users",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={
+                "username": username1, "display_name": "Dup Phone One",
+                "email": "dup1@collabrains.eu", "phone_number": "+15559990654",
+            },
+        )
+    assert first.status_code == 200
+
+    with patch(
+        "api.admin_router.ldap_create_user",
+        return_value=LdapUserCreated(username=username2, temporary_password="pw2"),
+    ):
+        second = await client.post(
+            "/admin/users",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={
+                "username": username2, "display_name": "Dup Phone Two",
+                "email": "dup2@collabrains.eu", "phone_number": "+15559990654",
+            },
+        )
+    assert second.status_code == 409
+
+
+async def test_admin_create_user_with_phone_already_linked_to_an_active_user_returns_409(client):
+    """A phone already claimed by an existing User.phone_number (not just
+    another pending row) must be rejected at creation time -- otherwise
+    it would silently stage, then break the new user's first login with
+    an unhandled IntegrityError when _get_or_provision_user tries to
+    set the same phone number on their new User row."""
+    admin_token = await _login(client, _unique("activephoneadmin"), is_admin=True)
+
+    active_username = _unique("activephoneuser")
+    active_token = await _login(client, active_username, is_admin=False)
+    link = await client.put(
+        "/auth/me/phone",
+        headers={"Authorization": f"Bearer {active_token}"},
+        json={"phone_number": "+15559990987"},
+    )
+    assert link.status_code == 200
+
+    new_username = _unique("wantsactivephoneuser")
+    with patch(
+        "api.admin_router.ldap_create_user",
+        return_value=LdapUserCreated(username=new_username, temporary_password="pw3"),
+    ):
+        response = await client.post(
+            "/admin/users",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={
+                "username": new_username, "display_name": "Wants Active Phone",
+                "email": "wantsactive@collabrains.eu", "phone_number": "+15559990987",
+            },
+        )
+    assert response.status_code == 409
+
+
+async def test_admin_list_users_requires_admin_role(client):
+    token = await _login(client, _unique("listusersmember"), is_admin=False)
+    response = await client.get("/admin/users", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 403
+
+
+async def test_admin_list_users_rejects_missing_token(client):
+    response = await client.get("/admin/users")
+    assert response.status_code == 401
+
+
+async def test_admin_list_users_returns_newest_first(client):
+    older_username = _unique("listuserolder")
+    newer_username = _unique("listusernewer")
+    await _login(client, older_username, is_admin=False)
+    await _login(client, newer_username, is_admin=False)
+
+    admin_token = await _login(client, _unique("listusersadmin"), is_admin=True)
+    response = await client.get(
+        "/admin/users", headers={"Authorization": f"Bearer {admin_token}"}, params={"limit": 200}
+    )
+    assert response.status_code == 200
+    usernames = [row["username"] for row in response.json()]
+    assert usernames.index(newer_username) < usernames.index(older_username)
+
+
+async def test_admin_list_users_respects_limit(client):
+    admin_token = await _login(client, _unique("listuserslimitadmin"), is_admin=True)
+    response = await client.get(
+        "/admin/users", headers={"Authorization": f"Bearer {admin_token}"}, params={"limit": 2}
+    )
+    assert response.status_code == 200
+    assert len(response.json()) == 2

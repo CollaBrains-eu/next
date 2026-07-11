@@ -86,3 +86,64 @@ async def test_link_phone_number_rejects_duplicate(client):
         "/auth/me/phone", headers={"Authorization": f"Bearer {token2}"}, json={"phone_number": "+15551230099"}
     )
     assert second.status_code == 409
+
+
+async def test_me_reports_phone_prompt_dismissed_false_by_default(client):
+    token = await _get_token(client, "phoneuser5")
+    me = await client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert me.json()["phone_prompt_dismissed"] is False
+
+
+async def test_dismiss_phone_prompt_sets_the_flag(client):
+    token = await _get_token(client, "phoneuser6")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = await client.patch("/auth/me/dismiss-phone-prompt", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["phone_prompt_dismissed"] is True
+
+    me = await client.get("/auth/me", headers=headers)
+    assert me.json()["phone_prompt_dismissed"] is True
+
+
+async def test_dismiss_phone_prompt_rejects_missing_token(client):
+    response = await client.patch("/auth/me/dismiss-phone-prompt")
+    assert response.status_code == 401
+
+
+async def test_first_login_consumes_a_pending_phone_number(client):
+    """Mirrors the admin-create-with-phone flow: a PendingUserPhoneNumber
+    row exists before the user's first login, and provisioning should
+    both attach it to the new User row and delete the pending row so a
+    second login doesn't try to re-apply (and fail on) a stale row."""
+    from api.db import async_session
+    from api.models import PendingUserPhoneNumber
+
+    async with async_session() as db:
+        db.add(PendingUserPhoneNumber(username="pendingphoneuser1", phone_number="+15551230123"))
+        await db.commit()
+
+    identity = LdapIdentity(
+        username="pendingphoneuser1", display_name="Pending Phone User",
+        email="pendingphoneuser1@collabrains.eu", is_admin=False,
+    )
+    with patch("api.auth.ldap_authenticate", return_value=identity):
+        login = await client.post("/auth/token", data={"username": "pendingphoneuser1", "password": "whatever"})
+    token = login.json()["access_token"]
+
+    me = await client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert me.json()["phone_number"] == "+15551230123"
+
+    async with async_session() as db:
+        from sqlalchemy import select
+
+        result = await db.execute(
+            select(PendingUserPhoneNumber).where(PendingUserPhoneNumber.username == "pendingphoneuser1")
+        )
+        assert result.scalar_one_or_none() is None
+
+
+async def test_login_without_a_pending_phone_number_leaves_it_null(client):
+    token = await _get_token(client, "nopendingphoneuser1")
+    me = await client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert me.json()["phone_number"] is None

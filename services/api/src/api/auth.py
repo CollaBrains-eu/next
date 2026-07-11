@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.config import settings
 from api.db import get_db
 from api.ldap_auth import authenticate as ldap_authenticate
-from api.models import User
+from api.models import PendingUserPhoneNumber, User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
@@ -41,6 +41,29 @@ class UserOut(BaseModel):
     email: str | None
     role: str
     phone_number: str | None
+    phone_prompt_dismissed: bool
+
+
+def _user_out(user: User) -> UserOut:
+    return UserOut(
+        username=user.username,
+        display_name=user.display_name,
+        email=user.email,
+        role=user.role,
+        phone_number=user.phone_number,
+        phone_prompt_dismissed=user.phone_prompt_dismissed,
+    )
+
+
+def validate_phone_number(phone: str) -> str:
+    """Shared E.164 check -- used by both self-service linking and
+    admin phone-at-creation, so the rule exists in exactly one place."""
+    phone = phone.strip()
+    if not phone.startswith("+") or not phone[1:].isdigit() or len(phone) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="phone_number must be in E.164 format, e.g. +491511234567"
+        )
+    return phone
 
 
 def create_access_token(username: str, role: str) -> str:
@@ -54,13 +77,21 @@ async def _get_or_provision_user(db: AsyncSession, identity) -> User:
     user = result.scalar_one_or_none()
 
     if user is None:
+        pending_result = await db.execute(
+            select(PendingUserPhoneNumber).where(PendingUserPhoneNumber.username == identity.username)
+        )
+        pending = pending_result.scalar_one_or_none()
+
         user = User(
             username=identity.username,
             display_name=identity.display_name,
             email=identity.email,
             role="admin" if identity.is_admin else "member",
+            phone_number=pending.phone_number if pending else None,
         )
         db.add(user)
+        if pending is not None:
+            await db.delete(pending)
 
     user.last_login_at = datetime.now(timezone.utc)
     await db.commit()
@@ -133,13 +164,7 @@ async def get_effective_user(
 
 @router.get("/me", response_model=UserOut)
 async def me(current_user: User = Depends(get_current_user)) -> UserOut:
-    return UserOut(
-        username=current_user.username,
-        display_name=current_user.display_name,
-        email=current_user.email,
-        role=current_user.role,
-        phone_number=current_user.phone_number,
-    )
+    return _user_out(current_user)
 
 
 class PhoneNumberUpdate(BaseModel):
@@ -152,13 +177,7 @@ async def link_phone_number(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> UserOut:
-    phone = update.phone_number.strip()
-    if not phone.startswith("+") or not phone[1:].isdigit() or len(phone) < 8:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="phone_number must be in E.164 format, e.g. +491511234567"
-        )
-
-    current_user.phone_number = phone
+    current_user.phone_number = validate_phone_number(update.phone_number)
     try:
         await db.commit()
     except IntegrityError:
@@ -166,10 +185,15 @@ async def link_phone_number(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This phone number is already linked to another account")
 
     await db.refresh(current_user)
-    return UserOut(
-        username=current_user.username,
-        display_name=current_user.display_name,
-        email=current_user.email,
-        role=current_user.role,
-        phone_number=current_user.phone_number,
-    )
+    return _user_out(current_user)
+
+
+@router.patch("/me/dismiss-phone-prompt", response_model=UserOut)
+async def dismiss_phone_prompt(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> UserOut:
+    current_user.phone_prompt_dismissed = True
+    await db.commit()
+    await db.refresh(current_user)
+    return _user_out(current_user)

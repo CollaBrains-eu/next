@@ -11,8 +11,10 @@ from datetime import datetime, timedelta
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.admin_service import (
@@ -26,11 +28,11 @@ from api.admin_service import (
     get_service_health,
     list_bug_reports,
 )
-from api.auth import get_current_user
+from api.auth import get_current_user, validate_phone_number
 from api.db import get_db
 from api.ldap_auth import LdapAdminError
 from api.ldap_auth import create_user as ldap_create_user
-from api.models import BugReport, User
+from api.models import BugReport, PendingUserPhoneNumber, User
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -61,11 +63,26 @@ class AdminUserCreate(BaseModel):
     display_name: str
     email: str
     is_admin: bool = False
+    phone_number: str | None = None
 
 
 class AdminUserCreated(BaseModel):
     username: str
     temporary_password: str
+
+
+class AdminUserOut(BaseModel):
+    id: UUID
+    username: str
+    display_name: str
+    email: str | None
+    role: str
+    phone_number: str | None
+    created_at: datetime
+    last_login_at: datetime | None
+
+    class Config:
+        from_attributes = True
 
 
 @router.get("/stats", response_model=AdminStats)
@@ -133,11 +150,14 @@ async def admin_analyze_bug_report(
 @router.post("/users", response_model=AdminUserCreated)
 async def admin_create_user(
     body: AdminUserCreate,
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> AdminUserCreated:
     """Create a new LDAP user with a one-time temporary password. The
     Postgres User row is not created here -- it appears on first login,
-    same auto-provision path as every other user."""
+    same auto-provision path as every other user. If a phone number was
+    given, it's staged in `pending_user_phone_numbers` and consumed by
+    `_get_or_provision_user` (auth.py) the moment that row is created."""
     _require_admin(current_user)
     try:
         created = ldap_create_user(
@@ -149,4 +169,37 @@ async def admin_create_user(
             status.HTTP_409_CONFLICT if "already exists" in detail.lower() else status.HTTP_502_BAD_GATEWAY
         )
         raise HTTPException(status_code=status_code, detail=detail) from exc
+
+    if body.phone_number:
+        phone = validate_phone_number(body.phone_number)
+        existing = await db.execute(select(User).where(User.phone_number == phone))
+        if existing.scalar_one_or_none() is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This phone number is already linked to another account",
+            )
+        db.add(PendingUserPhoneNumber(username=body.username, phone_number=phone))
+        try:
+            await db.commit()
+        except IntegrityError:
+            await db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This phone number is already linked to another account",
+            )
+
     return AdminUserCreated(username=created.username, temporary_password=created.temporary_password)
+
+
+@router.get("/users", response_model=list[AdminUserOut])
+async def admin_list_users(
+    limit: int = Query(50, le=200),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[User]:
+    _require_admin(current_user)
+    result = await db.execute(
+        select(User).order_by(User.created_at.desc()).limit(limit).offset(offset)
+    )
+    return list(result.scalars().all())
