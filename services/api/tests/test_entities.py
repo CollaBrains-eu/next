@@ -64,7 +64,10 @@ async def test_extract_entities_deduplicates_by_case_insensitive_name_and_type(c
     with patch("api.entity_agent.chat_completion", return_value=fake_second):
         await client.post(f"/documents/{doc_b}/extract-entities", headers=headers)
 
-    listing = await client.get("/entities", headers=headers, params={"q": "wanda"})
+    # status="all": newly-extracted entities start pending_review, and this
+    # test is about dedup, not the review-status filter GET /entities
+    # defaults to (added later, in a3cec2f, without updating this test).
+    listing = await client.get("/entities", headers=headers, params={"q": "wanda", "status": "all"})
     names = [e["name"] for e in listing.json()]
     assert names == ["Wanda Cole"]  # one row, not two, despite different casing across documents
 
