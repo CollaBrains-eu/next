@@ -621,7 +621,7 @@
     </div>
     <div class="header-actions">
       <div class="dropdown" id="notifDd">
-        <button class="cmdk-trigger" id="notifTrigger" style="position:relative;">🔔<span class="nav-badge" id="notifBadge" style="position:absolute; top:-6px; right:-6px;">3</span></button>
+        <button class="cmdk-trigger" id="notifTrigger" aria-label="Notifications" aria-haspopup="true" aria-expanded="false" style="position:relative;">🔔<span class="nav-badge" id="notifBadge" style="position:absolute; top:-6px; right:-6px;">3</span></button>
         <div class="dropdown-menu" id="notifMenu" style="width:290px; right:0; left:auto;">
           <div style="padding:6px 10px 8px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); margin-bottom:4px;">
             <span style="font-size:11px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.05em;">Reminders</span>
@@ -767,8 +767,8 @@
     <h2>Multi-select — linked entities</h2>
     <div class="combobox" id="entityCombo">
       <div class="combo-field" id="comboField">
-        <span class="combo-chip" data-value="Volkswagen Transporter (39-VLJ-4)">Volkswagen Transporter <button data-remove>✕</button></span>
-        <input type="text" id="comboInput" placeholder="Link a vehicle or entity…">
+        <span class="combo-chip" data-value="Volkswagen Transporter (39-VLJ-4)">Volkswagen Transporter <button data-remove aria-label="Remove Volkswagen Transporter">✕</button></span>
+        <input type="text" id="comboInput" placeholder="Link a vehicle or entity…" role="combobox" aria-expanded="false" aria-controls="comboMenu" aria-label="Link a vehicle or entity">
       </div>
       <div class="combo-menu" id="comboMenu">
         <div class="combo-option" data-value="Peugeot 208 (2-KTD-80)">Peugeot 208 (2-KTD-80)</div>
@@ -803,13 +803,13 @@
       </div>
     </div>
     <div class="pagination">
-      <button class="page-btn" data-page-nav="prev">‹</button>
+      <button class="page-btn" data-page-nav="prev" aria-label="Previous page">‹</button>
       <button class="page-btn active">1</button>
       <button class="page-btn">2</button>
       <button class="page-btn">3</button>
       <button class="page-btn ellipsis">…</button>
       <button class="page-btn">12</button>
-      <button class="page-btn" data-page-nav="next">›</button>
+      <button class="page-btn" data-page-nav="next" aria-label="Next page">›</button>
     </div>
   </section>
 
@@ -872,9 +872,9 @@
   <section>
     <h2>Alerts / Banners</h2>
     <div class="alert info"><span class="a-icon">ℹ</span><div class="a-body"><div class="a-title">Heads up</div>Case #4471 has 2 documents still processing.</div></div>
-    <div class="alert success"><span class="a-icon">✓</span><div class="a-body"><div class="a-title">Synced</div>All RDW vehicle records are up to date.</div><button class="alert-close" data-dismiss title="Dismiss">✕</button></div>
-    <div class="alert warning"><span class="a-icon">⚠</span><div class="a-body"><div class="a-title">APK expiring soon</div>2-KTD-80's APK expires in 6 days.</div><button class="alert-close" data-dismiss title="Dismiss">✕</button></div>
-    <div class="alert danger"><span class="a-icon">⛔</span><div class="a-body"><div class="a-title">No RDW record</div>Plate AB-12-ZZ could not be verified.</div><button class="alert-close" data-dismiss title="Dismiss">✕</button></div>
+    <div class="alert success"><span class="a-icon">✓</span><div class="a-body"><div class="a-title">Synced</div>All RDW vehicle records are up to date.</div><button class="alert-close" data-dismiss title="Dismiss" aria-label="Dismiss">✕</button></div>
+    <div class="alert warning"><span class="a-icon">⚠</span><div class="a-body"><div class="a-title">APK expiring soon</div>2-KTD-80's APK expires in 6 days.</div><button class="alert-close" data-dismiss title="Dismiss" aria-label="Dismiss">✕</button></div>
+    <div class="alert danger"><span class="a-icon">⛔</span><div class="a-body"><div class="a-title">No RDW record</div>Plate AB-12-ZZ could not be verified.</div><button class="alert-close" data-dismiss title="Dismiss" aria-label="Dismiss">✕</button></div>
   </section>
 
   <section>
@@ -970,28 +970,28 @@
     </div>
     <div class="reminder-list" id="reminderList">
       <div class="reminder-row">
-        <label class="reminder-check"><input type="checkbox"><span class="check-visual"></span></label>
+        <label class="reminder-check"><input type="checkbox" aria-label="Mark complete: Send invoice reminder — factuur-77621"><span class="check-visual"></span></label>
         <div class="reminder-body">
           <div class="reminder-title">Send invoice reminder — factuur-77621</div>
           <div class="reminder-meta">Case #4471 <span class="due-badge danger">Overdue by 2 days</span></div>
         </div>
       </div>
       <div class="reminder-row">
-        <label class="reminder-check"><input type="checkbox"><span class="check-visual"></span></label>
+        <label class="reminder-check"><input type="checkbox" aria-label="Mark complete: Follow up with client"><span class="check-visual"></span></label>
         <div class="reminder-body">
           <div class="reminder-title">Follow up with client</div>
           <div class="reminder-meta">Smith v. Jones <span class="due-badge warning">Due today</span></div>
         </div>
       </div>
       <div class="reminder-row">
-        <label class="reminder-check"><input type="checkbox"><span class="check-visual"></span></label>
+        <label class="reminder-check"><input type="checkbox" aria-label="Mark complete: APK renewal — 2-KTD-80"><span class="check-visual"></span></label>
         <div class="reminder-body">
           <div class="reminder-title">APK renewal — 2-KTD-80</div>
           <div class="reminder-meta">Vehicle <span class="due-badge warning">Due in 6 days</span></div>
         </div>
       </div>
       <div class="reminder-row">
-        <label class="reminder-check"><input type="checkbox"><span class="check-visual"></span></label>
+        <label class="reminder-check"><input type="checkbox" aria-label="Mark complete: Quarterly compliance review"><span class="check-visual"></span></label>
         <div class="reminder-body">
           <div class="reminder-title">Quarterly compliance review</div>
           <div class="reminder-meta"><span class="due-badge default">Due in 3 weeks</span><span class="recur-tag">↻ monthly</span></div>
@@ -1037,9 +1037,9 @@
     <div class="cal-shell">
       <div class="cal-card">
         <div class="cal-header">
-          <button class="icon-btn" id="calPrev">‹</button>
+          <button class="icon-btn" id="calPrev" aria-label="Previous month">‹</button>
           <span id="calMonthLabel" style="font-size:13px; font-weight:700;">July 2026</span>
-          <button class="icon-btn" id="calNext">›</button>
+          <button class="icon-btn" id="calNext" aria-label="Next month">›</button>
         </div>
         <div class="cal-grid" id="calGrid"></div>
       </div>
@@ -1072,7 +1072,7 @@
             <label class="split-toggle"><input type="checkbox" id="splitToggle"> Split view</label>
           </div>
           <div class="filter-row" id="filterRow">
-            <span class="chip">Status: Ready <button data-remove-chip>✕</button></span>
+            <span class="chip">Status: Ready <button data-remove-chip aria-label="Remove filter: Status Ready">✕</button></span>
             <div class="dropdown" id="addFilterDd">
               <button class="chip-add" id="addFilterBtn">+ Add filter</button>
               <div class="dropdown-menu">
@@ -1091,9 +1091,9 @@
               <div class="row-right">
                 <span class="badge success"><span class="dot"></span>Ready</span>
                 <div class="row-actions">
-                  <button class="icon-btn" data-action="preview" title="Preview">👁</button>
-                  <button class="icon-btn" data-action="download" title="Download">⬇</button>
-                  <button class="icon-btn danger" data-action="delete" title="Delete">🗑</button>
+                  <button class="icon-btn" data-action="preview" title="Preview" aria-label="Preview">👁</button>
+                  <button class="icon-btn" data-action="download" title="Download" aria-label="Download">⬇</button>
+                  <button class="icon-btn danger" data-action="delete" title="Delete" aria-label="Delete">🗑</button>
                 </div>
               </div>
             </div>
@@ -1105,9 +1105,9 @@
               <div class="row-right">
                 <span class="badge success"><span class="dot"></span>Ready</span>
                 <div class="row-actions">
-                  <button class="icon-btn" data-action="preview" title="Preview">👁</button>
-                  <button class="icon-btn" data-action="download" title="Download">⬇</button>
-                  <button class="icon-btn danger" data-action="delete" title="Delete">🗑</button>
+                  <button class="icon-btn" data-action="preview" title="Preview" aria-label="Preview">👁</button>
+                  <button class="icon-btn" data-action="download" title="Download" aria-label="Download">⬇</button>
+                  <button class="icon-btn danger" data-action="delete" title="Delete" aria-label="Delete">🗑</button>
                 </div>
               </div>
             </div>
@@ -1119,8 +1119,8 @@
               <div class="row-right">
                 <span class="badge warning"><span class="dot"></span>Processing</span>
                 <div class="row-actions">
-                  <button class="icon-btn" data-action="download" title="Download">⬇</button>
-                  <button class="icon-btn danger" data-action="delete" title="Delete">🗑</button>
+                  <button class="icon-btn" data-action="download" title="Download" aria-label="Download">⬇</button>
+                  <button class="icon-btn danger" data-action="delete" title="Delete" aria-label="Delete">🗑</button>
                 </div>
               </div>
             </div>
@@ -1151,10 +1151,10 @@
   </footer>
 </div>
 
-<div class="toast-layer" id="toastLayer"></div>
+<div class="toast-layer" id="toastLayer" aria-live="polite" aria-atomic="false"></div>
 <div class="modal-backdrop" id="modalBackdrop"></div>
-<div class="modal" id="modal">
-  <h4>Delete "<span id="modalItemName">Smith v. Jones</span>"?</h4>
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalHeading">
+  <h4 id="modalHeading">Delete "<span id="modalItemName">Smith v. Jones</span>"?</h4>
   <p>This can be undone for a few seconds after deleting, then it's permanent.</p>
   <div class="row">
     <button class="btn ghost sm" id="modalCancel">Cancel</button>
@@ -1163,13 +1163,13 @@
 </div>
 
 <div class="drawer-backdrop" id="drawerBackdrop"></div>
-<div class="drawer" id="drawer">
+<div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
   <div class="drawer-header">
     <span class="editable">
       <h4 id="drawerTitle">factuur-77621.pdf</h4>
-      <button class="edit-btn" data-edit-target="drawerTitle" title="Rename">✎</button>
+      <button class="edit-btn" data-edit-target="drawerTitle" title="Rename" aria-label="Rename">✎</button>
     </span>
-    <button class="drawer-close" id="drawerClose">✕</button>
+    <button class="drawer-close" id="drawerClose" aria-label="Close">✕</button>
   </div>
   <div class="drawer-preview" id="drawerPreviewIcon">📄</div>
   <div class="drawer-tabs">
@@ -1181,7 +1181,7 @@
       <div class="meta-row"><span class="k">Status</span><span class="badge success"><span class="dot"></span>Ready</span></div>
       <div class="meta-row"><span class="k">Uploaded</span><span>08/07/2026, 19:11</span></div>
       <div class="meta-row"><span class="k">Size</span><span>412 KB</span></div>
-      <div class="meta-row"><span class="k">Linked case</span><span class="editable"><span id="metaCase">Insurance claim #4471</span><button class="edit-btn" data-edit-target="metaCase" title="Edit">✎</button></span></div>
+      <div class="meta-row"><span class="k">Linked case</span><span class="editable"><span id="metaCase">Insurance claim #4471</span><button class="edit-btn" data-edit-target="metaCase" title="Edit" aria-label="Edit">✎</button></span></div>
       <div class="meta-row"><span class="k">Uploaded via</span><span>Web</span></div>
     </div>
     <div class="drawer-panel" id="panelActivity">
@@ -1198,8 +1198,8 @@
 </div>
 
 <div class="modal-backdrop" id="newCaseBackdrop"></div>
-<div class="modal" id="newCaseModal" style="width:min(360px,90vw);">
-  <h4 style="margin-bottom:14px;">New case</h4>
+<div class="modal" id="newCaseModal" role="dialog" aria-modal="true" aria-labelledby="newCaseHeading" style="width:min(360px,90vw);">
+  <h4 id="newCaseHeading" style="margin-bottom:14px;">New case</h4>
   <div class="field" id="newCaseTitleField" style="max-width:none; margin-bottom:12px;">
     <label>Case title</label>
     <input type="text" id="newCaseTitle" placeholder="e.g. Insurance claim #4472">
@@ -1224,16 +1224,16 @@
 </div>
 
 <div class="cmdk-backdrop" id="cmdkBackdrop"></div>
-<div class="cmdk" id="shortcuts" style="top:15%;">
-  <div style="padding:16px 20px; border-bottom:1px solid var(--border); font-size:13px; font-weight:700;">Keyboard shortcuts</div>
+<div class="cmdk" id="shortcuts" role="dialog" aria-modal="true" aria-labelledby="shortcutsHeading" style="top:15%;">
+  <div id="shortcutsHeading" style="padding:16px 20px; border-bottom:1px solid var(--border); font-size:13px; font-weight:700;">Keyboard shortcuts</div>
   <div class="shortcut-row"><span>Open command palette</span><kbd>⌘K</kbd></div>
   <div class="shortcut-row"><span>Show this sheet</span><kbd>?</kbd></div>
   <div class="shortcut-row"><span>Close any overlay</span><kbd>Esc</kbd></div>
   <div class="shortcut-row"><span>Toggle dark mode</span><kbd>⌘D</kbd></div>
   <div class="shortcut-row" style="padding-bottom:16px;"><span>Select all visible rows</span><kbd>⌘A</kbd></div>
 </div>
-<div class="cmdk" id="cmdk">
-  <input type="text" placeholder="Search documents, cases, vehicles…" id="cmdkInput">
+<div class="cmdk" id="cmdk" role="dialog" aria-modal="true" aria-label="Command palette">
+  <input type="text" placeholder="Search documents, cases, vehicles…" id="cmdkInput" aria-label="Search documents, cases, vehicles" role="combobox" aria-expanded="true" aria-controls="cmdkList">
   <div id="cmdkList">
     <div class="cmdk-item sel" data-cmdk-action="nav:Documents"><span>Go to Documents</span><span>↵</span></div>
     <div class="cmdk-item" data-cmdk-action="nav:Cases"><span>Go to Cases</span><span>↵</span></div>
@@ -1447,17 +1447,23 @@
   });
   document.getElementById('cmdkTrigger').addEventListener('click', openCmdk);
   cmdkBackdrop.addEventListener('click', ()=>{ closeCmdk(); closeShortcuts(); });
-  // generalized dropdowns (row-actions demo + add-filter)
+  // generalized dropdowns (row-actions demo + add-filter) — aria-expanded tracks .open on each trigger
+  function setDropdownExpanded(dd, expanded){
+    dd.classList.toggle('open', expanded);
+    dd.querySelector('button')?.setAttribute('aria-expanded', String(expanded));
+  }
   document.querySelectorAll('.dropdown').forEach(dd=>{
     const trigger = dd.querySelector('button');
+    trigger.setAttribute('aria-haspopup', 'true');
+    trigger.setAttribute('aria-expanded', 'false');
     trigger.addEventListener('click', (e)=>{
       e.stopPropagation();
       const wasOpen = dd.classList.contains('open');
-      document.querySelectorAll('.dropdown.open').forEach(o=>o.classList.remove('open'));
-      if(!wasOpen) dd.classList.add('open');
+      document.querySelectorAll('.dropdown.open').forEach(o=>setDropdownExpanded(o, false));
+      if(!wasOpen) setDropdownExpanded(dd, true);
     });
   });
-  document.addEventListener('click', ()=> document.querySelectorAll('.dropdown.open').forEach(o=>o.classList.remove('open')));
+  document.addEventListener('click', ()=> document.querySelectorAll('.dropdown.open').forEach(o=>setDropdownExpanded(o, false)));
   document.querySelectorAll('.dropdown-item').forEach(item=>{
     item.addEventListener('click', ()=> item.closest('.dropdown')?.classList.remove('open'));
   });
@@ -1471,7 +1477,7 @@
     item.addEventListener('click', ()=>{
       const chip = document.createElement('span');
       chip.className='chip';
-      chip.innerHTML = `${item.dataset.addChip} <button data-remove-chip>✕</button>`;
+      chip.innerHTML = `${item.dataset.addChip} <button data-remove-chip aria-label="Remove filter: ${item.dataset.addChip}">✕</button>`;
       document.getElementById('filterRow').insertBefore(chip, document.getElementById('addFilterDd'));
       wireChipRemove(chip);
     });
@@ -1672,7 +1678,7 @@
     <div class="meta-row"><span class="k">Status</span><span class="badge success"><span class="dot"></span>Ready</span></div>
     <div class="meta-row"><span class="k">Uploaded</span><span>08/07/2026, 19:11</span></div>
     <div class="meta-row"><span class="k">Size</span><span>412 KB</span></div>
-    <div class="meta-row"><span class="k">Linked case</span><span class="editable"><span id="metaCase">Insurance claim #4471</span><button class="edit-btn" data-edit-target="metaCase" title="Edit">✎</button></span></div>
+    <div class="meta-row"><span class="k">Linked case</span><span class="editable"><span id="metaCase">Insurance claim #4471</span><button class="edit-btn" data-edit-target="metaCase" title="Edit" aria-label="Edit">✎</button></span></div>
     <div class="meta-row"><span class="k">Uploaded via</span><span>Web</span></div>`;
   const docActivityHtml = `
     <div class="timeline-item"><span class="timeline-dot"></span><span>Uploaded by Ada Admin — 08/07 19:11</span></div>
@@ -1853,8 +1859,8 @@
     const field = document.getElementById('comboField');
     const input = document.getElementById('comboInput');
     const menu = document.getElementById('comboMenu');
-    function openMenu(){ menu.classList.add('open'); }
-    function closeMenu(){ menu.classList.remove('open'); }
+    function openMenu(){ menu.classList.add('open'); input.setAttribute('aria-expanded', 'true'); }
+    function closeMenu(){ menu.classList.remove('open'); input.setAttribute('aria-expanded', 'false'); }
     field.addEventListener('click', ()=>{ input.focus(); openMenu(); });
     input.addEventListener('focus', openMenu);
     input.addEventListener('input', ()=>{
@@ -1881,7 +1887,7 @@
         const chip = document.createElement('span');
         chip.className='combo-chip';
         chip.dataset.value = value;
-        chip.innerHTML = `${value.split(' (')[0]} <button data-remove>✕</button>`;
+        chip.innerHTML = `${value.split(' (')[0]} <button data-remove aria-label="Remove ${value.split(' (')[0]}">✕</button>`;
         field.insertBefore(chip, input);
         wireRemove(chip, value);
         input.value=''; input.focus();
@@ -2052,7 +2058,7 @@
       const row = document.createElement('div');
       row.className = 'reminder-row';
       row.innerHTML = `
-        <label class="reminder-check"><input type="checkbox"><span class="check-visual"></span></label>
+        <label class="reminder-check"><input type="checkbox" aria-label="Mark complete: ${title}"><span class="check-visual"></span></label>
         <div class="reminder-body">
           <div class="reminder-title">${title}</div>
           <div class="reminder-meta"><span class="due-badge default">${dateLabel}</span>${cadence!=='once' ? `<span class="recur-tag">↻ ${cadence}</span>` : ''}</div>
