@@ -61,6 +61,7 @@ export default function Entities() {
             <option value="person">{t("entities.typePerson")}</option>
             <option value="organization">{t("entities.typeOrganization")}</option>
             <option value="location">{t("entities.typeLocation")}</option>
+            <option value="address">{t("entities.typeAddress")}</option>
             <option value="other">{t("entities.typeOther")}</option>
           </select>
           <select

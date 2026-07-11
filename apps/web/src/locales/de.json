@@ -181,6 +181,7 @@
     "typePerson": "Person",
     "typeOrganization": "Organisation",
     "typeLocation": "Ort",
+    "typeAddress": "Adresse",
     "typeOther": "Sonstiges",
     "statusConfirmed": "Bestätigt",
     "statusPendingReview": "Ausstehende Prüfung",
@@ -297,5 +298,23 @@
     "setPhone": "Telefonnummer festlegen",
     "skip": "Überspringen",
     "error": "Telefonnummer konnte nicht festgelegt werden"
+  },
+  "addressHistory": {
+    "title": "Adressverlauf",
+    "description": "In Ihren Dokumenten gefundene Adressen, und welche wann aktuell war.",
+    "empty": "Noch kein Adressverlauf. Er füllt sich automatisch, sobald Ausweisdokumente, Mietverträge oder Hypothekenunterlagen verarbeitet werden.",
+    "loadError": "Adressverlauf konnte nicht geladen werden",
+    "actionError": "Aktion fehlgeschlagen",
+    "current": "Aktuell",
+    "statusPendingReview": "Prüfung erforderlich",
+    "statusConfirmed": "Bestätigt",
+    "statusRejected": "Abgelehnt",
+    "linkedDocuments_one": "{{count}} verknüpfter Vertrag",
+    "linkedDocuments_other": "{{count}} verknüpfte Verträge",
+    "viewSourceDocument": "Quelldokument ansehen",
+    "approve": "Bestätigen",
+    "reject": "Ablehnen",
+    "correctDate": "Datum korrigieren",
+    "correctValidFromPrompt": "Einzugsdatum (JJJJ-MM-TT)"
   }
 }

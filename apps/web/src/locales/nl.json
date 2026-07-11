@@ -181,6 +181,7 @@
     "typePerson": "Persoon",
     "typeOrganization": "Organisatie",
     "typeLocation": "Locatie",
+    "typeAddress": "Adres",
     "typeOther": "Overig",
     "statusConfirmed": "Bevestigd",
     "statusPendingReview": "In afwachting van beoordeling",
@@ -297,5 +298,23 @@
     "setPhone": "Telefoonnummer instellen",
     "skip": "Overslaan",
     "error": "Kon telefoonnummer niet instellen"
+  },
+  "addressHistory": {
+    "title": "Adresgeschiedenis",
+    "description": "Adressen gevonden in uw documenten, en welke actueel waren wanneer.",
+    "empty": "Nog geen adresgeschiedenis. Deze vult zich automatisch aan zodra ID-bewijzen, huurcontracten of hypotheekpapieren zijn verwerkt.",
+    "loadError": "Kon adresgeschiedenis niet laden",
+    "actionError": "Actie mislukt",
+    "current": "Huidig",
+    "statusPendingReview": "Controle nodig",
+    "statusConfirmed": "Bevestigd",
+    "statusRejected": "Afgewezen",
+    "linkedDocuments_one": "{{count}} gekoppeld contract",
+    "linkedDocuments_other": "{{count}} gekoppelde contracten",
+    "viewSourceDocument": "Bekijk brondocument",
+    "approve": "Bevestigen",
+    "reject": "Afwijzen",
+    "correctDate": "Datum corrigeren",
+    "correctValidFromPrompt": "Verhuisdatum (JJJJ-MM-DD)"
   }
 }
