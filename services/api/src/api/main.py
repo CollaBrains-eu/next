@@ -25,6 +25,7 @@ from api.residencies_router import router as residencies_router
 from api.tasks import router as tasks_router
 from api.tools_router import router as tools_router
 from api.vehicles_router import router as vehicles_router
+from api.webauthn_router import router as webauthn_router
 
 app = FastAPI(title="CollaBrains API", version="0.1.0")
 
@@ -58,6 +59,7 @@ app.include_router(organizations_router)
 app.include_router(learning_router)
 app.include_router(vehicles_router)
 app.include_router(residencies_router)
+app.include_router(webauthn_router)
 
 
 @app.get("/health")

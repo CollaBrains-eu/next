@@ -5,6 +5,10 @@ import DocumentDetail from "./DocumentDetail";
 import { ToastProvider } from "../lib/toast";
 import * as api from "../lib/api";
 
+vi.mock("../lib/auth", () => ({
+  useAuth: () => ({ user: { display_name: "Ada Admin", role: "admin" } }),
+}));
+
 vi.mock("../lib/api", async () => {
   const actual = await vi.importActual<typeof api>("../lib/api");
   return {
@@ -12,6 +16,7 @@ vi.mock("../lib/api", async () => {
     getDocument: vi.fn(),
     deleteDocument: vi.fn(),
     summarizeDocument: vi.fn(),
+    reprocessDocument: vi.fn(),
   };
 });
 
@@ -79,5 +84,26 @@ describe("DocumentDetail", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Delete" }));
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(api.deleteDocument).not.toHaveBeenCalled();
+  });
+
+  it("shows a Reprocess button for admins when a document failed", async () => {
+    vi.mocked(api.getDocument).mockResolvedValue({ ...mockDoc, status: "failed", error: "OCR timed out" });
+    renderAt("doc-1");
+    expect(await screen.findByRole("button", { name: "Reprocess" })).toBeInTheDocument();
+  });
+
+  it("clicking Reprocess calls reprocessDocument and shows a toast", async () => {
+    vi.mocked(api.getDocument).mockResolvedValue({ ...mockDoc, status: "failed", error: "OCR timed out" });
+    vi.mocked(api.reprocessDocument).mockResolvedValue({ status: "reprocess_queued" });
+    renderAt("doc-1");
+    fireEvent.click(await screen.findByRole("button", { name: "Reprocess" }));
+    await waitFor(() => expect(api.reprocessDocument).toHaveBeenCalledWith("doc-1"));
+    expect(await screen.findByText(/reprocessing started/i)).toBeInTheDocument();
+  });
+
+  it("does not show a Reprocess button for ready documents", async () => {
+    renderAt("doc-1");
+    await screen.findByRole("heading", { name: "factuur-77621.pdf" });
+    expect(screen.queryByRole("button", { name: "Reprocess" })).not.toBeInTheDocument();
   });
 });

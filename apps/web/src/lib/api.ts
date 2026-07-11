@@ -84,6 +84,74 @@ export function dismissPhonePrompt(): Promise<UserOut> {
   return request<UserOut>("/auth/me/dismiss-phone-prompt", { method: "PATCH" });
 }
 
+export interface WebauthnCredentialOut {
+  id: string;
+  label: string | null;
+  created_at: string;
+  last_used_at: string | null;
+}
+
+export function listWebauthnCredentials(): Promise<WebauthnCredentialOut[]> {
+  return request<WebauthnCredentialOut[]>("/auth/webauthn/credentials");
+}
+
+export function deleteWebauthnCredential(id: string): Promise<void> {
+  return request<void>(`/auth/webauthn/credentials/${id}`, { method: "DELETE" });
+}
+
+export function webauthnRegisterBegin(): Promise<PublicKeyCredentialCreationOptionsJSON> {
+  return request<PublicKeyCredentialCreationOptionsJSON>("/auth/webauthn/register/begin", { method: "POST" });
+}
+
+export function webauthnRegisterComplete(
+  credential: Record<string, unknown>,
+  label?: string,
+): Promise<WebauthnCredentialOut> {
+  return request<WebauthnCredentialOut>("/auth/webauthn/register/complete", {
+    method: "POST",
+    body: JSON.stringify({ credential, label }),
+  });
+}
+
+export function webauthnLoginBegin(): Promise<PublicKeyCredentialRequestOptionsJSON & { session_key: string }> {
+  return request<PublicKeyCredentialRequestOptionsJSON & { session_key: string }>("/auth/webauthn/login/begin", {
+    method: "POST",
+  });
+}
+
+export function webauthnLoginComplete(
+  sessionKey: string,
+  credential: Record<string, unknown>,
+): Promise<{ access_token: string }> {
+  return request<{ access_token: string }>("/auth/webauthn/login/complete", {
+    method: "POST",
+    body: JSON.stringify({ session_key: sessionKey, credential }),
+  });
+}
+
+// JSON encoding of navigator.credentials.create()/get() options, as produced
+// by py_webauthn's options_to_json() -- ArrayBuffers become base64url
+// strings; lib/webauthn.ts converts them back before calling the real
+// WebAuthn API.
+export interface PublicKeyCredentialCreationOptionsJSON {
+  challenge: string;
+  rp: { id: string; name: string };
+  user: { id: string; name: string; displayName: string };
+  pubKeyCredParams: { type: string; alg: number }[];
+  excludeCredentials?: { id: string; type: string }[];
+  authenticatorSelection?: Record<string, unknown>;
+  timeout?: number;
+  attestation?: string;
+}
+
+export interface PublicKeyCredentialRequestOptionsJSON {
+  challenge: string;
+  rpId?: string;
+  allowCredentials?: { id: string; type: string }[];
+  userVerification?: string;
+  timeout?: number;
+}
+
 export interface DocumentOut {
   id: string;
   title: string;
@@ -122,6 +190,10 @@ export function uploadDocument(file: File): Promise<DocumentOut> {
 
 export function summarizeDocument(id: string): Promise<{ summary: string }> {
   return request<{ summary: string }>(`/documents/${id}/summarize`, { method: "POST" });
+}
+
+export function reprocessDocument(id: string): Promise<{ status: string }> {
+  return request<{ status: string }>(`/admin/documents/${id}/reprocess`, { method: "POST" });
 }
 
 export interface CategoryOut {
