@@ -1,12 +1,23 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { ApiError, getEntityGraph, type EntityGraphOut } from "../lib/api";
 
+// Categorical colors distinguishing entity types on the graph -- like
+// Avatar's palette, these identify a category and must stay visually
+// distinct, so they're not swapped for the shared --accent/--text tokens.
 const TYPE_COLORS: Record<string, string> = {
   person: "#2563eb",
   organization: "#7c3aed",
   location: "#16a34a",
   other: "#64748b",
+};
+
+const TYPE_LABEL_KEYS: Record<string, string> = {
+  person: "entities.typePerson",
+  organization: "entities.typeOrganization",
+  location: "entities.typeLocation",
+  other: "entities.typeOther",
 };
 
 const WIDTH = 700;
@@ -20,6 +31,7 @@ function nodeColor(entityType: string): string {
 }
 
 export default function EntityGraph() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const [graph, setGraph] = useState<EntityGraphOut | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -30,21 +42,21 @@ export default function EntityGraph() {
     setError(null);
     getEntityGraph(id)
       .then(setGraph)
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load graph"));
-  }, [id]);
+      .catch((err) => setError(err instanceof ApiError ? err.message : t("entityGraph.loadError")));
+  }, [id, t]);
 
   if (error) {
     return (
       <div>
         <Link to="/entities" className="text-sm text-ink-2 hover:text-ink">
-          ← Back to entities
+          {t("entityReview.backToEntities")}
         </Link>
         <p className="mt-4 text-danger">{error}</p>
       </div>
     );
   }
 
-  if (!graph) return <p className="text-ink-3">Loading…</p>;
+  if (!graph) return <p className="text-ink-3">{t("common.loading")}</p>;
 
   const positions = new Map<string, { x: number; y: number }>();
   positions.set(graph.center.id, CENTER);
@@ -56,26 +68,28 @@ export default function EntityGraph() {
     });
   });
 
+  const typeLabel = t(TYPE_LABEL_KEYS[graph.center.entity_type] ?? TYPE_LABEL_KEYS.other);
+
   return (
     <div className="flex flex-col gap-4">
       <div>
         <Link to="/entities" className="text-sm text-ink-2 hover:text-ink">
-          ← Back to entities
+          {t("entityReview.backToEntities")}
         </Link>
         <h1 className="mt-2 text-2xl font-semibold text-ink">{graph.center.name}</h1>
         <p className="text-sm text-ink-2">
-          {graph.center.entity_type} · {graph.nodes.length} direct relationship{graph.nodes.length === 1 ? "" : "s"}
+          {t("entityGraph.relationshipCount", { count: graph.nodes.length, type: typeLabel })}
         </p>
       </div>
 
       {graph.nodes.length === 0 ? (
-        <p className="text-ink-3">No known relationships for this entity yet.</p>
+        <p className="text-ink-3">{t("entityGraph.noRelationships")}</p>
       ) : (
         <div className="rounded-2xl border border-edge bg-surface">
           <svg width="100%" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} style={{ maxWidth: WIDTH, display: "block" }}>
             <defs>
               <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                <path d="M0,0 L10,5 L0,10 z" fill="#94a3b8" />
+                <path d="M0,0 L10,5 L0,10 z" fill="var(--text-3)" />
               </marker>
             </defs>
 
@@ -91,11 +105,11 @@ export default function EntityGraph() {
                     y1={from.y}
                     x2={to.x}
                     y2={to.y}
-                    stroke="#94a3b8"
+                    stroke="var(--text-3)"
                     strokeWidth={1.5}
                     markerEnd="url(#arrow)"
                   />
-                  <text x={mid.x} y={mid.y} textAnchor="middle" fontSize={10} fill="#64748b" className="select-none">
+                  <text x={mid.x} y={mid.y} textAnchor="middle" fontSize={10} fill="var(--text-2)" className="select-none">
                     {edge.relationship_type}
                   </text>
                 </g>
@@ -115,7 +129,7 @@ export default function EntityGraph() {
                       fill="transparent"
                     />
                     <circle cx={pos.x} cy={pos.y} r={NODE_RADIUS} fill={nodeColor(node.entity_type)} />
-                    <text x={pos.x} y={pos.y + NODE_RADIUS + 14} textAnchor="middle" fontSize={11} fill="#1e293b">
+                    <text x={pos.x} y={pos.y + NODE_RADIUS + 14} textAnchor="middle" fontSize={11} fill="var(--text)">
                       {node.name.length > 24 ? `${node.name.slice(0, 24)}…` : node.name}
                     </text>
                   </g>
@@ -123,8 +137,8 @@ export default function EntityGraph() {
               );
             })}
 
-            <circle cx={CENTER.x} cy={CENTER.y} r={NODE_RADIUS + 2} fill={nodeColor(graph.center.entity_type)} stroke="#0f172a" strokeWidth={2} />
-            <text x={CENTER.x} y={CENTER.y + NODE_RADIUS + 18} textAnchor="middle" fontSize={12} fontWeight={600} fill="#0f172a">
+            <circle cx={CENTER.x} cy={CENTER.y} r={NODE_RADIUS + 2} fill={nodeColor(graph.center.entity_type)} stroke="var(--text)" strokeWidth={2} />
+            <text x={CENTER.x} y={CENTER.y + NODE_RADIUS + 18} textAnchor="middle" fontSize={12} fontWeight={600} fill="var(--text)">
               {graph.center.name}
             </text>
           </svg>

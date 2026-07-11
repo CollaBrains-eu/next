@@ -37,7 +37,7 @@ describe("EntityGraph", () => {
   it("renders the center entity name and relationship count", async () => {
     renderPage();
     expect(await screen.findByRole("heading", { name: "Jane Smith" })).toBeInTheDocument();
-    expect(screen.getByText("person · 1 direct relationship")).toBeInTheDocument();
+    expect(screen.getByText("Person · 1 direct relationship")).toBeInTheDocument();
   });
 
   it("renders related node names", async () => {
