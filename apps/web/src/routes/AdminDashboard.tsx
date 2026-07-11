@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import Card from "../components/Card";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
@@ -19,31 +20,32 @@ import {
 
 type Tab = "overview" | "ai-usage" | "health" | "bugs" | "users";
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: "overview", label: "Overview" },
-  { id: "ai-usage", label: "AI usage" },
-  { id: "health", label: "Health" },
-  { id: "bugs", label: "Bug reports" },
-  { id: "users", label: "Users" },
-];
-
 export default function AdminDashboard() {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("overview");
+
+  const tabs: { id: Tab; label: string }[] = [
+    { id: "overview", label: t("admin.tabOverview") },
+    { id: "ai-usage", label: t("admin.tabAiUsage") },
+    { id: "health", label: t("admin.tabHealth") },
+    { id: "bugs", label: t("admin.tabBugs") },
+    { id: "users", label: t("admin.tabUsers") },
+  ];
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-semibold text-ink">Admin</h1>
+      <h1 className="text-2xl font-semibold text-ink">{t("admin.title")}</h1>
 
       <div className="flex gap-2 overflow-x-auto border-b border-edge">
-        {TABS.map((t) => (
+        {tabs.map((tabOption) => (
           <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
+            key={tabOption.id}
+            onClick={() => setTab(tabOption.id)}
             className={`shrink-0 px-3 py-2 text-sm font-medium ${
-              tab === t.id ? "border-b-2 border-accent text-accent" : "text-ink-3 hover:text-ink"
+              tab === tabOption.id ? "border-b-2 border-accent text-accent" : "text-ink-3 hover:text-ink"
             }`}
           >
-            {t.label}
+            {tabOption.label}
           </button>
         ))}
       </div>
@@ -58,34 +60,35 @@ export default function AdminDashboard() {
 }
 
 function OverviewTab() {
+  const { t } = useTranslation();
   const [stats, setStats] = useState<AdminStatsOut | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     getAdminStats()
       .then(setStats)
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load stats"));
-  }, []);
+      .catch((err) => setError(err instanceof ApiError ? err.message : t("admin.statsLoadError")));
+  }, [t]);
 
   if (error) return <p className="text-danger">{error}</p>;
-  if (!stats) return <p className="text-ink-3">Loading…</p>;
+  if (!stats) return <p className="text-ink-3">{t("common.loading")}</p>;
 
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
       <Card>
-        <p className="text-xs text-ink-3">Users</p>
+        <p className="text-xs text-ink-3">{t("admin.statUsers")}</p>
         <p className="text-2xl font-semibold text-ink">{stats.total_users}</p>
       </Card>
       <Card>
-        <p className="text-xs text-ink-3">Documents</p>
+        <p className="text-xs text-ink-3">{t("admin.statDocuments")}</p>
         <p className="text-2xl font-semibold text-ink">{stats.total_documents}</p>
       </Card>
       <Card>
-        <p className="text-xs text-ink-3">AI calls (24h)</p>
+        <p className="text-xs text-ink-3">{t("admin.statAiCalls24h")}</p>
         <p className="text-2xl font-semibold text-ink">{stats.ai_calls_last_24h}</p>
       </Card>
       <Card className="col-span-2 sm:col-span-1">
-        <p className="text-xs text-ink-3">Documents by status</p>
+        <p className="text-xs text-ink-3">{t("admin.statDocumentsByStatus")}</p>
         <ul className="text-sm text-ink">
           {Object.entries(stats.documents_by_status).map(([status, count]) => (
             <li key={status}>
@@ -99,27 +102,28 @@ function OverviewTab() {
 }
 
 function AiUsageTab() {
+  const { t } = useTranslation();
   const [rows, setRows] = useState<AiUsageRowOut[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     getAdminAiUsage("model")
       .then(setRows)
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load AI usage"));
-  }, []);
+      .catch((err) => setError(err instanceof ApiError ? err.message : t("admin.aiUsageLoadError")));
+  }, [t]);
 
   if (error) return <p className="text-danger">{error}</p>;
-  if (!rows) return <p className="text-ink-3">Loading…</p>;
+  if (!rows) return <p className="text-ink-3">{t("common.loading")}</p>;
 
   return (
     <Card>
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-ink-3">
-            <th className="pb-2">Model</th>
-            <th className="pb-2">Calls</th>
-            <th className="pb-2">Prompt tokens</th>
-            <th className="pb-2">Completion tokens</th>
+            <th className="pb-2">{t("admin.columnModel")}</th>
+            <th className="pb-2">{t("admin.columnCalls")}</th>
+            <th className="pb-2">{t("admin.columnPromptTokens")}</th>
+            <th className="pb-2">{t("admin.columnCompletionTokens")}</th>
           </tr>
         </thead>
         <tbody>
@@ -138,17 +142,18 @@ function AiUsageTab() {
 }
 
 function HealthTab() {
+  const { t } = useTranslation();
   const [rows, setRows] = useState<ServiceHealthOut[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     getAdminHealth()
       .then(setRows)
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load health"));
-  }, []);
+      .catch((err) => setError(err instanceof ApiError ? err.message : t("admin.healthLoadError")));
+  }, [t]);
 
   if (error) return <p className="text-danger">{error}</p>;
-  if (!rows) return <p className="text-ink-3">Loading…</p>;
+  if (!rows) return <p className="text-ink-3">{t("common.loading")}</p>;
 
   return (
     <div className="flex flex-col gap-2">
@@ -166,6 +171,7 @@ function HealthTab() {
 }
 
 function BugsTab() {
+  const { t } = useTranslation();
   const [reports, setReports] = useState<BugReportOut[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
@@ -173,7 +179,7 @@ function BugsTab() {
   function load() {
     listBugReports()
       .then(setReports)
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load bug reports"));
+      .catch((err) => setError(err instanceof ApiError ? err.message : t("admin.bugsLoadError")));
   }
 
   useEffect(load, []);
@@ -184,15 +190,15 @@ function BugsTab() {
       await analyzeBugReport(id);
       load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to analyze bug report");
+      setError(err instanceof ApiError ? err.message : t("admin.analyzeError"));
     } finally {
       setAnalyzingId(null);
     }
   }
 
   if (error) return <p className="text-danger">{error}</p>;
-  if (!reports) return <p className="text-ink-3">Loading…</p>;
-  if (reports.length === 0) return <p className="text-ink-3">No bug reports.</p>;
+  if (!reports) return <p className="text-ink-3">{t("common.loading")}</p>;
+  if (reports.length === 0) return <p className="text-ink-3">{t("admin.noBugReports")}</p>;
 
   return (
     <div className="flex flex-col gap-3">
@@ -212,7 +218,7 @@ function BugsTab() {
               onClick={() => handleAnalyze(report.id)}
               disabled={analyzingId === report.id}
             >
-              {analyzingId === report.id ? "Analyzing…" : "Analyze with AI"}
+              {analyzingId === report.id ? t("admin.analyzing") : t("admin.analyzeWithAi")}
             </Button>
           )}
         </Card>
@@ -222,6 +228,7 @@ function BugsTab() {
 }
 
 function UsersTab() {
+  const { t } = useTranslation();
   const [formOpen, setFormOpen] = useState(false);
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -251,7 +258,7 @@ function UsersTab() {
       resetForm();
       setCreated(result);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to create user");
+      setError(err instanceof ApiError ? err.message : t("admin.createUserError"));
     } finally {
       setSubmitting(false);
     }
@@ -267,34 +274,32 @@ function UsersTab() {
             setFormOpen(true);
           }}
         >
-          + Add user
+          {t("admin.addUser")}
         </Button>
       </div>
 
       {created && (
         <Card className="flex flex-col gap-2 border-accent">
           <p className="text-sm font-medium text-ink">
-            User <span className="font-semibold">{created.username}</span> created.
+            {t("admin.userCreated", { username: created.username })}
           </p>
-          <p className="text-xs text-ink-3">
-            Temporary password — shown once, relay it to the user directly:
-          </p>
+          <p className="text-xs text-ink-3">{t("admin.tempPasswordHint")}</p>
           <code className="rounded-lg bg-accent-soft px-3 py-2 text-sm text-ink" data-testid="temp-password">
             {created.temporary_password}
           </code>
           <div>
             <Button size="sm" variant="ghost" onClick={() => setCreated(null)}>
-              Dismiss
+              {t("admin.dismiss")}
             </Button>
           </div>
         </Card>
       )}
 
-      <Modal open={formOpen} onClose={() => setFormOpen(false)} title="Add user">
+      <Modal open={formOpen} onClose={() => setFormOpen(false)} title={t("admin.addUserModalTitle")}>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           {error && <p className="text-sm text-danger">{error}</p>}
           <label className="flex flex-col gap-1 text-sm text-ink-2">
-            Username
+            {t("admin.usernameLabel")}
             <input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -303,7 +308,7 @@ function UsersTab() {
             />
           </label>
           <label className="flex flex-col gap-1 text-sm text-ink-2">
-            Display name
+            {t("admin.displayNameLabel")}
             <input
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
@@ -312,7 +317,7 @@ function UsersTab() {
             />
           </label>
           <label className="flex flex-col gap-1 text-sm text-ink-2">
-            Email
+            {t("admin.emailLabel")}
             <input
               type="email"
               value={email}
@@ -323,14 +328,14 @@ function UsersTab() {
           </label>
           <label className="flex items-center gap-2 text-sm text-ink-2">
             <input type="checkbox" checked={isAdmin} onChange={(e) => setIsAdmin(e.target.checked)} />
-            Admin role
+            {t("admin.adminRoleLabel")}
           </label>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" size="sm" onClick={() => setFormOpen(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button type="submit" size="sm" disabled={submitting}>
-              {submitting ? "Creating…" : "Create user"}
+              {submitting ? t("admin.creating") : t("admin.createUser")}
             </Button>
           </div>
         </form>
