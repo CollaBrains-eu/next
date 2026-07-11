@@ -127,9 +127,16 @@ def resolve_phone_number(client: httpx.Client, sender: str) -> str | None:
 
 
 def ask_collabrains(client: httpx.Client, message: str, phone_number: str) -> tuple[str, bool]:
-    """Returns (answer_text, was_forbidden)."""
+    """Returns (answer_text, was_forbidden).
+
+    Posts to /manager/ask (Phase 2 of the unified-chat-consolidation design)
+    instead of /chat, so Signal users get the same tool-calling Manager Agent
+    as the web UI. Signal is plain text, so a legal-draft reply's disclaimer
+    -- normally shown as a separate UI element -- is prepended to the message
+    body instead of being lost to the medium.
+    """
     response = client.post(
-        f"{COLLABRAINS_API_URL}/chat",
+        f"{COLLABRAINS_API_URL}/manager/ask",
         json={"message": message},
         headers=_auth_headers(phone_number),
         timeout=120.0,
@@ -137,7 +144,12 @@ def ask_collabrains(client: httpx.Client, message: str, phone_number: str) -> tu
     if response.status_code == 403:
         return UNLINKED_REPLY, True
     response.raise_for_status()
-    return response.json()["answer"], False
+    body = response.json()
+    answer = body["answer"]
+    legal_draft = body.get("legal_draft")
+    if legal_draft and legal_draft.get("disclaimer"):
+        answer = f"{legal_draft['disclaimer']}\n\n{answer}"
+    return answer, False
 
 
 def download_attachment(client: httpx.Client, attachment_id: str) -> bytes:

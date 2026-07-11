@@ -1,13 +1,15 @@
 """POST /manager/ask (Phase 11, ADR 0026).
 
-Uses get_current_user, not get_effective_user -- unlike /chat, there's
-no established Signal on-behalf-of caller for this endpoint yet.
+Uses get_effective_user, same as /chat (ADR 0006) -- this lets the
+signal-bot service account act on behalf of a linked phone number via
+the X-On-Behalf-Of-Phone header (Phase 2 of the unified-chat-consolidation
+design, docs/superpowers/specs/2026-07-10-unified-chat-consolidation-design.md).
 """
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.auth import get_current_user
+from api.auth import get_effective_user
 from api.chat import Citation
 from api.db import get_db
 from api.legal import DraftResponse
@@ -32,7 +34,7 @@ class AskResponse(BaseModel):
 async def ask(
     request: AskRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_effective_user),
 ) -> AskResponse:
     result = await handle_request(db, user_id=current_user.id, role=current_user.role, message=request.message)
     return AskResponse(**result)
