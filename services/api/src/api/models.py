@@ -569,6 +569,19 @@ class BugReport(Base):
     ai_analysis: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
+    # v2 lifecycle fields (title/page_url/AI-triage/Codeberg-issue/clarifying-Q&A),
+    # additive alongside the original description/status/ai_analysis columns above.
+    title: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    page_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    ai_labels: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON-encoded list[str]
+    ai_priority: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    ai_suggested_fix: Mapped[str | None] = mapped_column(Text, nullable=True)
+    codeberg_issue_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    codeberg_issue_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    clarifying_questions: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON-encoded list[str]
+    clarifying_answers: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON-encoded dict
+    clarifying_status: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
 
 class UserFact(Base):
     """A time-bound fact about a user (e.g. address, employer), valid over [valid_from, valid_to)

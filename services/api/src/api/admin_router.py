@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -20,15 +20,30 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.admin_service import (
     AdminStats,
     AiUsageRow,
+    AnalyzeAllStatus,
+    CodebergIssueNotConfigured,
     ServiceHealth,
+    analyze_all_is_running,
     analyze_bug_report,
+    bulk_delete_bug_reports,
     create_bug_report,
+    create_bug_report_from_text,
+    create_codeberg_issue,
+    delete_bug_report,
+    find_user_by_phone,
+    generate_clarifying_questions,
     get_admin_stats,
     get_ai_usage_report,
+    get_analyze_all_status,
     get_service_health,
+    get_service_health_by_name,
+    get_service_logs,
     list_bug_reports,
+    run_analyze_all,
+    update_bug_report_status,
 )
 from api.auth import get_current_user, validate_phone_number
+from api.config import settings
 from api.db import get_db
 from api.events import EventType, publish
 from api.ldap_auth import LdapAdminError
@@ -50,6 +65,16 @@ class BugReportOut(BaseModel):
     status: str
     ai_analysis: str | None
     created_at: datetime
+    title: str | None = None
+    page_url: str | None = None
+    ai_labels: str | None = None
+    ai_priority: str | None = None
+    ai_suggested_fix: str | None = None
+    codeberg_issue_url: str | None = None
+    codeberg_issue_number: int | None = None
+    clarifying_questions: str | None = None
+    clarifying_answers: str | None = None
+    clarifying_status: str | None = None
 
     class Config:
         from_attributes = True
@@ -57,6 +82,44 @@ class BugReportOut(BaseModel):
 
 class BugReportCreate(BaseModel):
     description: str
+
+
+class BugReportStatusUpdate(BaseModel):
+    status: str
+
+
+class BugReportBulkDelete(BaseModel):
+    ids: list[UUID]
+
+
+class BugReportBulkDeleteOut(BaseModel):
+    ok: bool = True
+    deleted: int
+
+
+class ClarifyOut(BaseModel):
+    ok: bool = True
+    questions: list[str]
+
+
+class SignalLookupOut(BaseModel):
+    id: UUID
+    display_name: str
+
+
+class SignalBugFromTextIn(BaseModel):
+    text: str
+    owner_uid: str
+
+
+class SignalBugFromTextOut(BaseModel):
+    ok: bool = True
+    id: UUID
+
+
+def _require_internal_secret(x_internal_secret: str | None) -> None:
+    if not settings.internal_api_secret or x_internal_secret != settings.internal_api_secret:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid internal secret")
 
 
 class AdminUserCreate(BaseModel):
@@ -114,6 +177,28 @@ async def admin_health(
     return await get_service_health(db)
 
 
+@router.get("/health/service/{name}", response_model=ServiceHealth)
+async def admin_health_service(
+    name: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
+) -> ServiceHealth:
+    _require_admin(current_user)
+    health = await get_service_health_by_name(db, name)
+    if health is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown service")
+    return health
+
+
+@router.get("/services/{name}/logs")
+async def admin_service_logs(
+    name: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
+) -> dict:
+    _require_admin(current_user)
+    logs = await get_service_logs(db, name)
+    if logs is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown service")
+    return logs
+
+
 @router.get("/bug-reports", response_model=list[BugReportOut])
 async def admin_list_bug_reports(
     status_filter: str | None = None,
@@ -146,6 +231,103 @@ async def admin_analyze_bug_report(
     if report is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bug report not found")
     return report
+
+
+@router.put("/bug-reports/{bug_report_id}/status", response_model=BugReportOut)
+async def admin_update_bug_report_status(
+    bug_report_id: UUID,
+    body: BugReportStatusUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> BugReport:
+    _require_admin(current_user)
+    report = await update_bug_report_status(db, bug_report_id=bug_report_id, status=body.status)
+    if report is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bug report not found")
+    return report
+
+
+@router.delete("/bug-reports", response_model=BugReportBulkDeleteOut)
+async def admin_bulk_delete_bug_reports(
+    body: BugReportBulkDelete,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> BugReportBulkDeleteOut:
+    _require_admin(current_user)
+    deleted = await bulk_delete_bug_reports(db, ids=body.ids)
+    return BugReportBulkDeleteOut(deleted=deleted)
+
+
+@router.delete("/bug-reports/{bug_report_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def admin_delete_bug_report(
+    bug_report_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    _require_admin(current_user)
+    deleted = await delete_bug_report(db, bug_report_id=bug_report_id)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bug report not found")
+
+
+@router.post("/bug-reports/analyze-all")
+async def admin_analyze_all_bug_reports(
+    background_tasks: BackgroundTasks, current_user: User = Depends(get_current_user)
+) -> dict:
+    _require_admin(current_user)
+    if analyze_all_is_running():
+        status_snapshot = get_analyze_all_status()
+        return {"ok": False, "detail": "Already running", **status_snapshot.model_dump()}
+    background_tasks.add_task(run_analyze_all)
+    return {"ok": True, "started": True}
+
+
+@router.get("/bug-reports/analyze-all/status", response_model=AnalyzeAllStatus)
+async def admin_analyze_all_bug_reports_status(current_user: User = Depends(get_current_user)) -> AnalyzeAllStatus:
+    _require_admin(current_user)
+    return get_analyze_all_status()
+
+
+@router.post("/bug-reports/{bug_report_id}/clarify", response_model=ClarifyOut)
+async def admin_clarify_bug_report(
+    bug_report_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ClarifyOut:
+    _require_admin(current_user)
+    result = await generate_clarifying_questions(
+        db, bug_report_id=bug_report_id, requesting_user_id=current_user.id
+    )
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bug report not found")
+    _report, questions = result
+    if not questions:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="No clarifying questions generated")
+    return ClarifyOut(questions=questions)
+
+
+class CodebergIssueOut(BaseModel):
+    ok: bool = True
+    url: str
+    number: int
+
+
+@router.post("/bug-reports/{bug_report_id}/codeberg-issue", response_model=CodebergIssueOut)
+async def admin_create_codeberg_issue(
+    bug_report_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> CodebergIssueOut:
+    _require_admin(current_user)
+    try:
+        report = await create_codeberg_issue(db, bug_report_id=bug_report_id)
+    except CodebergIssueNotConfigured as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Codeberg integration is not configured"
+        ) from exc
+    if report is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bug report not found")
+    return CodebergIssueOut(url=report.codeberg_issue_url, number=report.codeberg_issue_number)
 
 
 @router.post("/users", response_model=AdminUserCreated)
@@ -235,3 +417,47 @@ async def admin_list_users(
         select(User).order_by(User.created_at.desc()).limit(limit).offset(offset)
     )
     return list(result.scalars().all())
+
+
+@router.get("/signal-lookup", response_model=SignalLookupOut)
+async def admin_signal_lookup(
+    phone: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
+) -> SignalLookupOut:
+    """Resolve a phone number to a user (v2 scanned LDAP for a mobile-attr
+    match; here phone_number is a direct indexed column on `users`)."""
+    _require_admin(current_user)
+    user = await find_user_by_phone(db, phone=phone)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No user with this phone number")
+    return SignalLookupOut(id=user.id, display_name=user.display_name)
+
+
+@router.get("/signal-lookup-internal", response_model=SignalLookupOut)
+async def admin_signal_lookup_internal(
+    phone: str,
+    db: AsyncSession = Depends(get_db),
+    x_internal_secret: str | None = Header(None, alias="X-Internal-Secret"),
+) -> SignalLookupOut:
+    """Same lookup as /signal-lookup, but gated by a shared secret instead
+    of an admin JWT -- for the Signal-ingest service to call directly."""
+    _require_internal_secret(x_internal_secret)
+    user = await find_user_by_phone(db, phone=phone)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No user with this phone number")
+    return SignalLookupOut(id=user.id, display_name=user.display_name)
+
+
+@router.post("/signal/bug-from-text", response_model=SignalBugFromTextOut)
+async def admin_signal_bug_from_text(
+    body: SignalBugFromTextIn,
+    db: AsyncSession = Depends(get_db),
+    x_internal_secret: str | None = Header(None, alias="X-Internal-Secret"),
+) -> SignalBugFromTextOut:
+    """Create a bug report from Signal-ingested text (a user texting a bug
+    report instead of using the web UI). Internal-secret-gated, same as
+    /signal-lookup-internal."""
+    _require_internal_secret(x_internal_secret)
+    report = await create_bug_report_from_text(db, username=body.owner_uid, text=body.text)
+    if report is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown owner_uid")
+    return SignalBugFromTextOut(id=report.id)
