@@ -186,6 +186,7 @@ export function legalDraft(instruction: string, documentIds: string[]): Promise<
 }
 
 export type TaskStatus = "open" | "in_progress" | "done";
+export type RecurrenceRule = "daily" | "weekly" | "monthly";
 
 export interface TaskOut {
   id: string;
@@ -198,11 +199,25 @@ export interface TaskOut {
   position: number;
   source: string;
   created_at: string;
+  recurrence_rule: RecurrenceRule | null;
 }
 
 export function listTasks(statusFilter?: string): Promise<TaskOut[]> {
   const query = statusFilter ? `?status=${encodeURIComponent(statusFilter)}` : "";
   return request<TaskOut[]>(`/tasks${query}`);
+}
+
+export function createTask(input: {
+  title: string;
+  description?: string;
+  due_date?: string;
+  assignee?: string;
+  recurrence_rule?: RecurrenceRule;
+}): Promise<TaskOut> {
+  return request<TaskOut>("/tasks", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
 
 export function updateTaskStatus(id: string, status: "open" | "done"): Promise<TaskOut> {

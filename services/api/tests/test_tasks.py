@@ -238,3 +238,106 @@ async def test_update_task_rejects_status_outside_allowed_set(client):
 
     response = await client.patch(f"/tasks/{task_id}", headers=headers, json={"status": "archived"})
     assert response.status_code == 400
+
+
+async def test_create_task_manually(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = await client.post(
+        "/tasks",
+        headers=headers,
+        json={"title": "Chase missing invoice", "due_date": "2026-08-01", "assignee": "Ada"},
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["title"] == "Chase missing invoice"
+    assert body["due_date"] == "2026-08-01"
+    assert body["assignee"] == "Ada"
+    assert body["source"] == "manual"
+    assert body["status"] == "open"
+    assert body["recurrence_rule"] is None
+
+
+async def test_create_task_rejects_invalid_recurrence_rule(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = await client.post(
+        "/tasks",
+        headers=headers,
+        json={"title": "Quarterly review", "due_date": "2026-08-01", "recurrence_rule": "yearly"},
+    )
+
+    assert response.status_code == 400
+
+
+async def test_create_task_rejects_recurrence_without_due_date(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = await client.post(
+        "/tasks", headers=headers, json={"title": "Quarterly review", "recurrence_rule": "monthly"}
+    )
+
+    assert response.status_code == 400
+
+
+async def test_create_task_requires_auth(client):
+    response = await client.post("/tasks", json={"title": "Unauthorized task"})
+    assert response.status_code == 401
+
+
+async def test_completing_a_recurring_task_creates_the_next_occurrence(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    created = await client.post(
+        "/tasks",
+        headers=headers,
+        json={"title": "Weekly status update stu888", "due_date": "2026-07-06", "recurrence_rule": "weekly"},
+    )
+    task_id = created.json()["id"]
+
+    response = await client.patch(f"/tasks/{task_id}", headers=headers, json={"status": "done"})
+    assert response.status_code == 200
+    assert response.json()["status"] == "done"
+
+    all_open = await client.get("/tasks", params={"status": "open", "limit": 200}, headers=headers)
+    next_occurrence = [
+        t for t in all_open.json() if t["title"] == "Weekly status update stu888" and t["id"] != task_id
+    ]
+    assert len(next_occurrence) == 1
+    assert next_occurrence[0]["due_date"] == "2026-07-13"
+    assert next_occurrence[0]["recurrence_rule"] == "weekly"
+
+
+async def test_completing_a_one_time_task_does_not_create_a_new_occurrence(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    created = await client.post("/tasks", headers=headers, json={"title": "One-off cleanup task xyz123"})
+    task_id = created.json()["id"]
+
+    await client.patch(f"/tasks/{task_id}", headers=headers, json={"status": "done"})
+
+    all_tasks = await client.get("/tasks", params={"status": "open", "limit": 200}, headers=headers)
+    matches = [t for t in all_tasks.json() if t["title"] == "One-off cleanup task xyz123"]
+    assert len(matches) == 0
+
+
+async def test_editing_due_date_clears_notified_at(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    created = await client.post(
+        "/tasks", headers=headers, json={"title": "Renew APK", "due_date": "2026-07-15"}
+    )
+    task_id = created.json()["id"]
+
+    response = await client.patch(
+        f"/tasks/{task_id}", headers=headers, json={"status": "open", "due_date": "2026-07-20"}
+    )
+    assert response.status_code == 200
+    assert response.json()["due_date"] == "2026-07-20"

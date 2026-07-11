@@ -9,15 +9,21 @@ vi.mock("../lib/api", async () => {
   return {
     ...actual,
     listTasks: vi.fn(),
+    createTask: vi.fn(),
     updateTaskStatus: vi.fn(),
     moveTask: vi.fn(),
   };
 });
 
+function isoDate(offsetDays: number): string {
+  return new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
+}
+
 const OPEN_TASKS: api.TaskOut[] = [
   {
     id: "t1", document_id: "d1", title: "Review lease", description: "Check termination clause",
-    due_date: "2026-08-01", assignee: "Ada", status: "open", position: 0, source: "manual", created_at: "2026-01-01T00:00:00Z",
+    due_date: "2026-08-01", assignee: "Ada", status: "open", position: 0, source: "manual",
+    created_at: "2026-01-01T00:00:00Z", recurrence_rule: null,
   },
 ];
 
@@ -80,5 +86,68 @@ describe("Tasks", () => {
     await screen.findByText("Review lease");
     fireEvent.click(screen.getByRole("button", { name: "Board" }));
     await waitFor(() => expect(screen.queryByRole("button", { name: "done" })).not.toBeInTheDocument());
+  });
+
+  it("shows a danger overdue badge for a past due date", async () => {
+    vi.mocked(api.listTasks).mockResolvedValue([{ ...OPEN_TASKS[0], due_date: isoDate(-2) }]);
+    renderPage();
+    expect(await screen.findByText("Overdue by 2 days")).toBeInTheDocument();
+  });
+
+  it("shows a due-today badge for today's due date", async () => {
+    vi.mocked(api.listTasks).mockResolvedValue([{ ...OPEN_TASKS[0], due_date: isoDate(0) }]);
+    renderPage();
+    expect(await screen.findByText("Due today")).toBeInTheDocument();
+  });
+
+  it("shows a recurrence marker next to a recurring task's title", async () => {
+    vi.mocked(api.listTasks).mockResolvedValue([{ ...OPEN_TASKS[0], recurrence_rule: "weekly" }]);
+    renderPage();
+    expect(await screen.findByText("↻ Weekly")).toBeInTheDocument();
+  });
+
+  it("opens the new-task form, disables recurrence chips until a due date is set, and submits", async () => {
+    vi.mocked(api.createTask).mockResolvedValue({ ...OPEN_TASKS[0], id: "t2", title: "Chase invoice" });
+    renderPage();
+    await screen.findByText("Review lease");
+
+    fireEvent.click(screen.getByRole("button", { name: "+ New task" }));
+    expect(screen.getByRole("button", { name: "Weekly" })).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("What needs to happen?"), { target: { value: "Chase invoice" } });
+    fireEvent.change(screen.getByLabelText("Due date"), { target: { value: "2026-08-15" } });
+    expect(screen.getByRole("button", { name: "Weekly" })).not.toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Weekly" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    await waitFor(() =>
+      expect(api.createTask).toHaveBeenCalledWith({
+        title: "Chase invoice",
+        due_date: "2026-08-15",
+        recurrence_rule: "weekly",
+      })
+    );
+    // form closes and the list re-fetches after a successful create
+    await waitFor(() => expect(screen.queryByLabelText("What needs to happen?")).not.toBeInTheDocument());
+    expect(api.listTasks).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not submit the new-task form with a blank title", async () => {
+    renderPage();
+    await screen.findByText("Review lease");
+    fireEvent.click(screen.getByRole("button", { name: "+ New task" }));
+    expect(screen.getByRole("button", { name: "Create" })).toBeDisabled();
+    expect(api.createTask).not.toHaveBeenCalled();
+  });
+
+  it("cancelling the new-task form discards input and closes it", async () => {
+    renderPage();
+    await screen.findByText("Review lease");
+    fireEvent.click(screen.getByRole("button", { name: "+ New task" }));
+    fireEvent.change(screen.getByLabelText("What needs to happen?"), { target: { value: "Discard me" } });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByLabelText("What needs to happen?")).not.toBeInTheDocument();
+    expect(api.createTask).not.toHaveBeenCalled();
   });
 });
