@@ -10,18 +10,20 @@
     --bg-sidebar:  #ffffff;
     --bg-card:     #ffffff;
     --text:        #1E1B4B;
-    --text-2:      #6B7280;
-    --text-3:      #9CA3AF;
+    --text-2:      #4B5563;
+    --text-3:      #616B77;
     --border:      #E8E6FF;
     --hover:       rgba(108, 99, 255, 0.06);
     --active:      rgba(108, 99, 255, 0.12);
-    --accent:      #6C63FF;
+    --accent:      #5A52E8;
     --accent-bg:   #EEECFF;
-    --accent-hover:#5A52E8;
-    --danger:       #EF4444;
-    --danger-hover: #DC2626;
+    --accent-hover:#4740C4;
+    --accent-solid: var(--accent);
+    --danger:       #DC2626;
+    --danger-hover: #B91C1C;
+    --danger-solid: var(--danger);
     --success-bg:  rgba(34, 197, 94, 0.10);
-    --success:     #16A34A;
+    --success:     #15803D;
     --warning-bg:  rgba(245, 158, 11, 0.10);
     --warning:     #D97706;
     --danger-bg:   rgba(239, 68, 68, 0.10);
@@ -41,15 +43,17 @@
     --bg-card:     #13112A;
     --text:        rgba(255, 255, 255, 0.90);
     --text-2:      rgba(200, 195, 255, 0.65);
-    --text-3:      rgba(200, 195, 255, 0.38);
+    --text-3:      rgba(200, 195, 255, 0.60);
     --border:      rgba(108, 99, 255, 0.18);
     --hover:       rgba(108, 99, 255, 0.10);
     --active:      rgba(108, 99, 255, 0.20);
     --accent:      #8B82FF;
     --accent-bg:   rgba(108, 99, 255, 0.18);
     --accent-hover:#9D95FF;
+    --accent-solid: #5F55EF;
     --danger:       #F87171;
     --danger-hover: #EF4444;
+    --danger-solid: #DC2626;
     --success-bg:  rgba(34, 197, 94, 0.15);
     --success:     #4ADE80;
     --warning-bg:  rgba(245, 158, 11, 0.15);
@@ -125,13 +129,13 @@
     font-family:var(--font-sans);
   }
   .btn:active{transform:scale(0.96);}
-  .btn.primary{background:var(--accent); color:#fff; padding:9px 18px; font-size:14px;}
+  .btn.primary{background:var(--accent-solid); color:#fff; padding:9px 18px; font-size:14px;}
   .btn.primary:hover{background:var(--accent-hover); box-shadow:0 8px 20px rgba(108,99,255,.35);}
   .btn.secondary{background:var(--accent-bg); color:var(--accent); padding:9px 18px; font-size:14px;}
   .btn.secondary:hover{background:var(--hover);}
   .btn.ghost{background:transparent; color:var(--text-2); padding:9px 18px; font-size:14px;}
   .btn.ghost:hover{background:var(--hover); color:var(--text);}
-  .btn.danger{background:var(--danger); color:#fff; padding:9px 18px; font-size:14px;}
+  .btn.danger{background:var(--danger-solid); color:#fff; padding:9px 18px; font-size:14px;}
   .btn.danger:hover{background:var(--danger-hover);}
   .btn.sm{padding:6px 12px; font-size:12.5px; border-radius:10px;}
   .btn.magnetic{padding:12px 22px; font-size:14px;}
@@ -263,7 +267,7 @@
   .pagination{display:flex; align-items:center; justify-content:center; gap:4px; margin-top:12px;}
   .page-btn{width:30px; height:30px; border-radius:8px; border:1px solid transparent; background:transparent; color:var(--text-2); font-size:12.5px; cursor:pointer; transition:all var(--dur-fast) var(--ease-spring);}
   .page-btn:hover{background:var(--hover);}
-  .page-btn.active{background:var(--accent); color:#fff;}
+  .page-btn.active{background:var(--accent-solid); color:#fff;}
   .page-btn.ellipsis{cursor:default;}
   .page-btn.ellipsis:hover{background:transparent;}
 
@@ -442,7 +446,7 @@
   .stepper{display:flex; align-items:flex-start; margin-bottom:14px;}
   .step{display:flex; flex-direction:column; align-items:center; gap:6px; position:relative; flex:1;}
   .step-circle{width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; background:var(--bg-card); border:2px solid var(--border); color:var(--text-3); transition:all var(--dur-base) var(--ease-spring); z-index:1;}
-  .step.complete .step-circle{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .step.complete .step-circle{background:var(--accent-solid); border-color:var(--accent-solid); color:#fff;}
   .step.active .step-circle{border-color:var(--accent); color:var(--accent);}
   .step-label{font-size:11.5px; color:var(--text-2);}
   .step.active .step-label{color:var(--text); font-weight:600;}
@@ -467,7 +471,7 @@
   .chat-shell{border:1px solid var(--border); border-radius:16px; background:var(--bg-card); box-shadow:var(--card-shadow); overflow:hidden;}
   .chat-log{padding:16px; display:flex; flex-direction:column; gap:10px; max-height:260px; overflow-y:auto;}
   .msg{max-width:75%; padding:9px 13px; border-radius:16px; font-size:13px; line-height:1.5; animation:cardIn var(--dur-base) var(--ease-out);}
-  .msg.user{align-self:flex-end; background:var(--accent); color:#fff; border-bottom-right-radius:4px;}
+  .msg.user{align-self:flex-end; background:var(--accent-solid); color:#fff; border-bottom-right-radius:4px;}
   .msg.assistant{align-self:flex-start; background:var(--bg); border:1px solid var(--border); border-bottom-left-radius:4px;}
   .typing-dots{display:inline-flex; gap:3px; align-self:flex-start; background:var(--bg); border:1px solid var(--border); padding:11px 14px; border-radius:16px; border-bottom-left-radius:4px;}
   .typing-dots span{width:6px; height:6px; border-radius:50%; background:var(--text-3); animation:typingBounce 1s ease-in-out infinite;}
@@ -498,7 +502,7 @@
 
   /* nav unread badge */
   .navitem{display:flex; align-items:center;}
-  .nav-badge{background:var(--accent); color:#fff; font-size:10px; font-weight:700; padding:1px 6px; border-radius:999px; margin-left:auto;}
+  .nav-badge{background:var(--accent-solid); color:#fff; font-size:10px; font-weight:700; padding:1px 6px; border-radius:999px; margin-left:auto;}
 
   /* focus demo row */
   .focus-demo-row{display:flex; gap:12px; flex-wrap:wrap; align-items:center;}
@@ -551,7 +555,7 @@
   .cadence-row{display:flex; gap:6px; flex-wrap:wrap;}
   .cadence-chip{border:1px solid var(--border); background:transparent; color:var(--text-2); font-size:11.5px; font-weight:600; padding:6px 12px; border-radius:999px; cursor:pointer; transition:all var(--dur-fast) var(--ease-out);}
   .cadence-chip:hover{border-color:var(--accent); color:var(--accent);}
-  .cadence-chip.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .cadence-chip.active{background:var(--accent-solid); border-color:var(--accent-solid); color:#fff;}
 
   /* appointments — calendar + agenda */
   .cal-shell{display:flex; gap:16px; flex-wrap:wrap;}
@@ -563,7 +567,7 @@
   .cal-day.muted{color:var(--text-3); opacity:.35; cursor:default;}
   .cal-day:not(.muted):hover{background:var(--hover); color:var(--text);}
   .cal-day.today{font-weight:700; color:var(--accent); border:1px solid var(--accent);}
-  .cal-day.selected{background:var(--accent); color:#fff;}
+  .cal-day.selected{background:var(--accent-solid); color:#fff;}
   .cal-day .ev-dot{position:absolute; bottom:3px; left:50%; transform:translateX(-50%); width:4px; height:4px; border-radius:50%; background:var(--accent);}
   .cal-day.selected .ev-dot{background:#fff;}
   .agenda-card{flex:1; min-width:240px; background:var(--bg-card); border:1px solid var(--border); border-radius:16px; box-shadow:var(--card-shadow); padding:16px;}
@@ -898,13 +902,13 @@
   <section>
     <h2>Avatars &amp; Presence</h2>
     <div class="row" style="align-items:center; gap:22px;">
-      <span class="avatar" style="background:#6C63FF;">AA<span class="presence online"></span></span>
-      <span class="avatar" style="background:#D97706;">JD<span class="presence away"></span></span>
-      <span class="avatar" style="background:#16A34A;">MK<span class="presence offline"></span></span>
+      <span class="avatar" style="background:#5A52E8;">AA<span class="presence online"></span></span>
+      <span class="avatar" style="background:#B45309;">JD<span class="presence away"></span></span>
+      <span class="avatar" style="background:#15803D;">MK<span class="presence offline"></span></span>
       <div class="avatar-group">
-        <span class="avatar" style="background:#6C63FF;">AA</span>
-        <span class="avatar" style="background:#D97706;">JD</span>
-        <span class="avatar" style="background:#16A34A;">MK</span>
+        <span class="avatar" style="background:#5A52E8;">AA</span>
+        <span class="avatar" style="background:#B45309;">JD</span>
+        <span class="avatar" style="background:#15803D;">MK</span>
         <span class="avatar avatar-more">+3</span>
       </div>
     </div>
