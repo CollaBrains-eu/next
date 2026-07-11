@@ -215,9 +215,11 @@ class ReflectionLog(Base):
 class Task(Base):
     """An actionable item, created manually or extracted from a document by the Planner Agent.
 
-    Deliberately minimal (ADR 0004): no calendar sync, no recurrence, no
-    linked-user assignment -- assignee is free text until there's a real
-    scheduling/notification feature to justify more structure.
+    Deliberately minimal (ADR 0004): no calendar sync, no linked-user
+    assignment -- assignee is free text. Recurrence and due-date
+    notifications were added in ADR 0064, resolving the "until there's a
+    real scheduling/notification feature" deferral this docstring used
+    to describe.
     """
 
     __tablename__ = "tasks"
@@ -235,6 +237,8 @@ class Task(Base):
     source: Mapped[str] = mapped_column(String(50), nullable=False, default="manual")
     created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    recurrence_rule: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class Entity(Base):
