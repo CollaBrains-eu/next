@@ -197,6 +197,12 @@
     "approve": "Approve",
     "keyboardHint": "Keyboard: J or → to approve, K or ← to reject"
   },
+  "entityGraph": {
+    "loadError": "Failed to load graph",
+    "relationshipCount_one": "{{type}} · {{count}} direct relationship",
+    "relationshipCount_other": "{{type}} · {{count}} direct relationships",
+    "noRelationships": "No known relationships for this entity yet."
+  },
   "chat": {
     "hint": "Ask a question about your documents. Answers are grounded only in retrieved content and cite sources.",
     "inputPlaceholder": "Ask a question…",
@@ -266,5 +272,15 @@
     "creating": "Creating…",
     "createUser": "Create user",
     "createUserError": "Failed to create user"
+  },
+  "settings": {
+    "title": "Settings",
+    "preferredLanguage": "Preferred language",
+    "preferredLanguageHint": "Used by AI Chat to respond in your preferred language.",
+    "noPreference": "No preference",
+    "loadError": "Failed to load preferences",
+    "saveError": "Failed to save preferences",
+    "saved": "Saved.",
+    "save": "Save"
   }
 }

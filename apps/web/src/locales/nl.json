@@ -197,6 +197,12 @@
     "approve": "Goedkeuren",
     "keyboardHint": "Toetsenbord: J of → om goed te keuren, K of ← om af te wijzen"
   },
+  "entityGraph": {
+    "loadError": "Kon graaf niet laden",
+    "relationshipCount_one": "{{type}} · {{count}} directe relatie",
+    "relationshipCount_other": "{{type}} · {{count}} directe relaties",
+    "noRelationships": "Nog geen bekende relaties voor deze entiteit."
+  },
   "chat": {
     "hint": "Stel een vraag over uw documenten. Antwoorden zijn uitsluitend gebaseerd op opgehaalde inhoud en verwijzen naar bronnen.",
     "inputPlaceholder": "Stel een vraag…",
@@ -266,5 +272,15 @@
     "creating": "Bezig met aanmaken…",
     "createUser": "Gebruiker aanmaken",
     "createUserError": "Kon gebruiker niet aanmaken"
+  },
+  "settings": {
+    "title": "Instellingen",
+    "preferredLanguage": "Voorkeurstaal",
+    "preferredLanguageHint": "Wordt gebruikt door AI-chat om in uw voorkeurstaal te antwoorden.",
+    "noPreference": "Geen voorkeur",
+    "loadError": "Kon voorkeuren niet laden",
+    "saveError": "Kon voorkeuren niet opslaan",
+    "saved": "Opgeslagen.",
+    "save": "Opslaan"
   }
 }
