@@ -58,7 +58,8 @@
     "delete": "Delete",
     "create": "Create",
     "send": "Send",
-    "thinking": "Thinking…"
+    "thinking": "Thinking…",
+    "addFilter": "+ Add filter"
   },
   "documents": {
     "title": "Documents",
@@ -77,7 +78,13 @@
     "filterPending": "Status: Pending",
     "deleteAction": "Delete",
     "deletedToast_one": "{{count}} document deleted",
-    "deletedToast_other": "{{count}} documents deleted"
+    "deletedToast_other": "{{count}} documents deleted",
+    "uploadButton": "Upload document",
+    "uploadTitle": "Upload a document",
+    "uploading": "Uploading…",
+    "uploadError": "Upload failed",
+    "statusFilterLabel": "Status",
+    "categoryFilterLabel": "Category"
   },
   "categories": {
     "finance": "Finance",
@@ -209,5 +216,19 @@
     "inputPlaceholder": "Ask the assistant…",
     "toolCalled": "via: {{tool}}",
     "loadError": "Assistant request failed"
+  },
+  "auth": {
+    "title": "Sign in",
+    "subtitle": "Use your CollaBrains directory credentials.",
+    "username": "Username",
+    "password": "Password",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "loginError": "Login failed"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "message": "The page you're looking for doesn't exist or may have been moved.",
+    "action": "Back to Dashboard"
   }
 }

@@ -58,7 +58,8 @@
     "delete": "Löschen",
     "create": "Erstellen",
     "send": "Senden",
-    "thinking": "Denkt nach…"
+    "thinking": "Denkt nach…",
+    "addFilter": "+ Filter hinzufügen"
   },
   "documents": {
     "title": "Dokumente",
@@ -77,7 +78,13 @@
     "filterPending": "Status: Ausstehend",
     "deleteAction": "Löschen",
     "deletedToast_one": "{{count}} Dokument gelöscht",
-    "deletedToast_other": "{{count}} Dokumente gelöscht"
+    "deletedToast_other": "{{count}} Dokumente gelöscht",
+    "uploadButton": "Dokument hochladen",
+    "uploadTitle": "Ein Dokument hochladen",
+    "uploading": "Wird hochgeladen…",
+    "uploadError": "Hochladen fehlgeschlagen",
+    "statusFilterLabel": "Status",
+    "categoryFilterLabel": "Kategorie"
   },
   "categories": {
     "finance": "Finanzen",
