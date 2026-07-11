@@ -284,9 +284,10 @@
     border-radius:12px; box-shadow:var(--card-shadow-hi); padding:6px; opacity:0; transform:translateY(-6px) scale(.97); pointer-events:none; z-index:20;
     transition:all var(--dur-base) var(--ease-spring);}
   .dropdown.open .dropdown-menu{opacity:1; transform:translateY(0) scale(1); pointer-events:auto;}
-  .dropdown-item{padding:8px 10px; border-radius:8px; font-size:13px; cursor:pointer; color:var(--text-2);}
+  .dropdown-item{display:block; padding:8px 10px; border-radius:8px; font-size:13px; cursor:pointer; color:var(--text-2); text-decoration:none;}
   .dropdown-item:hover{background:var(--hover); color:var(--text);}
   .dropdown-item.danger-item{color:var(--danger);}
+  .toc-menu{max-height:min(60vh, 420px); overflow-y:auto;}
   .dropdown-item.danger-item:hover{background:var(--danger-bg);}
 
   /* tooltip */
@@ -612,7 +613,7 @@
 
 <div class="loading-bar" id="loadingBar"></div>
 <div class="blob"></div>
-<div class="wrap">
+<div class="wrap" id="top">
   <header class="page">
     <div>
       <div class="source-tag">● Extracted from Codeberg Cbrains-v2 — motion system + full component library + functions</div>
@@ -632,13 +633,44 @@
           <div class="dropdown-item notif-item unread"><span class="notif-dot"></span><div><div class="notif-title">Follow up: Smith v. Jones</div><div style="font-size:11px; color:var(--text-3);">Due today</div></div></div>
         </div>
       </div>
+      <div class="dropdown" id="tocDd">
+        <button class="cmdk-trigger" id="tocTrigger" aria-label="Jump to section">☰ Sections</button>
+        <div class="dropdown-menu toc-menu" id="tocMenu">
+            <a class="dropdown-item" href="#sec-motion-principles">Motion Principles</a>
+            <a class="dropdown-item" href="#sec-color-light">Color — Light</a>
+            <a class="dropdown-item" href="#sec-color-dark">Color — Dark</a>
+            <a class="dropdown-item" href="#sec-typography">Typography</a>
+            <a class="dropdown-item" href="#sec-foundations-spacing-and-elevation">Foundations — Spacing &amp; Elevation</a>
+            <a class="dropdown-item" href="#sec-icons">Icons</a>
+            <a class="dropdown-item" href="#sec-buttons-press-and-ripple-feedback">Buttons — press &amp; ripple feedback</a>
+            <a class="dropdown-item" href="#sec-status-animated-processing-ready">Status — animated processing → ready</a>
+            <a class="dropdown-item" href="#sec-forms">Forms</a>
+            <a class="dropdown-item" href="#sec-multi-select-linked-entities">Multi-select — linked entities</a>
+            <a class="dropdown-item" href="#sec-data-table-and-pagination">Data Table &amp; Pagination</a>
+            <a class="dropdown-item" href="#sec-breadcrumbs">Breadcrumbs</a>
+            <a class="dropdown-item" href="#sec-empty-state-populated-real-create-flow">Empty State → Populated (real create flow)</a>
+            <a class="dropdown-item" href="#sec-stepper-multi-step-flow">Stepper — multi-step flow</a>
+            <a class="dropdown-item" href="#sec-overlays-dropdown-tooltip-modal">Overlays — Dropdown, Tooltip, Modal</a>
+            <a class="dropdown-item" href="#sec-alerts-banners">Alerts / Banners</a>
+            <a class="dropdown-item" href="#sec-cards-tilt-on-hover-staggered-entrance">Cards — tilt on hover, staggered entrance</a>
+            <a class="dropdown-item" href="#sec-avatars-and-presence">Avatars &amp; Presence</a>
+            <a class="dropdown-item" href="#sec-loading-skeleton-shimmer">Loading — skeleton shimmer</a>
+            <a class="dropdown-item" href="#sec-chat-ai-assistant">Chat — AI assistant</a>
+            <a class="dropdown-item" href="#sec-tasks-kanban-board">Tasks — Kanban board</a>
+            <a class="dropdown-item" href="#sec-document-diff-redline-view">Document diff — redline view</a>
+            <a class="dropdown-item" href="#sec-deadlines-and-reminders">Deadlines &amp; Reminders</a>
+            <a class="dropdown-item" href="#sec-appointments">Appointments</a>
+            <a class="dropdown-item" href="#sec-applied-app-shell-click-nav-rows-select-checkboxes-toggle-split-view">Applied — App Shell</a>
+            <a class="dropdown-item" href="#sec-keyboard-focus-states">Keyboard focus states</a>
+        </div>
+      </div>
       <button class="cmdk-trigger" id="navSimBtn">▶ Simulate navigation</button>
       <button class="cmdk-trigger" id="cmdkTrigger">⌘ Search <kbd>⌘K</kbd></button>
       <button class="mode-toggle" id="toggleBtn">🌙 Dark mode</button>
     </div>
   </header>
 
-  <section>
+  <section id="sec-motion-principles">
     <h2>Motion Principles</h2>
     <div class="ease-demo">
       <div class="ease-card">
@@ -659,17 +691,17 @@
     </div>
   </section>
 
-  <section>
+  <section id="sec-color-light">
     <h2>Color — Light</h2>
     <div class="swatches" id="swatchesLight"></div>
   </section>
 
-  <section>
+  <section id="sec-color-dark">
     <h2>Color — Dark</h2>
     <div class="swatches" id="swatchesDark"></div>
   </section>
 
-  <section>
+  <section id="sec-typography">
     <h2>Typography</h2>
     <div class="type-row"><span class="type-label">h1 / 26·700</span><div class="type-sample" style="font-size:26px; font-weight:700; letter-spacing:-0.01em;">Case #4471 — Insurance claim</div></div>
     <div class="type-row"><span class="type-label">h2 / 15·600</span><div class="type-sample" style="font-size:15px; font-weight:600;">Linked vehicles</div></div>
@@ -680,7 +712,7 @@
     <div class="type-row"><span class="type-label">mono / 12.5</span><div class="type-sample" style="font-family:var(--font-mono); font-size:12.5px;">39-VLJ-4 · AB1234</div></div>
   </section>
 
-  <section>
+  <section id="sec-foundations-spacing-and-elevation">
     <h2>Foundations — Spacing &amp; Elevation</h2>
     <div class="space-row">
       <div class="space-tile"><div class="space-box" style="width:4px;height:4px;"></div><span class="space-label">4</span></div>
@@ -700,7 +732,7 @@
     </div>
   </section>
 
-  <section>
+  <section id="sec-icons">
     <h2>Icons</h2>
     <div class="icon-grid">
       <div class="icon-tile"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="icon-name">document</span></div>
@@ -718,7 +750,7 @@
     </div>
   </section>
 
-  <section>
+  <section id="sec-buttons-press-and-ripple-feedback">
     <h2>Buttons — press &amp; ripple feedback</h2>
     <div class="row">
       <button class="btn primary" data-ripple>Primary</button>
@@ -732,7 +764,7 @@
     </div>
   </section>
 
-  <section>
+  <section id="sec-status-animated-processing-ready">
     <h2>Status — animated processing → ready</h2>
     <div class="row">
       <span class="badge default pulsing" id="statusBadge"><span class="dot"></span><span id="statusText">Processing</span></span>
@@ -740,7 +772,7 @@
     </div>
   </section>
 
-  <section>
+  <section id="sec-forms">
     <h2>Forms</h2>
     <div class="row" style="align-items:flex-start; gap:24px;">
       <div class="field">
@@ -763,7 +795,7 @@
     </div>
   </section>
 
-  <section>
+  <section id="sec-multi-select-linked-entities">
     <h2>Multi-select — linked entities</h2>
     <div class="combobox" id="entityCombo">
       <div class="combo-field" id="comboField">
@@ -780,7 +812,7 @@
     </div>
   </section>
 
-  <section>
+  <section id="sec-data-table-and-pagination">
     <h2>Data Table &amp; Pagination</h2>
     <div class="table-wrap">
       <div class="table-scroll">
@@ -813,7 +845,7 @@
     </div>
   </section>
 
-  <section>
+  <section id="sec-breadcrumbs">
     <h2>Breadcrumbs</h2>
     <div class="breadcrumbs">
       <a class="crumb">Cases</a><span class="crumb-sep">›</span>
@@ -822,7 +854,7 @@
     </div>
   </section>
 
-  <section>
+  <section id="sec-empty-state-populated-real-create-flow">
     <h2>Empty State → Populated (real create flow)</h2>
     <div class="empty-state" id="emptyStateView">
       <div class="empty-blob"></div>
@@ -839,7 +871,7 @@
     </div>
   </section>
 
-  <section>
+  <section id="sec-stepper-multi-step-flow">
     <h2>Stepper — multi-step flow</h2>
     <div class="stepper" id="stepper">
       <div class="step complete" data-step="1"><div class="step-line filled"></div><div class="step-circle">✓</div><div class="step-label">Details</div></div>
@@ -849,7 +881,7 @@
     <button class="btn secondary sm" id="stepperNext">Next step →</button>
   </section>
 
-  <section>
+  <section id="sec-overlays-dropdown-tooltip-modal">
     <h2>Overlays — Dropdown, Tooltip, Modal</h2>
     <div class="row" style="gap:28px;">
       <div class="dropdown" id="ddMenu">
@@ -869,7 +901,7 @@
     </div>
   </section>
 
-  <section>
+  <section id="sec-alerts-banners">
     <h2>Alerts / Banners</h2>
     <div class="alert info"><span class="a-icon">ℹ</span><div class="a-body"><div class="a-title">Heads up</div>Case #4471 has 2 documents still processing.</div></div>
     <div class="alert success"><span class="a-icon">✓</span><div class="a-body"><div class="a-title">Synced</div>All RDW vehicle records are up to date.</div><button class="alert-close" data-dismiss title="Dismiss" aria-label="Dismiss">✕</button></div>
@@ -877,7 +909,7 @@
     <div class="alert danger"><span class="a-icon">⛔</span><div class="a-body"><div class="a-title">No RDW record</div>Plate AB-12-ZZ could not be verified.</div><button class="alert-close" data-dismiss title="Dismiss" aria-label="Dismiss">✕</button></div>
   </section>
 
-  <section>
+  <section id="sec-cards-tilt-on-hover-staggered-entrance">
     <h2>Cards — tilt on hover, staggered entrance</h2>
     <div class="row"><button class="btn ghost sm" id="replayCards">↻ replay entrance</button></div>
     <div class="cards" id="cardGrid">
@@ -899,7 +931,7 @@
     </div>
   </section>
 
-  <section>
+  <section id="sec-avatars-and-presence">
     <h2>Avatars &amp; Presence</h2>
     <div class="row" style="align-items:center; gap:22px;">
       <span class="avatar" style="background:#5A52E8;">AA<span class="presence online"></span></span>
@@ -914,13 +946,13 @@
     </div>
   </section>
 
-  <section>
+  <section id="sec-loading-skeleton-shimmer">
     <h2>Loading — skeleton shimmer</h2>
     <div class="doc-row"><div class="skeleton" style="width:55%; height:14px;"></div><span class="badge warning">Processing</span></div>
     <div class="doc-row"><div class="skeleton" style="width:40%; height:14px;"></div><span class="badge warning">Processing</span></div>
   </section>
 
-  <section>
+  <section id="sec-chat-ai-assistant">
     <h2>Chat — AI assistant</h2>
     <div class="chat-shell">
       <div class="chat-log" id="chatLog">
@@ -934,7 +966,7 @@
     </div>
   </section>
 
-  <section>
+  <section id="sec-tasks-kanban-board">
     <h2>Tasks — Kanban board</h2>
     <div class="kanban" id="kanban">
       <div class="kanban-col" data-col="todo">
@@ -953,7 +985,7 @@
     </div>
   </section>
 
-  <section>
+  <section id="sec-document-diff-redline-view">
     <h2>Document diff — redline view</h2>
     <label class="checkbox-row" style="margin-bottom:10px;"><input type="checkbox" id="diffToggle" checked> Show changes</label>
     <div class="diff-box" id="diffBox">
@@ -961,7 +993,7 @@
     </div>
   </section>
 
-  <section>
+  <section id="sec-deadlines-and-reminders">
     <h2>Deadlines &amp; Reminders</h2>
     <div class="next-deadline-card">
       <div class="nd-label">Next deadline</div>
@@ -1032,7 +1064,7 @@
     </div>
   </section>
 
-  <section>
+  <section id="sec-appointments">
     <h2>Appointments</h2>
     <div class="cal-shell">
       <div class="cal-card">
@@ -1050,7 +1082,7 @@
     </div>
   </section>
 
-  <section>
+  <section id="sec-applied-app-shell-click-nav-rows-select-checkboxes-toggle-split-view">
     <h2>Applied — App Shell (click nav / rows, select checkboxes, toggle split view)</h2>
     <div class="shell" id="shellEl">
       <div class="sidebar">
@@ -1132,13 +1164,13 @@
     </div>
   </section>
 
-  <section>
+  <section id="sec-keyboard-focus-states">
     <h2>Keyboard focus states</h2>
     <p class="lede" style="margin-bottom:14px;">Press <kbd>Tab</kbd> to move through these controls — every interactive element gets a visible ring, never just a color change.</p>
     <div class="focus-demo-row">
       <button class="btn secondary sm">Focusable button</button>
       <input type="text" placeholder="Focusable input" style="border:1px solid var(--border); background:var(--bg-card); color:var(--text); border-radius:10px; padding:8px 12px; font-size:13px; font-family:var(--font-sans); outline:none;">
-      <a href="#" class="crumb" style="border:1px solid var(--border);" onclick="return false;">Focusable link</a>
+      <a href="#top" class="crumb" style="border:1px solid var(--border);">Focusable link (back to top)</a>
     </div>
   </section>
 
