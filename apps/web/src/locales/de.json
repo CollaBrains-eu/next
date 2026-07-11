@@ -1,5 +1,6 @@
 {
   "nav": {
+    "dashboard": "Dashboard",
     "documents": "Dokumente",
     "aiChat": "KI-Chat",
     "legalDraft": "Rechtsentwurf",
@@ -11,8 +12,44 @@
     "settings": "Einstellungen",
     "admin": "Verwaltung"
   },
+  "dashboard": {
+    "expandWidget": "{{title}} erweitern",
+    "collapseWidget": "{{title}} einklappen",
+    "greetingMorning": "Guten Morgen, {{name}}",
+    "greetingAfternoon": "Guten Tag, {{name}}",
+    "greetingEvening": "Guten Abend, {{name}}",
+    "quickActionsTitle": "Schnellaktionen",
+    "quickActionChat": "Frage stellen",
+    "quickActionChatDesc": "Mit deinen Dokumenten chatten",
+    "quickActionLegal": "Dokument entwerfen",
+    "quickActionLegalDesc": "Einen fundierten Rechtsentwurf erstellen",
+    "quickActionAssistant": "Assistent fragen",
+    "quickActionAssistantDesc": "Den Assistenten das passende Werkzeug wählen lassen",
+    "quickActionTasks": "Aufgaben ansehen",
+    "quickActionTasksDesc": "Sehen, was offen ist und ansteht",
+    "recentDocumentsTitle": "Neueste Dokumente",
+    "recentDocumentsEmpty": "Noch keine Dokumente.",
+    "myTasksTitle": "Meine Aufgaben",
+    "myTasksEmpty": "Keine offenen Aufgaben.",
+    "pendingReviewsTitle": "Zu prüfende Entitäten",
+    "pendingReviewsEmpty": "Nichts zu prüfen.",
+    "pendingReviewsCount_one": "{{count}} Entität wartet auf Prüfung",
+    "pendingReviewsCount_other": "{{count}} Entitäten warten auf Prüfung",
+    "recentCasesTitle": "Neueste Fälle",
+    "recentCasesEmpty": "Noch keine Fälle.",
+    "systemStatusTitle": "Systemstatus",
+    "systemStatusEmpty": "Alle Systeme funktionsfähig.",
+    "viewAll": "Alle anzeigen →"
+  },
+  "alerts": {
+    "title": "Benachrichtigungen",
+    "empty": "Alles erledigt",
+    "pendingReviews_one": "{{count}} Entität wartet auf Prüfung",
+    "pendingReviews_other": "{{count}} Entitäten warten auf Prüfung"
+  },
   "common": {
     "openMenu": "Menü öffnen",
+    "search": "Suchen",
     "signOut": "Abmelden",
     "lightMode": "☀️ Heller Modus",
     "darkMode": "🌙 Dunkler Modus",

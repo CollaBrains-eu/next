@@ -4,9 +4,10 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../lib/auth";
 import { useDarkMode } from "../hooks/useDarkMode";
 import { useEscapeToClose } from "../hooks/useEscapeToClose";
+import { useCommandCenterState } from "../lib/commandCenter";
 import { Button } from "./ui/Button";
+import { AlertsBell } from "./AlertsBell";
 import { navItemsForRole } from "../lib/navigation";
-import { listEntities } from "../lib/api";
 
 export default function Sidebar({
   mobileOpen = false,
@@ -17,11 +18,11 @@ export default function Sidebar({
 }) {
   const { user, logout } = useAuth();
   const { isDark, toggle } = useDarkMode();
+  const { openPalette } = useCommandCenterState();
   const { t } = useTranslation();
   const location = useLocation();
   const itemRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
   const [pillStyle, setPillStyle] = useState<{ top: number; height: number }>({ top: 0, height: 0 });
-  const [pendingCount, setPendingCount] = useState(0);
   const navItems = navItemsForRole(user?.role);
 
   useEscapeToClose(mobileOpen, onCloseMobile);
@@ -33,14 +34,6 @@ export default function Sidebar({
       setPillStyle({ top: el.offsetTop, height: el.offsetHeight });
     }
   }, [location.pathname, navItems]);
-
-  useEffect(() => {
-    listEntities(undefined, undefined, "pending_review")
-      .then((entities) => setPendingCount(entities.length))
-      .catch(() => {
-        // Badge is a nice-to-have signal, not core navigation -- fail silently.
-      });
-  }, []);
 
   return (
     <>
@@ -57,7 +50,23 @@ export default function Sidebar({
         }`}
       >
         <div className="flex flex-col gap-6">
-          <span className="text-lg font-semibold text-ink">CollaBrains</span>
+          <div className="flex items-center justify-between">
+            <span className="text-lg font-semibold text-ink">CollaBrains</span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                aria-label={t("common.search")}
+                onClick={openPalette}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 transition-colors duration-fast hover:bg-hover hover:text-ink"
+              >
+                <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="9" cy="9" r="6" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M17 17l-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </button>
+              <AlertsBell />
+            </div>
+          </div>
           <nav className="relative flex flex-col gap-1 text-sm">
             <span
               data-testid="nav-pill"
@@ -80,14 +89,6 @@ export default function Sidebar({
                 }
               >
                 <span>{t(item.labelKey)}</span>
-                {item.to === "/entities" && pendingCount > 0 && (
-                  <span
-                    data-testid="entities-pending-badge"
-                    className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-white"
-                  >
-                    {pendingCount}
-                  </span>
-                )}
               </NavLink>
             ))}
           </nav>

@@ -2,13 +2,16 @@ import { describe, expect, it, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { CommandCenter } from "./CommandCenter";
+import { CommandCenterStateProvider } from "../lib/commandCenter";
 
 afterEach(cleanup);
 
 function renderWithRouter() {
   return render(
     <MemoryRouter>
-      <CommandCenter />
+      <CommandCenterStateProvider>
+        <CommandCenter />
+      </CommandCenterStateProvider>
     </MemoryRouter>
   );
 }
@@ -35,8 +38,10 @@ describe("CommandCenter", () => {
   it("does not open the shortcuts sheet on ? while an input is focused", () => {
     render(
       <MemoryRouter>
-        <input aria-label="some field" />
-        <CommandCenter />
+        <CommandCenterStateProvider>
+          <input aria-label="some field" />
+          <CommandCenter />
+        </CommandCenterStateProvider>
       </MemoryRouter>
     );
     screen.getByLabelText("some field").focus();
@@ -47,7 +52,7 @@ describe("CommandCenter", () => {
   it("lists every NAV_ITEMS entry as a palette item, prefixed with 'Go to '", () => {
     renderWithRouter();
     fireEvent.keyDown(document, { key: "k", metaKey: true });
-    expect(screen.getByText("Go to Documents")).toBeInTheDocument();
+    expect(screen.getByText("Go to Dashboard")).toBeInTheDocument();
     expect(screen.getByText("Go to Vehicles")).toBeInTheDocument();
     expect(screen.getByText("Go to Settings")).toBeInTheDocument();
   });

@@ -1,5 +1,6 @@
 {
   "nav": {
+    "dashboard": "Dashboard",
     "documents": "Documents",
     "aiChat": "AI Chat",
     "legalDraft": "Legal Draft",
@@ -11,8 +12,44 @@
     "settings": "Settings",
     "admin": "Admin"
   },
+  "dashboard": {
+    "expandWidget": "Expand {{title}}",
+    "collapseWidget": "Collapse {{title}}",
+    "greetingMorning": "Good morning, {{name}}",
+    "greetingAfternoon": "Good afternoon, {{name}}",
+    "greetingEvening": "Good evening, {{name}}",
+    "quickActionsTitle": "Quick actions",
+    "quickActionChat": "Ask a question",
+    "quickActionChatDesc": "Chat with your documents",
+    "quickActionLegal": "Draft a document",
+    "quickActionLegalDesc": "Generate a grounded legal draft",
+    "quickActionAssistant": "Ask the assistant",
+    "quickActionAssistantDesc": "Let the assistant choose the right tool",
+    "quickActionTasks": "View tasks",
+    "quickActionTasksDesc": "See what's open and due",
+    "recentDocumentsTitle": "Recent documents",
+    "recentDocumentsEmpty": "No documents yet.",
+    "myTasksTitle": "My tasks",
+    "myTasksEmpty": "No open tasks.",
+    "pendingReviewsTitle": "Pending entity reviews",
+    "pendingReviewsEmpty": "Nothing to review.",
+    "pendingReviewsCount_one": "{{count}} entity waiting for review",
+    "pendingReviewsCount_other": "{{count}} entities waiting for review",
+    "recentCasesTitle": "Recent cases",
+    "recentCasesEmpty": "No cases yet.",
+    "systemStatusTitle": "System status",
+    "systemStatusEmpty": "All systems nominal.",
+    "viewAll": "View all →"
+  },
+  "alerts": {
+    "title": "Alerts",
+    "empty": "You're all caught up",
+    "pendingReviews_one": "{{count}} entity pending review",
+    "pendingReviews_other": "{{count}} entities pending review"
+  },
   "common": {
     "openMenu": "Open menu",
+    "search": "Search",
     "signOut": "Sign out",
     "lightMode": "☀️ Light mode",
     "darkMode": "🌙 Dark mode",

@@ -1,5 +1,6 @@
 {
   "nav": {
+    "dashboard": "Dashboard",
     "documents": "Documenten",
     "aiChat": "AI-chat",
     "legalDraft": "Juridisch concept",
@@ -11,8 +12,44 @@
     "settings": "Instellingen",
     "admin": "Beheer"
   },
+  "dashboard": {
+    "expandWidget": "{{title}} uitklappen",
+    "collapseWidget": "{{title}} inklappen",
+    "greetingMorning": "Goedemorgen, {{name}}",
+    "greetingAfternoon": "Goedemiddag, {{name}}",
+    "greetingEvening": "Goedenavond, {{name}}",
+    "quickActionsTitle": "Snelle acties",
+    "quickActionChat": "Stel een vraag",
+    "quickActionChatDesc": "Chat met je documenten",
+    "quickActionLegal": "Stel een document op",
+    "quickActionLegalDesc": "Genereer een onderbouwd juridisch concept",
+    "quickActionAssistant": "Vraag de assistent",
+    "quickActionAssistantDesc": "Laat de assistent de juiste tool kiezen",
+    "quickActionTasks": "Bekijk taken",
+    "quickActionTasksDesc": "Zie wat er openstaat en wanneer het moet",
+    "recentDocumentsTitle": "Recente documenten",
+    "recentDocumentsEmpty": "Nog geen documenten.",
+    "myTasksTitle": "Mijn taken",
+    "myTasksEmpty": "Geen openstaande taken.",
+    "pendingReviewsTitle": "Te beoordelen entiteiten",
+    "pendingReviewsEmpty": "Niets te beoordelen.",
+    "pendingReviewsCount_one": "{{count}} entiteit wacht op beoordeling",
+    "pendingReviewsCount_other": "{{count}} entiteiten wachten op beoordeling",
+    "recentCasesTitle": "Recente zaken",
+    "recentCasesEmpty": "Nog geen zaken.",
+    "systemStatusTitle": "Systeemstatus",
+    "systemStatusEmpty": "Alle systemen operationeel.",
+    "viewAll": "Alles bekijken →"
+  },
+  "alerts": {
+    "title": "Meldingen",
+    "empty": "Je bent helemaal bij",
+    "pendingReviews_one": "{{count}} entiteit wacht op beoordeling",
+    "pendingReviews_other": "{{count}} entiteiten wachten op beoordeling"
+  },
   "common": {
     "openMenu": "Menu openen",
+    "search": "Zoeken",
     "signOut": "Afmelden",
     "lightMode": "☀️ Lichte modus",
     "darkMode": "🌙 Donkere modus",

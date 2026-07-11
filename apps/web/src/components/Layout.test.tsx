@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import Layout from "./Layout";
+import { CommandCenterStateProvider } from "../lib/commandCenter";
 
 vi.mock("../lib/auth", () => ({
   useAuth: () => ({ user: { display_name: "Ada Admin" }, logout: vi.fn() }),
@@ -10,9 +11,11 @@ vi.mock("../lib/auth", () => ({
 function renderLayout() {
   return render(
     <MemoryRouter>
-      <Layout>
-        <div>content</div>
-      </Layout>
+      <CommandCenterStateProvider>
+        <Layout>
+          <div>content</div>
+        </Layout>
+      </CommandCenterStateProvider>
     </MemoryRouter>
   );
 }
