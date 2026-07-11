@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface FilterOption {
   id: string;
@@ -6,20 +7,24 @@ interface FilterOption {
 }
 
 export function FilterChips({
+  label,
   chips,
   onRemove,
   addOptions,
   onAdd,
 }: {
+  label?: string;
   chips: FilterOption[];
   onRemove: (id: string) => void;
   addOptions: FilterOption[];
   onAdd: (option: FilterOption) => void;
 }) {
+  const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
+      {label && <span className="text-xs font-semibold text-ink-3">{label}</span>}
       {chips.map((chip) => (
         <span
           key={chip.id}
@@ -40,7 +45,7 @@ export function FilterChips({
           onClick={() => setMenuOpen((prev) => !prev)}
           className="rounded-full border border-dashed border-edge px-3 py-1 text-xs font-semibold text-ink-2 transition-colors duration-fast hover:border-accent hover:text-accent"
         >
-          + Add filter
+          {t("common.addFilter")}
         </button>
         {menuOpen && (
           <div className="absolute left-0 top-full z-20 mt-1.5 min-w-[170px] rounded-xl border border-edge bg-surface p-1.5 shadow-overlay">

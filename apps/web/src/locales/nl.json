@@ -21,7 +21,8 @@
     "delete": "Verwijderen",
     "create": "Aanmaken",
     "send": "Verzenden",
-    "thinking": "Aan het denken…"
+    "thinking": "Aan het denken…",
+    "addFilter": "+ Filter toevoegen"
   },
   "documents": {
     "title": "Documenten",
@@ -40,7 +41,13 @@
     "filterPending": "Status: In behandeling",
     "deleteAction": "Verwijderen",
     "deletedToast_one": "{{count}} document verwijderd",
-    "deletedToast_other": "{{count}} documenten verwijderd"
+    "deletedToast_other": "{{count}} documenten verwijderd",
+    "uploadButton": "Document uploaden",
+    "uploadTitle": "Een document uploaden",
+    "uploading": "Bezig met uploaden…",
+    "uploadError": "Uploaden mislukt",
+    "statusFilterLabel": "Status",
+    "categoryFilterLabel": "Categorie"
   },
   "categories": {
     "finance": "Financiën",
@@ -172,5 +179,19 @@
     "inputPlaceholder": "Vraag de assistent…",
     "toolCalled": "via: {{tool}}",
     "loadError": "Assistentverzoek mislukt"
+  },
+  "auth": {
+    "title": "Inloggen",
+    "subtitle": "Gebruik uw CollaBrains-accountgegevens.",
+    "username": "Gebruikersnaam",
+    "password": "Wachtwoord",
+    "submit": "Inloggen",
+    "submitting": "Bezig met inloggen…",
+    "loginError": "Inloggen mislukt"
+  },
+  "notFound": {
+    "title": "Pagina niet gevonden",
+    "message": "De pagina die u zoekt bestaat niet of is verplaatst.",
+    "action": "Terug naar Dashboard"
   }
 }

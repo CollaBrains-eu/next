@@ -7,12 +7,14 @@ export function TextField({
   value,
   onChange,
   error,
+  type = "text",
   ...rest
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   error?: string;
+  type?: "text" | "password" | "email";
 } & BaseInputProps) {
   const id = useId();
   return (
@@ -22,7 +24,7 @@ export function TextField({
       </label>
       <input
         id={id}
-        type="text"
+        type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className={`rounded-xl border bg-surface px-3 py-2 text-sm text-ink outline-none transition-colors duration-fast focus:border-accent focus:ring-2 focus:ring-accent-soft ${

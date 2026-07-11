@@ -195,6 +195,7 @@ export default function Workspace() {
       ) : (
         <>
           <FilterChips
+            label={t("documents.statusFilterLabel")}
             chips={STATUS_FILTER_OPTIONS.filter((opt) => statusFilters.includes(opt.id))}
             onRemove={(id) => setStatusFilters((prev) => prev.filter((s) => s !== id))}
             addOptions={STATUS_FILTER_OPTIONS.filter((opt) => !statusFilters.includes(opt.id))}
@@ -202,6 +203,7 @@ export default function Workspace() {
           />
           {categories.length > 0 && (
             <FilterChips
+              label={t("documents.categoryFilterLabel")}
               chips={CATEGORY_FILTER_OPTIONS.filter((opt) => categoryFilters.includes(opt.id))}
               onRemove={(id) => setCategoryFilters((prev) => prev.filter((c) => c !== id))}
               addOptions={CATEGORY_FILTER_OPTIONS.filter((opt) => !categoryFilters.includes(opt.id))}
