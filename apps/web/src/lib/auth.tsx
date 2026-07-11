@@ -3,6 +3,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ApiError, clearToken, fetchMe, getPreferences, login as apiLogin, setToken, type UserOut } from "./api";
 import i18n, { LANGUAGE_NAME_TO_CODE } from "./i18n";
+import { loginWithPasskey as passkeyCeremony } from "./webauthn";
 
 // The same preferred_language setting drives both the AI response language
 // (api.preferences.build_language_instruction) and the UI language -- not a
@@ -16,6 +17,7 @@ interface AuthContextValue {
   user: UserOut | null;
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
+  loginWithPasskey: () => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -61,13 +63,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [refreshUser],
   );
 
+  const loginWithPasskey = useCallback(async () => {
+    const token = await passkeyCeremony();
+    setToken(token);
+    await refreshUser();
+  }, [refreshUser]);
+
   const logout = useCallback(() => {
     clearToken();
     setUser(null);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, loading, login, loginWithPasskey, logout, refreshUser }}>
+      {children}
+    </AuthContext.Provider>
   );
 }
 

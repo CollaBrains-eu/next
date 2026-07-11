@@ -151,6 +151,10 @@
     "summarizing": "Wird zusammengefasst…",
     "resummarize": "Erneut zusammenfassen",
     "summarize": "Zusammenfassen",
+    "reprocess": "Erneut verarbeiten",
+    "reprocessing": "Wird erneut verarbeitet…",
+    "reprocessQueued": "Neuverarbeitung gestartet",
+    "reprocessError": "Neuverarbeitung fehlgeschlagen",
     "processingError": "Verarbeitungsfehler",
     "summary": "Zusammenfassung",
     "extractedText": "Extrahierter Text",
@@ -274,7 +278,26 @@
     "password": "Passwort",
     "submit": "Anmelden",
     "submitting": "Wird angemeldet…",
-    "loginError": "Anmeldung fehlgeschlagen"
+    "loginError": "Anmeldung fehlgeschlagen",
+    "passkeyLogin": "Mit Passkey anmelden",
+    "passkeySubmitting": "Warten auf Passkey…",
+    "passkeyLoginError": "Anmeldung mit Passkey fehlgeschlagen",
+    "orDivider": "oder"
+  },
+  "passkeys": {
+    "title": "Passkeys",
+    "description": "Melden Sie sich ohne Passwort mit einem auf diesem Gerät gespeicherten Passkey an. Ihr Passwort funktioniert weiterhin.",
+    "addPasskey": "Passkey hinzufügen",
+    "registering": "Warten auf Gerät…",
+    "empty": "Noch keine Passkeys registriert.",
+    "loadError": "Passkeys konnten nicht geladen werden",
+    "registerError": "Registrierung des Passkeys fehlgeschlagen",
+    "actionError": "Aktion fehlgeschlagen",
+    "labelPrompt": "Benennen Sie diesen Passkey (z. B. \"MacBook\")",
+    "unnamedPasskey": "Unbenannter Passkey",
+    "createdAt": "Hinzugefügt am {{date}}",
+    "lastUsed": "zuletzt verwendet am {{date}}",
+    "remove": "Entfernen"
   },
   "notFound": {
     "title": "Seite nicht gefunden",

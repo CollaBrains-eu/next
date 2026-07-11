@@ -48,6 +48,7 @@ class EventType:
     NOTIFICATION_REQUESTED = "NotificationRequested"
     WORKFLOW_STARTED = "WorkflowStarted"
     WORKFLOW_COMPLETED = "WorkflowCompleted"
+    DOCUMENT_REPROCESS_REQUESTED = "DocumentReprocessRequested"
 
 
 def _redact_for_log(value: Any) -> Any:

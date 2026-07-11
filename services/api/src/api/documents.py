@@ -29,7 +29,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.ai_gateway import chat_completion
@@ -110,6 +110,65 @@ async def _handle_document_uploaded(event: Event) -> None:
             document.status = "embedding"
             await db.commit()
             await publish(EventType.OCR_COMPLETED, {"document_id": document_id, "text_length": len(text)})
+
+            chunk_count = 0
+            for chunk_count, chunk in enumerate(chunk_text(text), start=1):
+                vector = await embed_text(chunk)
+                db.add(
+                    DocumentChunk(
+                        document_id=document.id, chunk_index=chunk_count - 1, content=chunk, embedding=vector
+                    )
+                )
+
+            document.status = "ready"
+            document.processed_at = datetime.now(timezone.utc)
+            await db.commit()
+
+            await publish(
+                EventType.EMBEDDINGS_CREATED,
+                {
+                    "document_id": document_id,
+                    "owner_id": document.owner_id,
+                    "text": text,
+                    "chunk_count": chunk_count,
+                },
+            )
+            await publish(EventType.NOTIFICATION_REQUESTED, {"document_id": document_id, "outcome": "ready"})
+            await publish(EventType.WORKFLOW_COMPLETED, {"document_id": document_id, "outcome": "ready"})
+        except Exception as exc:  # noqa: BLE001 - pipeline must never crash the worker
+            document.status = "failed"
+            document.error = str(exc)[:2000]
+            await db.commit()
+            await publish(EventType.NOTIFICATION_REQUESTED, {"document_id": document_id, "outcome": "failed"})
+            await publish(EventType.WORKFLOW_COMPLETED, {"document_id": document_id, "outcome": "failed"})
+
+
+@subscribe(EventType.DOCUMENT_REPROCESS_REQUESTED)
+async def _handle_document_reprocess_requested(event: Event) -> None:
+    """Admin-triggered retry (Phase 25) for a document stuck or failed after
+    upload. Paperless already has the original bytes (`paperless_id`), so
+    this re-fetches OCR text and replays the same tail of the pipeline
+    `_handle_document_uploaded` runs after `wait_for_paperless_id` --
+    re-chunking/embedding and re-publishing EMBEDDINGS_CREATED so entity
+    extraction, task extraction, classification, etc. all re-run against the
+    fresh text too, same as a first-time upload."""
+    document_id: UUID = event.payload["document_id"]
+
+    async with async_session() as db:
+        document = await db.get(Document, document_id)
+        if document is None or document.paperless_id is None:
+            return
+        try:
+            document.status = "embedding"
+            document.error = None
+            await db.commit()
+
+            text = await fetch_document_text(document.paperless_id)
+            document.ocr_text = text
+            await db.commit()
+            await publish(EventType.OCR_COMPLETED, {"document_id": document_id, "text_length": len(text)})
+
+            await db.execute(delete(DocumentChunk).where(DocumentChunk.document_id == document_id))
 
             chunk_count = 0
             for chunk_count, chunk in enumerate(chunk_text(text), start=1):

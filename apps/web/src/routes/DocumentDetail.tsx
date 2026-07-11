@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { ApiError, deleteDocument, getDocument, summarizeDocument, type DocumentDetailOut } from "../lib/api";
+import { ApiError, deleteDocument, getDocument, reprocessDocument, summarizeDocument, type DocumentDetailOut } from "../lib/api";
 import { Alert } from "../components/ui/Alert";
 import { Badge } from "../components/ui/Badge";
 import { Breadcrumbs } from "../components/ui/Breadcrumbs";
 import { Button } from "../components/ui/Button";
 import { MetadataList } from "../components/ui/MetadataList";
 import { Modal } from "../components/ui/Modal";
+import { useAuth } from "../lib/auth";
 import { useToast } from "../lib/toast";
 
 const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "default"> = {
@@ -23,10 +24,12 @@ export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { user } = useAuth();
   const [doc, setDoc] = useState<DocumentDetailOut | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [summarizing, setSummarizing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [reprocessing, setReprocessing] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const load = useCallback(() => {
@@ -57,6 +60,20 @@ export default function DocumentDetail() {
       setError(err instanceof ApiError ? err.message : t("documentDetail.summarizeError"));
     } finally {
       setSummarizing(false);
+    }
+  }
+
+  async function handleReprocess() {
+    if (!id) return;
+    setReprocessing(true);
+    try {
+      await reprocessDocument(id);
+      showToast(t("documentDetail.reprocessQueued"));
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("documentDetail.reprocessError"));
+    } finally {
+      setReprocessing(false);
     }
   }
 
@@ -112,6 +129,11 @@ export default function DocumentDetail() {
           <Button variant="secondary" size="sm" onClick={handleSummarize} disabled={doc.status !== "ready" || summarizing}>
             {summarizing ? t("documentDetail.summarizing") : doc.summary ? t("documentDetail.resummarize") : t("documentDetail.summarize")}
           </Button>
+          {user?.role === "admin" && doc.status === "failed" && (
+            <Button variant="secondary" size="sm" onClick={handleReprocess} disabled={reprocessing}>
+              {reprocessing ? t("documentDetail.reprocessing") : t("documentDetail.reprocess")}
+            </Button>
+          )}
           <Button variant="danger" size="sm" onClick={() => setConfirmOpen(true)} disabled={deleting}>
             {t("common.delete")}
           </Button>

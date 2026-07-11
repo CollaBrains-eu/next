@@ -151,6 +151,10 @@
     "summarizing": "Bezig met samenvatten…",
     "resummarize": "Opnieuw samenvatten",
     "summarize": "Samenvatten",
+    "reprocess": "Opnieuw verwerken",
+    "reprocessing": "Bezig met opnieuw verwerken…",
+    "reprocessQueued": "Herverwerking gestart",
+    "reprocessError": "Herverwerking mislukt",
     "processingError": "Verwerkingsfout",
     "summary": "Samenvatting",
     "extractedText": "Geëxtraheerde tekst",
@@ -233,7 +237,26 @@
     "password": "Wachtwoord",
     "submit": "Inloggen",
     "submitting": "Bezig met inloggen…",
-    "loginError": "Inloggen mislukt"
+    "loginError": "Inloggen mislukt",
+    "passkeyLogin": "Inloggen met passkey",
+    "passkeySubmitting": "Wachten op passkey…",
+    "passkeyLoginError": "Inloggen met passkey mislukt",
+    "orDivider": "of"
+  },
+  "passkeys": {
+    "title": "Passkeys",
+    "description": "Log in zonder wachtwoord met een passkey die op dit apparaat is opgeslagen. Uw wachtwoord blijft ook gewoon werken.",
+    "addPasskey": "Passkey toevoegen",
+    "registering": "Wachten op apparaat…",
+    "empty": "Nog geen passkeys geregistreerd.",
+    "loadError": "Kon passkeys niet laden",
+    "registerError": "Registreren van passkey mislukt",
+    "actionError": "Actie mislukt",
+    "labelPrompt": "Geef deze passkey een naam (bijv. \"MacBook\")",
+    "unnamedPasskey": "Naamloze passkey",
+    "createdAt": "Toegevoegd {{date}}",
+    "lastUsed": "laatst gebruikt {{date}}",
+    "remove": "Verwijderen"
   },
   "notFound": {
     "title": "Pagina niet gevonden",

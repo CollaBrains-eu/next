@@ -30,9 +30,10 @@ from api.admin_service import (
 )
 from api.auth import get_current_user, validate_phone_number
 from api.db import get_db
+from api.events import EventType, publish
 from api.ldap_auth import LdapAdminError
 from api.ldap_auth import create_user as ldap_create_user
-from api.models import BugReport, PendingUserPhoneNumber, User
+from api.models import BugReport, Document, PendingUserPhoneNumber, User
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -189,6 +190,37 @@ async def admin_create_user(
             )
 
     return AdminUserCreated(username=created.username, temporary_password=created.temporary_password)
+
+
+class DocumentReprocessOut(BaseModel):
+    status: str
+
+
+@router.post("/documents/{document_id}/reprocess", response_model=DocumentReprocessOut, status_code=status.HTTP_202_ACCEPTED)
+async def admin_reprocess_document(
+    document_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DocumentReprocessOut:
+    """Force-retry a document stuck or failed after upload (Phase 25). No
+    credentials/LDAP writes involved -- re-runs the same OCR/embedding/
+    extraction pipeline a first-time upload runs, using the bytes Paperless
+    already has, so an admin doesn't have to ask the owner to re-upload
+    after a transient Ollama/Paperless outage."""
+    _require_admin(current_user)
+    document = await db.get(Document, document_id)
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    if document.paperless_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Document has no stored source to reprocess from; it must be re-uploaded",
+        )
+    if document.status == "ready":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Document already processed successfully")
+
+    await publish(EventType.DOCUMENT_REPROCESS_REQUESTED, {"document_id": document_id})
+    return DocumentReprocessOut(status="reprocess_queued")
 
 
 @router.get("/users", response_model=list[AdminUserOut])

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AddressHistory } from "../components/AddressHistory";
 import Card from "../components/Card";
+import { PasskeySettings } from "../components/PasskeySettings";
 import { Button } from "../components/ui/Button";
 import { ApiError, getPreferences, setPreferences } from "../lib/api";
 import { syncLanguage } from "../lib/auth";
@@ -79,6 +80,8 @@ export default function Settings() {
           {t("settings.save")}
         </Button>
       </Card>
+
+      <PasskeySettings />
 
       <div className="flex flex-col gap-2">
         <div>

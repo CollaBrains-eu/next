@@ -40,5 +40,9 @@ class Settings(BaseSettings):
     signal_cli_url: str = ""
     signal_phone_number: str = ""
 
+    webauthn_rp_id: str = "localhost"
+    webauthn_rp_name: str = "CollaBrains"
+    webauthn_origin: str = "http://localhost:5173"
+
 
 settings = Settings()

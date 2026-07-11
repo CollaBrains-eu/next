@@ -151,6 +151,10 @@
     "summarizing": "Summarizing…",
     "resummarize": "Re-summarize",
     "summarize": "Summarize",
+    "reprocess": "Reprocess",
+    "reprocessing": "Reprocessing…",
+    "reprocessQueued": "Reprocessing started",
+    "reprocessError": "Reprocess failed",
     "processingError": "Processing error",
     "summary": "Summary",
     "extractedText": "Extracted text",
@@ -233,7 +237,26 @@
     "password": "Password",
     "submit": "Sign in",
     "submitting": "Signing in…",
-    "loginError": "Login failed"
+    "loginError": "Login failed",
+    "passkeyLogin": "Log in with a passkey",
+    "passkeySubmitting": "Waiting for passkey…",
+    "passkeyLoginError": "Passkey login failed",
+    "orDivider": "or"
+  },
+  "passkeys": {
+    "title": "Passkeys",
+    "description": "Sign in without a password using a passkey stored on this device. Your password keeps working either way.",
+    "addPasskey": "Add passkey",
+    "registering": "Waiting for device…",
+    "empty": "No passkeys registered yet.",
+    "loadError": "Failed to load passkeys",
+    "registerError": "Failed to register passkey",
+    "actionError": "Action failed",
+    "labelPrompt": "Name this passkey (e.g. \"MacBook\")",
+    "unnamedPasskey": "Unnamed passkey",
+    "createdAt": "Added {{date}}",
+    "lastUsed": "last used {{date}}",
+    "remove": "Remove"
   },
   "notFound": {
     "title": "Page not found",
