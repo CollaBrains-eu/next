@@ -23,7 +23,7 @@ from sqlalchemy import select
 from api.db import async_session
 from api.entity_agent import extract_entities
 from api.ldap_auth import LdapIdentity
-from api.models import AddressDetail, Category, Document, Residency, User
+from api.models import AddressDetail, Category, Document, Entity, Residency, User
 
 
 def _unique(base: str) -> str:
@@ -390,3 +390,30 @@ async def test_correct_residency_forbidden_for_other_member(client):
         f"/residencies/{residency.id}", headers=other_headers, json={"valid_from": "2025-03-01"}
     )
     assert response.status_code == 403
+
+
+async def test_list_residencies_survives_a_residency_with_no_address_detail_row(client):
+    """Regression test: _to_out() read AddressDetail fields unconditionally
+    while the sibling Entity lookup right next to it was already None-guarded
+    -- an inconsistency that 500s the whole listing for a user the moment one
+    residency points at an address entity with no address_details row (e.g.
+    a partially-failed extraction), rather than just showing that one row
+    with blank fields."""
+    username = _unique("residencyuser11")
+    token = await _login(client, username)
+    headers = {"Authorization": f"Bearer {token}"}
+    user = await _user(username)
+
+    async with async_session() as db:
+        address_entity = Entity(name=_unique_street(), entity_type="address", status="confirmed")
+        db.add(address_entity)
+        await db.flush()
+        db.add(Residency(user_id=user.id, address_entity_id=address_entity.id, status="confirmed"))
+        await db.commit()
+
+    response = await client.get("/users/me/residencies", headers=headers)
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["address"]["street"] is None
+    assert body[0]["address"]["postal_code"] is None
