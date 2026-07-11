@@ -154,6 +154,8 @@
     "processingError": "Verarbeitungsfehler",
     "summary": "Zusammenfassung",
     "extractedText": "Extrahierter Text",
+    "metaType": "Typ",
+    "metaChunks": "Abschnitte",
     "chunkCount_one": "{{count}} Abschnitt",
     "chunkCount_other": "{{count}} Abschnitte",
     "deleteModalTitle": "\"{{title}}\" löschen?",

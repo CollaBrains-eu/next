@@ -6,6 +6,7 @@ import { Alert } from "../components/ui/Alert";
 import { Badge } from "../components/ui/Badge";
 import { Breadcrumbs } from "../components/ui/Breadcrumbs";
 import { Button } from "../components/ui/Button";
+import { MetadataList } from "../components/ui/MetadataList";
 import { Modal } from "../components/ui/Modal";
 import { useToast } from "../lib/toast";
 
@@ -94,10 +95,18 @@ export default function DocumentDetail() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h1 className="truncate text-2xl font-semibold text-ink">{doc.title}</h1>
-          <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-ink-2">
-            {doc.mime_type} · <Badge variant={STATUS_VARIANT[doc.status] ?? "default"}>{doc.status}</Badge> ·{" "}
-            {t("documentDetail.chunkCount", { count: doc.chunk_count })}
-          </p>
+          <div className="mt-2 max-w-xs">
+            <MetadataList
+              items={[
+                { label: t("documentDetail.metaType"), value: doc.mime_type },
+                {
+                  label: t("documents.columnStatus"),
+                  value: <Badge variant={STATUS_VARIANT[doc.status] ?? "default"}>{doc.status}</Badge>,
+                },
+                { label: t("documentDetail.metaChunks"), value: doc.chunk_count },
+              ]}
+            />
+          </div>
         </div>
         <div className="flex shrink-0 gap-2">
           <Button variant="secondary" size="sm" onClick={handleSummarize} disabled={doc.status !== "ready" || summarizing}>
