@@ -154,6 +154,8 @@
     "processingError": "Processing error",
     "summary": "Summary",
     "extractedText": "Extracted text",
+    "metaType": "Type",
+    "metaChunks": "Chunks",
     "chunkCount_one": "{{count}} chunk",
     "chunkCount_other": "{{count}} chunks",
     "deleteModalTitle": "Delete \"{{title}}\"?",

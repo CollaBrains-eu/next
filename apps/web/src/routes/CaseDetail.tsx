@@ -5,7 +5,7 @@ import Card from "../components/Card";
 import { Alert } from "../components/ui/Alert";
 import { Breadcrumbs } from "../components/ui/Breadcrumbs";
 import { Button } from "../components/ui/Button";
-import { Badge } from "../components/ui/Badge";
+import { StatusPipeline } from "../components/ui/StatusPipeline";
 import {
   ApiError,
   attachDocumentToCase,
@@ -150,8 +150,14 @@ export default function CaseDetail() {
           <h1 className="truncate text-2xl font-semibold text-ink">{caseData.name}</h1>
           {caseData.description && <p className="mt-1 text-sm text-ink-2">{caseData.description}</p>}
         </div>
-        <button onClick={toggleStatus} className="shrink-0 rounded-full">
-          <Badge variant={caseData.status === "open" ? "success" : "default"}>{caseData.status}</Badge>
+        <button onClick={toggleStatus} className="shrink-0 rounded-full" aria-label="Toggle case status">
+          <StatusPipeline
+            stages={[
+              { key: "open", label: "open" },
+              { key: "closed", label: "closed" },
+            ]}
+            currentKey={caseData.status}
+          />
         </button>
       </div>
 

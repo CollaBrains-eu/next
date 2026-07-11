@@ -154,6 +154,8 @@
     "processingError": "Verwerkingsfout",
     "summary": "Samenvatting",
     "extractedText": "Geëxtraheerde tekst",
+    "metaType": "Type",
+    "metaChunks": "Fragmenten",
     "chunkCount_one": "{{count}} fragment",
     "chunkCount_other": "{{count}} fragmenten",
     "deleteModalTitle": "\"{{title}}\" verwijderen?",
