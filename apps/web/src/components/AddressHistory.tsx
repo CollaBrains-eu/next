@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import Card from "./Card";
 import EmptyState from "./EmptyState";
 import { Alert } from "./ui/Alert";
+import { Badge } from "./ui/Badge";
 import { Button } from "./ui/Button";
 import {
   ApiError,
@@ -102,13 +103,9 @@ export function AddressHistory({ userId }: { userId?: string }) {
               </p>
             </div>
             {residency.status === "pending_review" ? (
-              <span className="rounded-full bg-warning-soft px-2 py-0.5 text-xs font-medium text-warning">
-                {t("addressHistory.statusPendingReview")}
-              </span>
+              <Badge variant="warning">{t("addressHistory.statusPendingReview")}</Badge>
             ) : residency.status === "confirmed" ? (
-              <span className="rounded-full bg-success-soft px-2 py-0.5 text-xs font-medium text-success">
-                {t("addressHistory.statusConfirmed")}
-              </span>
+              <Badge variant="success">{t("addressHistory.statusConfirmed")}</Badge>
             ) : (
               <span className="rounded-full bg-hover px-2 py-0.5 text-xs font-medium text-ink-3">
                 {t("addressHistory.statusRejected")}

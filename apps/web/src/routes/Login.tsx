@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { isPasskeySupported } from "../lib/webauthn";
+import Card from "../components/Card";
 import { Button } from "../components/ui/Button";
 import { TextField } from "../components/ui/form";
 
@@ -51,7 +52,7 @@ export default function Login() {
   }
 
   return (
-    <div className="mx-auto mt-16 max-w-sm rounded-2xl border border-edge bg-surface p-6 shadow-raised">
+    <Card className="mx-auto mt-16 max-w-sm p-6">
       <h1 className="text-2xl font-semibold text-ink">{t("auth.title")}</h1>
       <p className="mt-1 text-sm text-ink-2">{t("auth.subtitle")}</p>
 
@@ -96,6 +97,6 @@ export default function Login() {
           {submitting ? t("auth.submitting") : t("auth.submit")}
         </Button>
       </form>
-    </div>
+    </Card>
   );
 }
