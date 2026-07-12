@@ -4,7 +4,7 @@ import Card from "../components/Card";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
-import { TextField } from "../components/ui/form";
+import { Checkbox, TextField } from "../components/ui/form";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import {
   ApiError,
@@ -348,44 +348,32 @@ function UsersTab() {
       <Modal open={formOpen} onClose={() => setFormOpen(false)} title={t("admin.addUserModalTitle")}>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           {error && <p className="text-sm text-danger">{error}</p>}
-          <label className="flex flex-col gap-1 text-sm text-ink-2">
-            {t("admin.usernameLabel")}
-            <input
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              className="rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-sm text-ink-2">
-            {t("admin.displayNameLabel")}
-            <input
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              required
-              className="rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-sm text-ink-2">
-            {t("admin.emailLabel")}
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-            />
-          </label>
+          <TextField
+            label={t("admin.usernameLabel")}
+            value={username}
+            onChange={setUsername}
+            required
+          />
+          <TextField
+            label={t("admin.displayNameLabel")}
+            value={displayName}
+            onChange={setDisplayName}
+            required
+          />
+          <TextField
+            label={t("admin.emailLabel")}
+            type="email"
+            value={email}
+            onChange={setEmail}
+            required
+          />
           <TextField
             label={t("admin.phoneColumn")}
             value={phoneNumber}
             onChange={setPhoneNumber}
             placeholder="+491511234567"
           />
-          <label className="flex items-center gap-2 text-sm text-ink-2">
-            <input type="checkbox" checked={isAdmin} onChange={(e) => setIsAdmin(e.target.checked)} />
-            {t("admin.adminRoleLabel")}
-          </label>
+          <Checkbox label={t("admin.adminRoleLabel")} checked={isAdmin} onChange={setIsAdmin} />
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" size="sm" onClick={() => setFormOpen(false)}>
               {t("common.cancel")}
