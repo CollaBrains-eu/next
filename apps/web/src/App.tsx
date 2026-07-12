@@ -9,6 +9,7 @@ import { CommandCenterStateProvider } from "./lib/commandCenter";
 import { PhonePromptModal } from "./components/PhonePromptModal";
 import Layout from "./components/Layout";
 import Login from "./routes/Login";
+import Onboard from "./routes/Onboard";
 import Dashboard from "./routes/Dashboard";
 import Workspace from "./routes/Workspace";
 import DocumentDetail from "./routes/DocumentDetail";
@@ -56,6 +57,7 @@ export default function App() {
               <Layout>
                 <Routes>
                   <Route path="/login" element={<Login />} />
+                  <Route path="/onboard" element={<Onboard />} />
                   <Route
                     path="/"
                     element={
