@@ -8,6 +8,7 @@ import { Button } from "../components/ui/Button";
 import { Combobox } from "../components/ui/Combobox";
 import { SkeletonLines } from "../components/ui/Skeleton";
 import { StatusPipeline } from "../components/ui/StatusPipeline";
+import { Tooltip } from "../components/ui/Tooltip";
 import {
   ApiError,
   attachDocumentToCase,
@@ -148,15 +149,17 @@ export default function CaseDetail() {
           <h1 className="truncate text-2xl font-semibold text-ink">{caseData.name}</h1>
           {caseData.description && <p className="mt-1 text-sm text-ink-2">{caseData.description}</p>}
         </div>
-        <button onClick={toggleStatus} className="shrink-0 rounded-full" aria-label="Toggle case status">
-          <StatusPipeline
-            stages={[
-              { key: "open", label: "open" },
-              { key: "closed", label: "closed" },
-            ]}
-            currentKey={caseData.status}
-          />
-        </button>
+        <Tooltip label="Toggle case status">
+          <button onClick={toggleStatus} className="shrink-0 rounded-full" aria-label="Toggle case status">
+            <StatusPipeline
+              stages={[
+                { key: "open", label: "open" },
+                { key: "closed", label: "closed" },
+              ]}
+              currentKey={caseData.status}
+            />
+          </button>
+        </Tooltip>
       </div>
 
       {error && <Alert variant="danger" dismissible onDismiss={() => setError(null)}>{error}</Alert>}
