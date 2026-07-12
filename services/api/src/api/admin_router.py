@@ -43,6 +43,7 @@ from api.admin_service import (
     update_bug_report_status,
 )
 from api.auth import get_current_user, validate_phone_number
+from api.onboarding_service import send_welcome
 from api.config import settings
 from api.db import get_db
 from api.events import EventType, publish
@@ -461,3 +462,26 @@ async def admin_signal_bug_from_text(
     if report is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown owner_uid")
     return SignalBugFromTextOut(id=report.id)
+
+
+class ResendWelcomeOut(BaseModel):
+    ok: bool = True
+    email_sent: bool
+
+
+@router.post("/users/{user_id}/resend-welcome", response_model=ResendWelcomeOut)
+async def admin_resend_welcome(
+    user_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ResendWelcomeOut:
+    """Send (or resend) a welcome/onboarding link to a user -- a fresh
+    single-use token, emailed and Signal-messaged (best-effort, same
+    contract as email_client.py/signal_client.py: no configured
+    SMTP/Signal just means that channel silently doesn't fire)."""
+    _require_admin(current_user)
+    user = await db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    email_sent = await send_welcome(db, user=user)
+    return ResendWelcomeOut(email_sent=email_sent)
