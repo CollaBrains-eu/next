@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useEscapeToClose } from "../../hooks/useEscapeToClose";
+import { Tooltip } from "./Tooltip";
 
 interface DrawerTab {
   id: string;
@@ -43,9 +44,11 @@ export function Drawer({
       <div className="fixed bottom-0 right-0 top-0 z-[81] flex w-[min(380px,92vw)] flex-col border-l border-edge bg-surface shadow-overlay">
         <div className="flex items-start justify-between border-b border-edge p-5">
           <h4 className="text-base font-semibold text-ink">{title}</h4>
-          <button aria-label="Close" onClick={onClose} className="rounded-lg p-1 text-ink-2 hover:bg-hover hover:text-ink">
-            ✕
-          </button>
+          <Tooltip label="Close">
+            <button aria-label="Close" onClick={onClose} className="rounded-lg p-1 text-ink-2 hover:bg-hover hover:text-ink">
+              ✕
+            </button>
+          </Tooltip>
         </div>
         <div className="flex gap-4 border-b border-edge px-5">
           {tabs.map((tab) => (

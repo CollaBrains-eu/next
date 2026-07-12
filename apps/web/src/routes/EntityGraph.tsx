@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ApiError, getEntityGraph, type EntityGraphOut } from "../lib/api";
+import EmptyState from "../components/EmptyState";
 import { Breadcrumbs } from "../components/ui/Breadcrumbs";
+import { SkeletonLines } from "../components/ui/Skeleton";
 
 // Categorical colors distinguishing entity types on the graph -- like
 // Avatar's palette, these identify a category and must stay visually
@@ -57,7 +59,7 @@ export default function EntityGraph() {
     );
   }
 
-  if (!graph) return <p className="text-ink-3">{t("common.loading")}</p>;
+  if (!graph) return <SkeletonLines className="max-w-md" />;
 
   const positions = new Map<string, { x: number; y: number }>();
   positions.set(graph.center.id, CENTER);
@@ -82,7 +84,7 @@ export default function EntityGraph() {
       </div>
 
       {graph.nodes.length === 0 ? (
-        <p className="text-ink-3">{t("entityGraph.noRelationships")}</p>
+        <EmptyState message={t("entityGraph.noRelationships")} />
       ) : (
         <div className="rounded-2xl border border-edge bg-surface">
           <svg width="100%" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} style={{ maxWidth: WIDTH, display: "block" }}>

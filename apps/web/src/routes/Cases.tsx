@@ -5,6 +5,7 @@ import Card from "../components/Card";
 import EmptyState from "../components/EmptyState";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
+import { SkeletonLines } from "../components/ui/Skeleton";
 import { ApiError, createCase, listCases, type CaseOut } from "../lib/api";
 import { useDateFormat } from "../hooks/useDateFormat";
 
@@ -92,7 +93,7 @@ export default function Cases() {
       {error && <p className="text-sm text-danger">{error}</p>}
 
       {loading ? (
-        <p className="text-ink-3">{t("common.loading")}</p>
+        <SkeletonLines />
       ) : cases.length === 0 && !creating ? (
         <EmptyState message={t("cases.emptyMessage")} action={newCaseButton} />
       ) : (

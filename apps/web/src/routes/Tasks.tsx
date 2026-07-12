@@ -11,10 +11,13 @@ import {
   type TaskOut,
   type TaskStatus,
 } from "../lib/api";
+import Card from "../components/Card";
+import EmptyState from "../components/EmptyState";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { KanbanBoard } from "../components/ui/KanbanBoard";
 import { useDateFormat } from "../hooks/useDateFormat";
+import { SkeletonLines } from "../components/ui/Skeleton";
 
 type Filter = "open" | "done" | "all";
 type View = "list" | "board";
@@ -152,7 +155,7 @@ export default function Tasks() {
       {error && <p className="text-sm text-danger">{error}</p>}
 
       {showNewTask && (
-        <div className="flex flex-col gap-3 rounded-2xl border border-edge bg-surface p-4 shadow-raised">
+        <Card className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-ink-2" htmlFor="new-task-title">
               {t("tasks.newTaskTitleLabel")}
@@ -204,15 +207,15 @@ export default function Tasks() {
               {t("common.create")}
             </Button>
           </div>
-        </div>
+        </Card>
       )}
 
       {loading ? (
-        <p className="text-ink-3">{t("common.loading")}</p>
+        <SkeletonLines />
       ) : view === "board" ? (
         <KanbanBoard tasks={tasks} onMove={handleMove} formatDate={formatDate} />
       ) : tasks.length === 0 ? (
-        <p className="text-ink-3">{t("tasks.emptyMessage", { filter: filter !== "all" ? FILTER_LABELS[filter] : "" })}</p>
+        <EmptyState message={t("tasks.emptyMessage", { filter: filter !== "all" ? FILTER_LABELS[filter] : "" })} />
       ) : (
         <div className="flex flex-col divide-y divide-edge rounded-2xl border border-edge bg-surface">
           {tasks.map((task) => {

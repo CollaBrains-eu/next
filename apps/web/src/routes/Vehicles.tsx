@@ -5,6 +5,8 @@ import EmptyState from "../components/EmptyState";
 import LicensePlateInput from "../components/LicensePlateInput";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
+import { MetadataList } from "../components/ui/MetadataList";
+import { SkeletonLines } from "../components/ui/Skeleton";
 import { ApiError, listVehicles, lookupVehicle, type VehicleOut } from "../lib/api";
 import { useDateFormat } from "../hooks/useDateFormat";
 import { parseCompactDate } from "../lib/dateFormat";
@@ -25,18 +27,15 @@ function VehicleStatus({ vehicle }: { vehicle: VehicleOut }) {
   }
   const apkDate = vehicle.vervaldatum_apk ? parseCompactDate(vehicle.vervaldatum_apk) : null;
   return (
-    <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-      <dt className="text-ink-2">Merk / model</dt>
-      <dd className="text-ink">{vehicle.merk} {vehicle.handelsbenaming}</dd>
-      <dt className="text-ink-2">Voertuigsoort</dt>
-      <dd className="text-ink">{vehicle.voertuigsoort ?? "-"}</dd>
-      <dt className="text-ink-2">Kleur</dt>
-      <dd className="text-ink">{vehicle.eerste_kleur ?? "-"}</dd>
-      <dt className="text-ink-2">APK-vervaldatum</dt>
-      <dd className="text-ink">{apkDate ? formatDate(apkDate) : "-"}</dd>
-      <dt className="text-ink-2">WAM-verzekerd</dt>
-      <dd className="text-ink"><WamBadge wamVerzekerd={vehicle.wam_verzekerd} /></dd>
-    </dl>
+    <MetadataList
+      items={[
+        { label: "Merk / model", value: `${vehicle.merk} ${vehicle.handelsbenaming}` },
+        { label: "Voertuigsoort", value: vehicle.voertuigsoort ?? "-" },
+        { label: "Kleur", value: vehicle.eerste_kleur ?? "-" },
+        { label: "APK-vervaldatum", value: apkDate ? formatDate(apkDate) : "-" },
+        { label: "WAM-verzekerd", value: <WamBadge wamVerzekerd={vehicle.wam_verzekerd} /> },
+      ]}
+    />
   );
 }
 
@@ -88,7 +87,7 @@ export default function Vehicles() {
       </Card>
 
       {loading ? (
-        <p className="text-ink-3">{t("common.loading")}</p>
+        <SkeletonLines />
       ) : vehicles.length === 0 ? (
         <EmptyState message={t("vehicles.emptyMessage")} />
       ) : (

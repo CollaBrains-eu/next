@@ -6,6 +6,7 @@ import { useDarkMode } from "../hooks/useDarkMode";
 import { useEscapeToClose } from "../hooks/useEscapeToClose";
 import { useCommandCenterState } from "../lib/commandCenter";
 import { Button } from "./ui/Button";
+import { Tooltip } from "./ui/Tooltip";
 import { AlertsBell } from "./AlertsBell";
 import { navItemsForRole } from "../lib/navigation";
 
@@ -53,17 +54,19 @@ export default function Sidebar({
           <div className="flex items-center justify-between">
             <span className="text-lg font-semibold text-ink">CollaBrains</span>
             <div className="flex items-center gap-1">
-              <button
-                type="button"
-                aria-label={t("common.search")}
-                onClick={openPalette}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 transition-colors duration-fast hover:bg-hover hover:text-ink"
-              >
-                <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="9" cy="9" r="6" stroke="currentColor" strokeWidth="1.5" />
-                  <path d="M17 17l-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-              </button>
+              <Tooltip label={t("common.search")}>
+                <button
+                  type="button"
+                  aria-label={t("common.search")}
+                  onClick={openPalette}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 transition-colors duration-fast hover:bg-hover hover:text-ink"
+                >
+                  <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="9" cy="9" r="6" stroke="currentColor" strokeWidth="1.5" />
+                    <path d="M17 17l-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                </button>
+              </Tooltip>
               <AlertsBell />
             </div>
           </div>

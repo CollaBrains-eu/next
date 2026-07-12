@@ -1,12 +1,14 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import Card from "../components/Card";
+import EmptyState from "../components/EmptyState";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
-import { TextField } from "../components/ui/form";
+import { Checkbox, TextField } from "../components/ui/form";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { useDateFormat } from "../hooks/useDateFormat";
+import { SkeletonLines } from "../components/ui/Skeleton";
 import {
   ApiError,
   analyzeBugReport,
@@ -79,7 +81,7 @@ function OverviewTab() {
   }, [t]);
 
   if (error) return <p className="text-danger">{error}</p>;
-  if (!stats) return <p className="text-ink-3">{t("common.loading")}</p>;
+  if (!stats) return <SkeletonLines className="max-w-md" />;
 
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -121,32 +123,16 @@ function AiUsageTab() {
   }, [t]);
 
   if (error) return <p className="text-danger">{error}</p>;
-  if (!rows) return <p className="text-ink-3">{t("common.loading")}</p>;
+  if (!rows) return <SkeletonLines />;
 
-  return (
-    <Card>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left text-ink-3">
-            <th className="pb-2">{t("admin.columnModel")}</th>
-            <th className="pb-2">{t("admin.columnCalls")}</th>
-            <th className="pb-2">{t("admin.columnPromptTokens")}</th>
-            <th className="pb-2">{t("admin.columnCompletionTokens")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.key} className="border-t border-edge text-ink">
-              <td className="py-2">{row.key}</td>
-              <td className="py-2">{row.call_count}</td>
-              <td className="py-2">{row.total_prompt_tokens}</td>
-              <td className="py-2">{row.total_completion_tokens}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </Card>
-  );
+  const columns: Column<AiUsageRowOut>[] = [
+    { key: "model", header: t("admin.columnModel"), render: (row) => row.key },
+    { key: "calls", header: t("admin.columnCalls"), render: (row) => row.call_count },
+    { key: "prompt", header: t("admin.columnPromptTokens"), render: (row) => row.total_prompt_tokens },
+    { key: "completion", header: t("admin.columnCompletionTokens"), render: (row) => row.total_completion_tokens },
+  ];
+
+  return <DataTable columns={columns} rows={rows} rowKey={(row) => row.key} pageSize={Math.max(rows.length, 1)} />;
 }
 
 function HealthTab() {
@@ -161,17 +147,17 @@ function HealthTab() {
   }, [t]);
 
   if (error) return <p className="text-danger">{error}</p>;
-  if (!rows) return <p className="text-ink-3">{t("common.loading")}</p>;
+  if (!rows) return <SkeletonLines />;
 
   return (
     <div className="flex flex-col gap-2">
       {rows.map((row) => (
         <Card key={row.name} className="flex items-center justify-between">
           <span className="text-ink">{row.name}</span>
-          <span className={row.status === "up" ? "text-success" : "text-danger"}>
-            {row.status}
-            {row.detail ? ` — ${row.detail}` : ""}
-          </span>
+          <div className="flex items-center gap-2">
+            <Badge variant={row.status === "up" ? "success" : "danger"}>{row.status}</Badge>
+            {row.detail && <span className="text-xs text-ink-3">{row.detail}</span>}
+          </div>
         </Card>
       ))}
     </div>
@@ -206,8 +192,8 @@ function BugsTab() {
   }
 
   if (error) return <p className="text-danger">{error}</p>;
-  if (!reports) return <p className="text-ink-3">{t("common.loading")}</p>;
-  if (reports.length === 0) return <p className="text-ink-3">{t("admin.noBugReports")}</p>;
+  if (!reports) return <SkeletonLines className="max-w-md" />;
+  if (reports.length === 0) return <EmptyState message={t("admin.noBugReports")} />;
 
   return (
     <div className="flex flex-col gap-3">
@@ -215,7 +201,9 @@ function BugsTab() {
         <Card key={report.id} className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <span className="text-xs text-ink-3">{formatDateTime(report.created_at)}</span>
-            <span className="text-xs uppercase text-ink-3">{report.status}</span>
+            <Badge variant={report.status === "closed" ? "success" : report.status === "analyzed" ? "default" : "warning"}>
+              {report.status}
+            </Badge>
           </div>
           <p className="text-sm text-ink">{report.description}</p>
           {report.ai_analysis ? (
@@ -351,44 +339,32 @@ function UsersTab() {
       <Modal open={formOpen} onClose={() => setFormOpen(false)} title={t("admin.addUserModalTitle")}>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           {error && <p className="text-sm text-danger">{error}</p>}
-          <label className="flex flex-col gap-1 text-sm text-ink-2">
-            {t("admin.usernameLabel")}
-            <input
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              className="rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-sm text-ink-2">
-            {t("admin.displayNameLabel")}
-            <input
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              required
-              className="rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-sm text-ink-2">
-            {t("admin.emailLabel")}
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-            />
-          </label>
+          <TextField
+            label={t("admin.usernameLabel")}
+            value={username}
+            onChange={setUsername}
+            required
+          />
+          <TextField
+            label={t("admin.displayNameLabel")}
+            value={displayName}
+            onChange={setDisplayName}
+            required
+          />
+          <TextField
+            label={t("admin.emailLabel")}
+            type="email"
+            value={email}
+            onChange={setEmail}
+            required
+          />
           <TextField
             label={t("admin.phoneColumn")}
             value={phoneNumber}
             onChange={setPhoneNumber}
             placeholder="+491511234567"
           />
-          <label className="flex items-center gap-2 text-sm text-ink-2">
-            <input type="checkbox" checked={isAdmin} onChange={(e) => setIsAdmin(e.target.checked)} />
-            {t("admin.adminRoleLabel")}
-          </label>
+          <Checkbox label={t("admin.adminRoleLabel")} checked={isAdmin} onChange={setIsAdmin} />
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" size="sm" onClick={() => setFormOpen(false)}>
               {t("common.cancel")}
@@ -403,7 +379,7 @@ function UsersTab() {
       {usersError ? (
         <p className="text-danger">{usersError}</p>
       ) : usersLoading ? (
-        <p className="text-ink-3">{t("common.loading")}</p>
+        <SkeletonLines />
       ) : (
         <>
           <DataTable columns={columns} rows={users} rowKey={(row) => row.id} pageSize={Math.max(users.length, 1)} />

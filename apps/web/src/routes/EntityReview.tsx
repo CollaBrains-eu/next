@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { approveEntity, bulkReviewEntities, listEntities, rejectEntity, type EntityOut } from "../lib/api";
+import EmptyState from "../components/EmptyState";
 import { Button } from "../components/ui/Button";
+import { SkeletonLines } from "../components/ui/Skeleton";
 
 export default function EntityReview() {
   const { t } = useTranslation();
@@ -46,7 +48,7 @@ export default function EntityReview() {
     return () => window.removeEventListener("keydown", onKeyDown);
   });
 
-  if (queue === null) return <p className="text-ink-3">{t("common.loading")}</p>;
+  if (queue === null) return <SkeletonLines className="max-w-md" />;
 
   return (
     <div className="flex flex-col gap-4">
@@ -65,7 +67,7 @@ export default function EntityReview() {
       </div>
 
       {!current ? (
-        <p className="text-ink-3">{t("entityReview.nothingToReview")}</p>
+        <EmptyState message={t("entityReview.nothingToReview")} />
       ) : (
         <div className="flex flex-col gap-4 rounded-2xl border border-edge bg-surface p-6">
           <p className="text-sm text-ink-3">

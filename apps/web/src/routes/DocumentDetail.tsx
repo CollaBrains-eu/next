@@ -5,9 +5,11 @@ import { ApiError, deleteDocument, getDocument, reprocessDocument, summarizeDocu
 import { Alert } from "../components/ui/Alert";
 import { Badge } from "../components/ui/Badge";
 import { Breadcrumbs } from "../components/ui/Breadcrumbs";
+import Card from "../components/Card";
 import { Button } from "../components/ui/Button";
 import { MetadataList } from "../components/ui/MetadataList";
 import { Modal } from "../components/ui/Modal";
+import { SkeletonLines } from "../components/ui/Skeleton";
 import { useAuth } from "../lib/auth";
 import { useToast } from "../lib/toast";
 
@@ -103,7 +105,7 @@ export default function DocumentDetail() {
     );
   }
 
-  if (!doc) return <p className="text-ink-2">{t("common.loading")}</p>;
+  if (!doc) return <SkeletonLines className="max-w-md" />;
 
   return (
     <div className="flex flex-col gap-4">
@@ -147,17 +149,17 @@ export default function DocumentDetail() {
       )}
 
       {doc.summary && (
-        <div className="rounded-2xl border border-edge bg-surface p-4 shadow-raised">
+        <Card>
           <h2 className="text-sm font-medium text-ink-2">{t("documentDetail.summary")}</h2>
           <p className="mt-1 whitespace-pre-wrap text-sm text-ink">{doc.summary}</p>
-        </div>
+        </Card>
       )}
 
       {doc.ocr_text && (
-        <div className="rounded-2xl border border-edge bg-surface p-4 shadow-raised">
+        <Card>
           <h2 className="text-sm font-medium text-ink-2">{t("documentDetail.extractedText")}</h2>
           <p className="mt-1 max-h-96 overflow-y-auto whitespace-pre-wrap text-sm text-ink">{doc.ocr_text}</p>
-        </div>
+        </Card>
       )}
 
       <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title={t("documentDetail.deleteModalTitle", { title: doc.title })}>
