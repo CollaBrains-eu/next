@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ApiError, legalDraft, listDocuments, type Citation, type DocumentOut } from "../lib/api";
+import Card from "../components/Card";
 import { Alert } from "../components/ui/Alert";
 import { Button } from "../components/ui/Button";
 import { Combobox } from "../components/ui/Combobox";
@@ -77,7 +78,7 @@ export default function Legal() {
       </form>
 
       {result && (
-        <div className="flex flex-col gap-3 rounded-2xl border border-edge bg-surface p-4">
+        <Card className="flex flex-col gap-3">
           <Alert variant="warning">{result.disclaimer}</Alert>
           <p className="whitespace-pre-wrap text-sm text-ink">{result.draft}</p>
           {result.citations.length > 0 && (
@@ -89,7 +90,7 @@ export default function Legal() {
               ))}
             </div>
           )}
-        </div>
+        </Card>
       )}
     </div>
   );

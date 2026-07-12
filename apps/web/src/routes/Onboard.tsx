@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { checkOnboardingToken } from "../lib/api";
+import Card from "../components/Card";
 import { Button } from "../components/ui/Button";
 
 type Status = "loading" | "valid" | "invalid";
@@ -31,7 +32,7 @@ export default function Onboard() {
   }, [token]);
 
   return (
-    <div className="mx-auto mt-16 max-w-sm rounded-2xl border border-edge bg-surface p-6 shadow-raised text-center">
+    <Card className="mx-auto mt-16 max-w-sm p-6 text-center">
       {status === "loading" && <p className="text-sm text-ink-2">{t("common.loading")}</p>}
 
       {status === "valid" && (
@@ -55,6 +56,6 @@ export default function Onboard() {
           </Link>
         </>
       )}
-    </div>
+    </Card>
   );
 }

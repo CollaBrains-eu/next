@@ -11,6 +11,7 @@ import {
   type TaskOut,
   type TaskStatus,
 } from "../lib/api";
+import Card from "../components/Card";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { KanbanBoard } from "../components/ui/KanbanBoard";
@@ -146,7 +147,7 @@ export default function Tasks() {
       {error && <p className="text-sm text-danger">{error}</p>}
 
       {showNewTask && (
-        <div className="flex flex-col gap-3 rounded-2xl border border-edge bg-surface p-4 shadow-raised">
+        <Card className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-ink-2" htmlFor="new-task-title">
               {t("tasks.newTaskTitleLabel")}
@@ -198,7 +199,7 @@ export default function Tasks() {
               {t("common.create")}
             </Button>
           </div>
-        </div>
+        </Card>
       )}
 
       {loading ? (
