@@ -2,7 +2,7 @@ import { motion, useScroll, useTransform } from "framer-motion";
 import { useRef, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Sparkles, FileText, CheckSquare, FolderOpen, Brain, ArrowDown, ChevronRight } from "lucide-react";
+import { Sparkles, FileText, CheckSquare, FolderOpen, Brain, ArrowDown, ChevronRight, Check } from "lucide-react";
 
 // Marketing splash for anonymous visitors at "/" (see App.tsx RootRoute) -- deliberately
 // dark/animated, distinct from the light Violet DS app shell authenticated users see.
@@ -79,6 +79,45 @@ export default function Landing() {
     t("landing.problemChipFiles"),
     t("landing.problemChipChats"),
     t("landing.problemChipMeetings"),
+  ];
+
+  const PLANS = [
+    {
+      name: t("landing.planFreeName"),
+      price: t("landing.planFreePrice"),
+      period: "",
+      desc: t("landing.planFreeDesc"),
+      features: [t("landing.planFreeFeature1"), t("landing.planFreeFeature2"), t("landing.planFreeFeature3")],
+      cta: t("landing.planFreeCta"),
+      highlighted: false,
+    },
+    {
+      name: t("landing.planProName"),
+      price: t("landing.planProPrice"),
+      period: t("landing.pricingPeriodMonth"),
+      desc: t("landing.planProDesc"),
+      features: [
+        t("landing.planProFeature1"),
+        t("landing.planProFeature2"),
+        t("landing.planProFeature3"),
+        t("landing.planProFeature4"),
+      ],
+      cta: t("landing.planProCta"),
+      highlighted: true,
+    },
+    {
+      name: t("landing.planEnterpriseName"),
+      price: t("landing.planEnterprisePrice"),
+      period: "",
+      desc: t("landing.planEnterpriseDesc"),
+      features: [
+        t("landing.planEnterpriseFeature1"),
+        t("landing.planEnterpriseFeature2"),
+        t("landing.planEnterpriseFeature3"),
+      ],
+      cta: t("landing.planEnterpriseCta"),
+      highlighted: false,
+    },
   ];
 
   function goToLogin() {
@@ -235,6 +274,62 @@ export default function Landing() {
                 >
                   {msg.text}
                 </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      <Section className="bg-zinc-900">
+        <div className="mx-auto max-w-5xl">
+          <p className="mb-4 text-center text-xs font-semibold uppercase tracking-widest text-violet-400">{t("landing.pricingEyebrow")}</p>
+          <h2 className="mb-4 text-center text-3xl font-bold md:text-4xl">{t("landing.pricingTitle")}</h2>
+          <p className="mx-auto mb-12 max-w-xl text-center text-lg text-zinc-400">{t("landing.pricingSubtitle")}</p>
+          <div className="grid gap-6 md:grid-cols-3">
+            {PLANS.map((plan, i) => (
+              <motion.div
+                key={plan.name}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className={`relative flex flex-col rounded-2xl border p-8 ${
+                  plan.highlighted
+                    ? "border-violet-500 bg-zinc-800/80 shadow-xl shadow-violet-600/10"
+                    : "border-zinc-800 bg-zinc-900/80"
+                }`}
+              >
+                {plan.highlighted && (
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-violet-600 px-3 py-1 text-xs font-semibold text-white">
+                    {t("landing.pricingMostPopular")}
+                  </span>
+                )}
+                <h3 className="mb-1 font-semibold text-white">{plan.name}</h3>
+                <p className="mb-4 text-sm text-zinc-400">{plan.desc}</p>
+                <div className="mb-6 flex items-baseline gap-1">
+                  <span className="text-3xl font-bold text-white">{plan.price}</span>
+                  {plan.period && <span className="text-sm text-zinc-500">{plan.period}</span>}
+                </div>
+                <ul className="mb-8 flex-1 space-y-3">
+                  {plan.features.map((feature) => (
+                    <li key={feature} className="flex items-start gap-2 text-sm text-zinc-300">
+                      <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-violet-400" />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+                {plan.highlighted ? (
+                  <MagneticButton onClick={goToLogin} className="w-full justify-center">
+                    {plan.cta}
+                  </MagneticButton>
+                ) : (
+                  <button
+                    onClick={goToLogin}
+                    className="w-full rounded-full border border-zinc-700 px-7 py-3.5 text-sm font-semibold text-white transition-colors hover:border-zinc-500"
+                  >
+                    {plan.cta}
+                  </button>
+                )}
               </motion.div>
             ))}
           </div>
