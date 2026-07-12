@@ -20,6 +20,7 @@ import { useBulkSelection } from "../hooks/useBulkSelection";
 import { BulkActionBar } from "../components/ui/BulkActionBar";
 import { FilterChips } from "../components/ui/FilterChips";
 import { useToast } from "../lib/toast";
+import { useDateFormat } from "../hooks/useDateFormat";
 
 const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "default"> = {
   ready: "success",
@@ -31,6 +32,7 @@ const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "default
 
 export default function Workspace() {
   const { t } = useTranslation();
+  const { formatDateTime } = useDateFormat();
   const STATUS_FILTER_OPTIONS = [
     { id: "ready", label: t("documents.filterReady") },
     { id: "failed", label: t("documents.filterFailed") },
@@ -129,7 +131,7 @@ export default function Workspace() {
       header: t("documents.columnUploaded"),
       sortable: true,
       sortValue: (doc) => doc.created_at,
-      render: (doc) => new Date(doc.created_at).toLocaleString(),
+      render: (doc) => formatDateTime(doc.created_at),
     },
     {
       key: "status",
