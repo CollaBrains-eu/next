@@ -5,7 +5,7 @@ user_id (or admin role) gates all access to it. Document/task/decision
 attach-to-case endpoints live in Task 4 of this same file.
 """
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -25,7 +25,9 @@ from api.cases import (
     link_vehicle_to_case,
     list_case_members,
     list_cases,
+    list_pending_invitations,
     remove_case_member,
+    respond_to_case_invitation,
     update_case,
 )
 from api.db import get_db
@@ -105,14 +107,16 @@ async def _require_case_access(db: AsyncSession, case: Case, current_user: User)
 
 class CaseMemberOut(BaseModel):
     id: UUID
+    case_id: UUID
     user_id: UUID
     role: str
+    status: str
     created_at: datetime
 
 
 class CaseMemberCreate(BaseModel):
     user_id: UUID
-    role: str = "member"
+    role: Literal["worker", "member"] = "member"
 
 
 @router.post("/cases", response_model=CaseOut, status_code=status.HTTP_201_CREATED)
@@ -130,6 +134,17 @@ async def list_cases_endpoint(
     current_user: User = Depends(get_current_user),
 ) -> list[Case]:
     return await list_cases(db, user_id=current_user.id)
+
+
+@router.get("/cases/invitations", response_model=list[CaseMemberOut])
+async def list_my_invitations_endpoint(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[CaseMember]:
+    """Registered before /cases/{case_id} -- otherwise FastAPI would try
+    to parse "invitations" as a case_id UUID and 422 instead of matching
+    this route."""
+    return await list_pending_invitations(db, user_id=current_user.id)
 
 
 @router.get("/cases/{case_id}", response_model=CaseDashboardOut)
@@ -322,3 +337,39 @@ async def remove_case_member_endpoint(
     removed = await remove_case_member(db, case_id=case_id, user_id=user_id)
     if not removed:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Membership not found")
+
+
+def _require_invited_user(user_id: UUID, current_user: User) -> None:
+    """Only the invited user themselves can accept/decline their own
+    invitation -- not the case owner, not even an admin (accepting is a
+    personal decision, unlike inviting/removing which the owner controls)."""
+    if user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your invitation")
+
+
+@router.post("/cases/{case_id}/members/{user_id}/accept", response_model=CaseMemberOut)
+async def accept_case_invitation_endpoint(
+    case_id: UUID,
+    user_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> CaseMember:
+    _require_invited_user(user_id, current_user)
+    member = await respond_to_case_invitation(db, case_id=case_id, user_id=user_id, accept=True)
+    if member is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No pending invitation found")
+    return member
+
+
+@router.post("/cases/{case_id}/members/{user_id}/decline", response_model=CaseMemberOut)
+async def decline_case_invitation_endpoint(
+    case_id: UUID,
+    user_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> CaseMember:
+    _require_invited_user(user_id, current_user)
+    member = await respond_to_case_invitation(db, case_id=case_id, user_id=user_id, accept=False)
+    if member is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No pending invitation found")
+    return member

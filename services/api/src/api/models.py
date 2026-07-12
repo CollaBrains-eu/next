@@ -516,8 +516,15 @@ class CaseMember(Base):
     """Grants a user access to a case they don't own (Phase 26) -- e.g. a
     contractor working a homeowner's renovation case needs to see/manage
     it without becoming its owner. `Case.user_id` stays the single source
-    of truth for ownership; membership is purely additive access, checked
-    alongside ownership/admin-role in `cases_router.py`.
+    of truth for ownership -- "owner" is not a role stored here, it's the
+    case creator, automatic and un-invited; `role` covers the two kinds of
+    invited access (worker/member).
+
+    Invitation-based, same pending/accepted/declined shape as entity and
+    residency review elsewhere in this codebase: adding a member creates a
+    `pending` invitation the invited user must accept before it grants any
+    access (`is_case_member`/`_require_case_access` only count `accepted`
+    rows).
     """
 
     __tablename__ = "case_members"
@@ -526,7 +533,8 @@ class CaseMember(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     case_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("cases.id", ondelete="CASCADE"), nullable=False)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    role: Mapped[str] = mapped_column(String(50), nullable=False, default="member")
+    role: Mapped[str] = mapped_column(String(50), nullable=False, default="member")  # "worker" | "member"
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")  # "pending" | "accepted" | "declined"
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
