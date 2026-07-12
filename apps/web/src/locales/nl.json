@@ -257,6 +257,13 @@
     "passkeyLoginError": "Inloggen met passkey mislukt",
     "orDivider": "of"
   },
+  "onboard": {
+    "welcomeTitle": "Welkom, {{name}}",
+    "welcomeBody": "Uw CollaBrains-account is klaar. Ga verder naar inloggen.",
+    "continueToLogin": "Verder naar inloggen",
+    "invalidTitle": "Link niet meer geldig",
+    "invalidBody": "Deze welkomstlink is verlopen of al gebruikt. U kunt nog steeds direct inloggen."
+  },
   "passkeys": {
     "title": "Passkeys",
     "description": "Log in zonder wachtwoord met een passkey die op dit apparaat is opgeslagen. Uw wachtwoord blijft ook gewoon werken.",

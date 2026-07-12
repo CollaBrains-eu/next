@@ -298,6 +298,13 @@
     "passkeyLoginError": "Anmeldung mit Passkey fehlgeschlagen",
     "orDivider": "oder"
   },
+  "onboard": {
+    "welcomeTitle": "Willkommen, {{name}}",
+    "welcomeBody": "Ihr CollaBrains-Konto ist bereit. Weiter zur Anmeldung.",
+    "continueToLogin": "Weiter zur Anmeldung",
+    "invalidTitle": "Link nicht mehr gültig",
+    "invalidBody": "Dieser Willkommenslink ist abgelaufen oder wurde bereits verwendet. Sie können sich weiterhin direkt anmelden."
+  },
   "passkeys": {
     "title": "Passkeys",
     "description": "Melden Sie sich ohne Passwort mit einem auf diesem Gerät gespeicherten Passkey an. Ihr Passwort funktioniert weiterhin.",

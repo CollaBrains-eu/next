@@ -257,6 +257,13 @@
     "passkeyLoginError": "Passkey login failed",
     "orDivider": "or"
   },
+  "onboard": {
+    "welcomeTitle": "Welcome, {{name}}",
+    "welcomeBody": "Your CollaBrains account is ready. Continue to sign in.",
+    "continueToLogin": "Continue to sign in",
+    "invalidTitle": "Link no longer valid",
+    "invalidBody": "This welcome link has expired or was already used. You can still sign in directly."
+  },
   "passkeys": {
     "title": "Passkeys",
     "description": "Sign in without a password using a passkey stored on this device. Your password keeps working either way.",

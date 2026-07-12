@@ -614,3 +614,13 @@ export function correctResidency(
 ): Promise<ResidencyOut> {
   return request<ResidencyOut>(`/residencies/${id}`, { method: "PATCH", body: JSON.stringify(input) });
 }
+
+export interface OnboardingTokenOut {
+  valid: boolean;
+  user_id: string | null;
+  display_name: string | null;
+}
+
+export function checkOnboardingToken(token: string): Promise<OnboardingTokenOut> {
+  return request<OnboardingTokenOut>(`/onboarding/${token}`);
+}
