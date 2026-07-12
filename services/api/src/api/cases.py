@@ -11,10 +11,10 @@ api/decisions.py (checks ownership before calling it).
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.models import Case, Decision, Document, GraphEdge, Task, Vehicle
+from api.models import Case, CaseMember, Decision, Document, GraphEdge, Task, Vehicle
 
 
 async def create_case(db: AsyncSession, *, user_id: UUID, name: str, description: str | None = None) -> Case:
@@ -26,8 +26,58 @@ async def create_case(db: AsyncSession, *, user_id: UUID, name: str, description
 
 
 async def list_cases(db: AsyncSession, *, user_id: UUID) -> list[Case]:
-    result = await db.execute(select(Case).where(Case.user_id == user_id).order_by(Case.created_at.desc()))
+    result = await db.execute(
+        select(Case)
+        .outerjoin(CaseMember, CaseMember.case_id == Case.id)
+        .where(or_(Case.user_id == user_id, CaseMember.user_id == user_id))
+        .order_by(Case.created_at.desc())
+        .distinct()
+    )
     return list(result.scalars().all())
+
+
+async def is_case_member(db: AsyncSession, *, case_id: UUID, user_id: UUID) -> bool:
+    result = await db.execute(
+        select(CaseMember).where(CaseMember.case_id == case_id, CaseMember.user_id == user_id)
+    )
+    return result.scalar_one_or_none() is not None
+
+
+async def list_case_members(db: AsyncSession, *, case_id: UUID) -> list[CaseMember]:
+    result = await db.execute(
+        select(CaseMember).where(CaseMember.case_id == case_id).order_by(CaseMember.created_at)
+    )
+    return list(result.scalars().all())
+
+
+async def add_case_member(db: AsyncSession, *, case_id: UUID, user_id: UUID, role: str = "member") -> CaseMember:
+    existing = await db.execute(
+        select(CaseMember).where(CaseMember.case_id == case_id, CaseMember.user_id == user_id)
+    )
+    member = existing.scalar_one_or_none()
+    if member is not None:
+        member.role = role
+        await db.commit()
+        await db.refresh(member)
+        return member
+
+    member = CaseMember(case_id=case_id, user_id=user_id, role=role)
+    db.add(member)
+    await db.commit()
+    await db.refresh(member)
+    return member
+
+
+async def remove_case_member(db: AsyncSession, *, case_id: UUID, user_id: UUID) -> bool:
+    result = await db.execute(
+        select(CaseMember).where(CaseMember.case_id == case_id, CaseMember.user_id == user_id)
+    )
+    member = result.scalar_one_or_none()
+    if member is None:
+        return False
+    await db.delete(member)
+    await db.commit()
+    return True
 
 
 async def update_case(
