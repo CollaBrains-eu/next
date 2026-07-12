@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Tooltip } from "./Tooltip";
 
 export interface Column<T> {
   key: string;
@@ -83,14 +84,16 @@ export function DataTable<T>({
       </div>
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-1 py-3">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            aria-label="Previous page"
-            className="h-7 w-7 rounded-lg text-xs text-ink-2 transition-colors duration-fast hover:bg-hover disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-          >
-            &lsaquo;
-          </button>
+          <Tooltip label="Previous page">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              aria-label="Previous page"
+              className="h-7 w-7 rounded-lg text-xs text-ink-2 transition-colors duration-fast hover:bg-hover disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+            >
+              &lsaquo;
+            </button>
+          </Tooltip>
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
             <button
               key={p}
@@ -102,14 +105,16 @@ export function DataTable<T>({
               {p}
             </button>
           ))}
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            aria-label="Next page"
-            className="h-7 w-7 rounded-lg text-xs text-ink-2 transition-colors duration-fast hover:bg-hover disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-          >
-            &rsaquo;
-          </button>
+          <Tooltip label="Next page">
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              aria-label="Next page"
+              className="h-7 w-7 rounded-lg text-xs text-ink-2 transition-colors duration-fast hover:bg-hover disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+            >
+              &rsaquo;
+            </button>
+          </Tooltip>
         </div>
       )}
     </div>
