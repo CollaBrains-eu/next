@@ -18,6 +18,7 @@ from api.legal import router as legal_router
 from api.manager_router import router as manager_router
 from api.mcp_router import router as mcp_router
 from api.memories import router as memories_router
+from api.onboarding_router import router as onboarding_router
 from api.organizations_router import router as organizations_router
 from api.plans import router as plans_router
 from api.preferences_router import router as preferences_router
@@ -60,6 +61,7 @@ app.include_router(learning_router)
 app.include_router(vehicles_router)
 app.include_router(residencies_router)
 app.include_router(webauthn_router)
+app.include_router(onboarding_router)
 
 
 @app.get("/health")

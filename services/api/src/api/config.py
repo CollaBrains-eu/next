@@ -48,5 +48,13 @@ class Settings(BaseSettings):
     codeberg_api_token: str = ""
     codeberg_repo: str = ""
 
+    smtp_host: str = ""
+    smtp_port: int = 465
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from_address: str = "noreply@collabrains.eu"
+
+    app_base_url: str = "https://collabrains.eu"
+
 
 settings = Settings()

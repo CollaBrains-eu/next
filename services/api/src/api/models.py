@@ -530,6 +530,25 @@ class CaseMember(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class OnboardingToken(Base):
+    """A single-use link sent by email to get a user started (Phase 27,
+    v2 port). Narrower than v2's version -- no PocketID one-time-token
+    fallback (this backend has no PocketID/OIDC layer at all), and no
+    Signal-safety-number identity verification (that's a separate,
+    much larger feature this port doesn't attempt); just a random token
+    with an expiry and a used_at marker, checked by the onboarding page.
+    """
+
+    __tablename__ = "onboarding_tokens"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    token: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Vehicle(Base):
     """RDW-enriched vehicle data behind an `Entity(entity_type="vehicle")`
     row (Phase 18). A separate table, not columns on `Entity` itself --
