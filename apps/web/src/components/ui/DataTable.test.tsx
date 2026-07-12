@@ -39,6 +39,22 @@ describe("DataTable", () => {
     expect(screen.queryByText("PLATE-00")).not.toBeInTheDocument();
   });
 
+  it("disables Previous on the first page and Next on the last page", () => {
+    render(<DataTable columns={columns} rows={makeRows(25)} pageSize={10} rowKey={(r) => r.id} />);
+    expect(screen.getByRole("button", { name: "Previous page" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Next page" })).not.toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "3" }));
+    expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
+  });
+
+  it("Previous/Next buttons step through pages", () => {
+    render(<DataTable columns={columns} rows={makeRows(25)} pageSize={10} rowKey={(r) => r.id} />);
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    expect(screen.getByText("PLATE-10")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
+    expect(screen.getByText("PLATE-00")).toBeInTheDocument();
+  });
+
   it("clicking a sortable header sorts the rows ascending, then descending on a second click", () => {
     const rows = [
       { id: "1", plate: "B", make: "X" },
