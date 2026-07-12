@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ApiError, getEntityGraph, type EntityGraphOut } from "../lib/api";
+import { Breadcrumbs } from "../components/ui/Breadcrumbs";
 
 // Categorical colors distinguishing entity types on the graph -- like
 // Avatar's palette, these identify a category and must stay visually
@@ -50,10 +51,8 @@ export default function EntityGraph() {
   if (error) {
     return (
       <div>
-        <Link to="/entities" className="text-sm text-ink-2 hover:text-ink">
-          {t("entityReview.backToEntities")}
-        </Link>
-        <p className="mt-4 text-danger">{error}</p>
+        <Breadcrumbs items={[{ label: t("nav.entities"), to: "/entities" }, { label: t("entityGraph.breadcrumbError") }]} />
+        <p className="text-danger">{error}</p>
       </div>
     );
   }
@@ -75,10 +74,8 @@ export default function EntityGraph() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <Link to="/entities" className="text-sm text-ink-2 hover:text-ink">
-          {t("entityReview.backToEntities")}
-        </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-ink">{graph.center.name}</h1>
+        <Breadcrumbs items={[{ label: t("nav.entities"), to: "/entities" }, { label: graph.center.name }]} />
+        <h1 className="text-2xl font-semibold text-ink">{graph.center.name}</h1>
         <p className="text-sm text-ink-2">
           {t("entityGraph.relationshipCount", { count: graph.nodes.length, type: typeLabel })}
         </p>

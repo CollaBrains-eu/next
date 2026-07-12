@@ -219,6 +219,7 @@
   },
   "entityGraph": {
     "loadError": "Failed to load graph",
+    "breadcrumbError": "Error",
     "relationshipCount_one": "{{type}} · {{count}} direct relationship",
     "relationshipCount_other": "{{type}} · {{count}} direct relationships",
     "noRelationships": "No known relationships for this entity yet."
