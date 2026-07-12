@@ -22,6 +22,21 @@ describe("Landing", () => {
     expect(screen.getByText("Smart documents")).toBeInTheDocument();
   });
 
+  it("renders the pricing plans", () => {
+    renderLanding();
+    expect(screen.getByText("Simple, transparent pricing")).toBeInTheDocument();
+    expect(screen.getByText("Free")).toBeInTheDocument();
+    expect(screen.getByText("Pro")).toBeInTheDocument();
+    expect(screen.getByText("Enterprise")).toBeInTheDocument();
+    expect(screen.getByText("Most popular")).toBeInTheDocument();
+  });
+
+  it("navigates to /login when a plan CTA is clicked", () => {
+    renderLanding();
+    fireEvent.click(screen.getByRole("button", { name: "Start free trial" }));
+    expect(screen.getByText("Login page")).toBeInTheDocument();
+  });
+
   it("navigates to /login when the nav login button is clicked", () => {
     renderLanding();
     fireEvent.click(screen.getByRole("button", { name: "Log in" }));
