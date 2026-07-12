@@ -86,7 +86,8 @@ describe("CaseDetail", () => {
     const vehiclesLabel = screen.getByText("Vehicles");
     const vehiclesSection = vehiclesLabel.closest("div")!.parentElement!;
     fireEvent.click(within(vehiclesSection).getByText("+ Attach"));
-    fireEvent.change(within(vehiclesSection).getByRole("combobox"), { target: { value: "v1" } });
+    fireEvent.click(within(vehiclesSection).getByPlaceholderText("Select…"));
+    fireEvent.click(within(vehiclesSection).getByRole("button", { name: "AB-12-CD" }));
     fireEvent.click(within(vehiclesSection).getByRole("button", { name: "Attach" }));
     await waitFor(() => expect(api.linkVehicleToCase).toHaveBeenCalledWith("c1", "v1"));
   });

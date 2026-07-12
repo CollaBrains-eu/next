@@ -11,11 +11,13 @@ export function Combobox({
   selected,
   onChange,
   placeholder = "Search…",
+  multiple = true,
 }: {
   options: ComboboxOption[];
   selected: ComboboxOption[];
   onChange: (next: ComboboxOption[]) => void;
   placeholder?: string;
+  multiple?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -33,7 +35,12 @@ export function Combobox({
   }
 
   function add(option: ComboboxOption) {
-    if (!selectedIds.has(option.id)) onChange([...selected, option]);
+    if (multiple) {
+      if (!selectedIds.has(option.id)) onChange([...selected, option]);
+    } else {
+      onChange([option]);
+      setOpen(false);
+    }
     setQuery("");
   }
 

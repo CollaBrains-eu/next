@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ApiError, legalDraft, listDocuments, type Citation, type DocumentOut } from "../lib/api";
 import { Button } from "../components/ui/Button";
-import { Checkbox } from "../components/ui/form";
+import { Combobox } from "../components/ui/Combobox";
 import { useLoadingBar } from "../lib/loadingBar";
 
 export default function Legal() {
@@ -19,15 +19,6 @@ export default function Legal() {
   useEffect(() => {
     listDocuments().then(setDocuments);
   }, []);
-
-  function toggleDocument(id: string) {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -68,15 +59,12 @@ export default function Legal() {
         {documents.length > 0 && (
           <div>
             <p className="text-sm font-medium text-ink-2">{t("legal.scopeLabel")}</p>
-            <div className="mt-1 flex flex-col gap-1 rounded-xl border border-edge bg-surface p-3 max-h-48 overflow-y-auto">
-              {documents.map((doc) => (
-                <Checkbox
-                  key={doc.id}
-                  label={doc.title}
-                  checked={selectedIds.has(doc.id)}
-                  onChange={() => toggleDocument(doc.id)}
-                />
-              ))}
+            <div className="mt-1">
+              <Combobox
+                options={documents.map((doc) => ({ id: doc.id, label: doc.title }))}
+                selected={documents.filter((doc) => selectedIds.has(doc.id)).map((doc) => ({ id: doc.id, label: doc.title }))}
+                onChange={(next) => setSelectedIds(new Set(next.map((o) => o.id)))}
+              />
             </div>
           </div>
         )}
