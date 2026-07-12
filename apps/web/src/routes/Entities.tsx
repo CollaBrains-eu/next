@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { listEntities, type EntityOut } from "../lib/api";
+import EmptyState from "../components/EmptyState";
 
 const TYPE_STYLES: Record<string, string> = {
   person: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
@@ -83,7 +84,7 @@ export default function Entities() {
       {loading ? (
         <p className="text-ink-3">{t("common.loading")}</p>
       ) : entities.length === 0 ? (
-        <p className="text-ink-3">{t("entities.emptyMessage")}</p>
+        <EmptyState message={t("entities.emptyMessage")} />
       ) : (
         <div className="flex flex-col divide-y divide-edge rounded-2xl border border-edge bg-surface">
           {entities.map((entity) => (

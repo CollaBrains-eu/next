@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import Card from "../components/Card";
+import EmptyState from "../components/EmptyState";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
@@ -189,7 +190,7 @@ function BugsTab() {
 
   if (error) return <p className="text-danger">{error}</p>;
   if (!reports) return <p className="text-ink-3">{t("common.loading")}</p>;
-  if (reports.length === 0) return <p className="text-ink-3">{t("admin.noBugReports")}</p>;
+  if (reports.length === 0) return <EmptyState message={t("admin.noBugReports")} />;
 
   return (
     <div className="flex flex-col gap-3">

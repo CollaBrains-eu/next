@@ -5,6 +5,7 @@ import EmptyState from "../components/EmptyState";
 import LicensePlateInput from "../components/LicensePlateInput";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
+import { MetadataList } from "../components/ui/MetadataList";
 import { ApiError, listVehicles, lookupVehicle, type VehicleOut } from "../lib/api";
 
 function WamBadge({ wamVerzekerd }: { wamVerzekerd: string | null }) {
@@ -21,18 +22,15 @@ function VehicleStatus({ vehicle }: { vehicle: VehicleOut }) {
     return <p className="text-sm text-ink-3">Geen RDW-gegevens gevonden voor dit kenteken.</p>;
   }
   return (
-    <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-      <dt className="text-ink-2">Merk / model</dt>
-      <dd className="text-ink">{vehicle.merk} {vehicle.handelsbenaming}</dd>
-      <dt className="text-ink-2">Voertuigsoort</dt>
-      <dd className="text-ink">{vehicle.voertuigsoort ?? "-"}</dd>
-      <dt className="text-ink-2">Kleur</dt>
-      <dd className="text-ink">{vehicle.eerste_kleur ?? "-"}</dd>
-      <dt className="text-ink-2">APK-vervaldatum</dt>
-      <dd className="text-ink">{vehicle.vervaldatum_apk ?? "-"}</dd>
-      <dt className="text-ink-2">WAM-verzekerd</dt>
-      <dd className="text-ink"><WamBadge wamVerzekerd={vehicle.wam_verzekerd} /></dd>
-    </dl>
+    <MetadataList
+      items={[
+        { label: "Merk / model", value: `${vehicle.merk} ${vehicle.handelsbenaming}` },
+        { label: "Voertuigsoort", value: vehicle.voertuigsoort ?? "-" },
+        { label: "Kleur", value: vehicle.eerste_kleur ?? "-" },
+        { label: "APK-vervaldatum", value: vehicle.vervaldatum_apk ?? "-" },
+        { label: "WAM-verzekerd", value: <WamBadge wamVerzekerd={vehicle.wam_verzekerd} /> },
+      ]}
+    />
   );
 }
 

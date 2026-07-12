@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ApiError, getEntityGraph, type EntityGraphOut } from "../lib/api";
+import EmptyState from "../components/EmptyState";
 import { Breadcrumbs } from "../components/ui/Breadcrumbs";
 
 // Categorical colors distinguishing entity types on the graph -- like
@@ -82,7 +83,7 @@ export default function EntityGraph() {
       </div>
 
       {graph.nodes.length === 0 ? (
-        <p className="text-ink-3">{t("entityGraph.noRelationships")}</p>
+        <EmptyState message={t("entityGraph.noRelationships")} />
       ) : (
         <div className="rounded-2xl border border-edge bg-surface">
           <svg width="100%" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} style={{ maxWidth: WIDTH, display: "block" }}>

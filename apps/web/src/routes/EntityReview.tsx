@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { approveEntity, bulkReviewEntities, listEntities, rejectEntity, type EntityOut } from "../lib/api";
+import EmptyState from "../components/EmptyState";
 import { Button } from "../components/ui/Button";
 
 export default function EntityReview() {
@@ -65,7 +66,7 @@ export default function EntityReview() {
       </div>
 
       {!current ? (
-        <p className="text-ink-3">{t("entityReview.nothingToReview")}</p>
+        <EmptyState message={t("entityReview.nothingToReview")} />
       ) : (
         <div className="flex flex-col gap-4 rounded-2xl border border-edge bg-surface p-6">
           <p className="text-sm text-ink-3">
