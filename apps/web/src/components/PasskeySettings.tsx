@@ -5,9 +5,11 @@ import EmptyState from "./EmptyState";
 import { Button } from "./ui/Button";
 import { ApiError, deleteWebauthnCredential, listWebauthnCredentials, type WebauthnCredentialOut } from "../lib/api";
 import { isPasskeySupported, registerPasskey } from "../lib/webauthn";
+import { useDateFormat } from "../hooks/useDateFormat";
 
 export function PasskeySettings() {
   const { t } = useTranslation();
+  const { formatDate } = useDateFormat();
   const [credentials, setCredentials] = useState<WebauthnCredentialOut[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [registering, setRegistering] = useState(false);
@@ -74,8 +76,8 @@ export function PasskeySettings() {
               <div>
                 <p className="font-medium text-ink">{credential.label || t("passkeys.unnamedPasskey")}</p>
                 <p className="text-xs text-ink-3">
-                  {t("passkeys.createdAt", { date: credential.created_at.slice(0, 10) })}
-                  {credential.last_used_at && ` · ${t("passkeys.lastUsed", { date: credential.last_used_at.slice(0, 10) })}`}
+                  {t("passkeys.createdAt", { date: formatDate(credential.created_at) })}
+                  {credential.last_used_at && ` · ${t("passkeys.lastUsed", { date: formatDate(credential.last_used_at) })}`}
                 </p>
               </div>
               <Button
