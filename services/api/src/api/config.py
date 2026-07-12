@@ -44,5 +44,9 @@ class Settings(BaseSettings):
     webauthn_rp_name: str = "CollaBrains"
     webauthn_origin: str = "http://localhost:5173"
 
+    internal_api_secret: str = ""
+    codeberg_api_token: str = ""
+    codeberg_repo: str = ""
+
 
 settings = Settings()
