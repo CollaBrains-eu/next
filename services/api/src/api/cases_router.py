@@ -14,18 +14,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth import get_current_user
 from api.cases import (
+    add_case_member,
     attach_document_to_case,
     create_case,
     delete_case,
     get_case_dashboard,
+    is_case_member,
     link_decision_to_case,
     link_task_to_case,
     link_vehicle_to_case,
+    list_case_members,
     list_cases,
+    remove_case_member,
     update_case,
 )
 from api.db import get_db
-from api.models import Case, Decision, Document, Task, User, Vehicle
+from api.models import Case, CaseMember, Decision, Document, Task, User, Vehicle
 
 router = APIRouter(tags=["cases"])
 
@@ -88,6 +92,29 @@ def _require_case_owner(case: Case, current_user: User) -> None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to access this case")
 
 
+async def _require_case_access(db: AsyncSession, case: Case, current_user: User) -> None:
+    """Like `_require_case_owner`, but also lets in anyone granted access
+    via `case_members` (e.g. a contractor working someone else's case) --
+    ownership stays single-user (`Case.user_id`), membership is additive."""
+    if case.user_id == current_user.id or current_user.role == "admin":
+        return
+    if await is_case_member(db, case_id=case.id, user_id=current_user.id):
+        return
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to access this case")
+
+
+class CaseMemberOut(BaseModel):
+    id: UUID
+    user_id: UUID
+    role: str
+    created_at: datetime
+
+
+class CaseMemberCreate(BaseModel):
+    user_id: UUID
+    role: str = "member"
+
+
 @router.post("/cases", response_model=CaseOut, status_code=status.HTTP_201_CREATED)
 async def create_case_endpoint(
     request: CaseCreateRequest,
@@ -116,7 +143,7 @@ async def get_case_endpoint(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
 
     case = result["case"]
-    _require_case_owner(case, current_user)
+    await _require_case_access(db, case, current_user)
 
     return CaseDashboardOut(
         id=case.id, name=case.name, description=case.description, status=case.status, created_at=case.created_at,
@@ -140,7 +167,7 @@ async def update_case_endpoint(
     existing = await db.get(Case, case_id)
     if existing is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
-    _require_case_owner(existing, current_user)
+    await _require_case_access(db, existing, current_user)
 
     if request.status is not None and request.status not in ("open", "closed"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="status must be 'open' or 'closed'")
@@ -181,7 +208,7 @@ async def set_document_case_endpoint(
         case = await db.get(Case, request.case_id)
         if case is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
-        _require_case_owner(case, current_user)
+        await _require_case_access(db, case, current_user)
 
     updated = await attach_document_to_case(db, document_id=document_id, case_id=request.case_id)
     return CaseDocumentOut(id=updated.id, title=updated.title)
@@ -197,7 +224,7 @@ async def link_task_endpoint(
     case = await db.get(Case, case_id)
     if case is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
-    _require_case_owner(case, current_user)
+    await _require_case_access(db, case, current_user)
 
     task = await db.get(Task, task_id)
     if task is None:
@@ -218,7 +245,7 @@ async def link_decision_endpoint(
     case = await db.get(Case, case_id)
     if case is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
-    _require_case_owner(case, current_user)
+    await _require_case_access(db, case, current_user)
 
     decision = await db.get(Decision, decision_id)
     if decision is None:
@@ -239,10 +266,59 @@ async def link_vehicle_endpoint(
     case = await db.get(Case, case_id)
     if case is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
-    _require_case_owner(case, current_user)
+    await _require_case_access(db, case, current_user)
 
     vehicle = await db.get(Vehicle, vehicle_id)
     if vehicle is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
 
     await link_vehicle_to_case(db, case_id=case_id, vehicle_id=vehicle_id)
+
+
+@router.get("/cases/{case_id}/members", response_model=list[CaseMemberOut])
+async def list_case_members_endpoint(
+    case_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[CaseMember]:
+    case = await db.get(Case, case_id)
+    if case is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+    await _require_case_access(db, case, current_user)
+    return await list_case_members(db, case_id=case_id)
+
+
+@router.post("/cases/{case_id}/members", response_model=CaseMemberOut, status_code=status.HTTP_201_CREATED)
+async def add_case_member_endpoint(
+    case_id: UUID,
+    request: CaseMemberCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> CaseMember:
+    case = await db.get(Case, case_id)
+    if case is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+    _require_case_owner(case, current_user)
+
+    member_user = await db.get(User, request.user_id)
+    if member_user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    return await add_case_member(db, case_id=case_id, user_id=request.user_id, role=request.role)
+
+
+@router.delete("/cases/{case_id}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_case_member_endpoint(
+    case_id: UUID,
+    user_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    case = await db.get(Case, case_id)
+    if case is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+    _require_case_owner(case, current_user)
+
+    removed = await remove_case_member(db, case_id=case_id, user_id=user_id)
+    if not removed:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Membership not found")
