@@ -6,6 +6,7 @@ import { Alert } from "../components/ui/Alert";
 import { Breadcrumbs } from "../components/ui/Breadcrumbs";
 import { Button } from "../components/ui/Button";
 import { Combobox } from "../components/ui/Combobox";
+import { SkeletonLines } from "../components/ui/Skeleton";
 import { StatusPipeline } from "../components/ui/StatusPipeline";
 import {
   ApiError,
@@ -84,7 +85,7 @@ export default function CaseDetail() {
     }
   }
 
-  if (loading) return <p className="text-ink-3">{t("common.loading")}</p>;
+  if (loading) return <SkeletonLines className="max-w-md" />;
   if (error && !caseData) return <Alert variant="danger" title={t("caseDetail.loadError")}>{error}</Alert>;
   if (!caseData) return null;
 

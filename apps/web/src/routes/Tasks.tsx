@@ -16,6 +16,7 @@ import EmptyState from "../components/EmptyState";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { KanbanBoard } from "../components/ui/KanbanBoard";
+import { SkeletonLines } from "../components/ui/Skeleton";
 
 type Filter = "open" | "done" | "all";
 type View = "list" | "board";
@@ -204,7 +205,7 @@ export default function Tasks() {
       )}
 
       {loading ? (
-        <p className="text-ink-3">{t("common.loading")}</p>
+        <SkeletonLines />
       ) : view === "board" ? (
         <KanbanBoard tasks={tasks} onMove={handleMove} />
       ) : tasks.length === 0 ? (

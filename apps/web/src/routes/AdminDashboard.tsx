@@ -7,6 +7,7 @@ import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
 import { Checkbox, TextField } from "../components/ui/form";
 import { DataTable, type Column } from "../components/ui/DataTable";
+import { SkeletonLines } from "../components/ui/Skeleton";
 import {
   ApiError,
   analyzeBugReport,
@@ -79,7 +80,7 @@ function OverviewTab() {
   }, [t]);
 
   if (error) return <p className="text-danger">{error}</p>;
-  if (!stats) return <p className="text-ink-3">{t("common.loading")}</p>;
+  if (!stats) return <SkeletonLines className="max-w-md" />;
 
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -121,7 +122,7 @@ function AiUsageTab() {
   }, [t]);
 
   if (error) return <p className="text-danger">{error}</p>;
-  if (!rows) return <p className="text-ink-3">{t("common.loading")}</p>;
+  if (!rows) return <SkeletonLines />;
 
   const columns: Column<AiUsageRowOut>[] = [
     { key: "model", header: t("admin.columnModel"), render: (row) => row.key },
@@ -145,7 +146,7 @@ function HealthTab() {
   }, [t]);
 
   if (error) return <p className="text-danger">{error}</p>;
-  if (!rows) return <p className="text-ink-3">{t("common.loading")}</p>;
+  if (!rows) return <SkeletonLines />;
 
   return (
     <div className="flex flex-col gap-2">
@@ -189,7 +190,7 @@ function BugsTab() {
   }
 
   if (error) return <p className="text-danger">{error}</p>;
-  if (!reports) return <p className="text-ink-3">{t("common.loading")}</p>;
+  if (!reports) return <SkeletonLines className="max-w-md" />;
   if (reports.length === 0) return <EmptyState message={t("admin.noBugReports")} />;
 
   return (
@@ -375,7 +376,7 @@ function UsersTab() {
       {usersError ? (
         <p className="text-danger">{usersError}</p>
       ) : usersLoading ? (
-        <p className="text-ink-3">{t("common.loading")}</p>
+        <SkeletonLines />
       ) : (
         <>
           <DataTable columns={columns} rows={users} rowKey={(row) => row.id} pageSize={Math.max(users.length, 1)} />

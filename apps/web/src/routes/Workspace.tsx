@@ -19,6 +19,7 @@ import EmptyState from "../components/EmptyState";
 import { useBulkSelection } from "../hooks/useBulkSelection";
 import { BulkActionBar } from "../components/ui/BulkActionBar";
 import { FilterChips } from "../components/ui/FilterChips";
+import { SkeletonLines } from "../components/ui/Skeleton";
 import { useToast } from "../lib/toast";
 
 const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "default"> = {
@@ -189,7 +190,7 @@ export default function Workspace() {
           ))}
         </div>
       ) : loading ? (
-        <p className="text-ink-2">{t("common.loading")}</p>
+        <SkeletonLines />
       ) : documents.length === 0 ? (
         <EmptyState message={t("documents.emptyMessage")} />
       ) : (

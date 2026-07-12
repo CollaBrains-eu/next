@@ -9,6 +9,7 @@ import Card from "../components/Card";
 import { Button } from "../components/ui/Button";
 import { MetadataList } from "../components/ui/MetadataList";
 import { Modal } from "../components/ui/Modal";
+import { SkeletonLines } from "../components/ui/Skeleton";
 import { useAuth } from "../lib/auth";
 import { useToast } from "../lib/toast";
 
@@ -104,7 +105,7 @@ export default function DocumentDetail() {
     );
   }
 
-  if (!doc) return <p className="text-ink-2">{t("common.loading")}</p>;
+  if (!doc) return <SkeletonLines className="max-w-md" />;
 
   return (
     <div className="flex flex-col gap-4">

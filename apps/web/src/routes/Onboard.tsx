@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { checkOnboardingToken } from "../lib/api";
 import Card from "../components/Card";
 import { Button } from "../components/ui/Button";
+import { SkeletonLines } from "../components/ui/Skeleton";
 
 type Status = "loading" | "valid" | "invalid";
 
@@ -33,7 +34,7 @@ export default function Onboard() {
 
   return (
     <Card className="mx-auto mt-16 max-w-sm p-6 text-center">
-      {status === "loading" && <p className="text-sm text-ink-2">{t("common.loading")}</p>}
+      {status === "loading" && <SkeletonLines />}
 
       {status === "valid" && (
         <>
