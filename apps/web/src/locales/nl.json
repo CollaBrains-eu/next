@@ -219,6 +219,7 @@
   },
   "entityGraph": {
     "loadError": "Kon graaf niet laden",
+    "breadcrumbError": "Fout",
     "relationshipCount_one": "{{type}} · {{count}} directe relatie",
     "relationshipCount_other": "{{type}} · {{count}} directe relaties",
     "noRelationships": "Nog geen bekende relaties voor deze entiteit."
