@@ -3,8 +3,15 @@ import { useTranslation } from "react-i18next";
 import Card from "../components/Card";
 import EmptyState from "../components/EmptyState";
 import LicensePlateInput from "../components/LicensePlateInput";
+import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { ApiError, listVehicles, lookupVehicle, type VehicleOut } from "../lib/api";
+
+function WamBadge({ wamVerzekerd }: { wamVerzekerd: string | null }) {
+  if (wamVerzekerd === null) return <span className="text-ink-3">-</span>;
+  const insured = wamVerzekerd.toLowerCase() === "ja";
+  return <Badge variant={insured ? "success" : "danger"}>{wamVerzekerd}</Badge>;
+}
 
 function VehicleStatus({ vehicle }: { vehicle: VehicleOut }) {
   if (vehicle.fetched_at === null) {
@@ -24,7 +31,7 @@ function VehicleStatus({ vehicle }: { vehicle: VehicleOut }) {
       <dt className="text-ink-2">APK-vervaldatum</dt>
       <dd className="text-ink">{vehicle.vervaldatum_apk ?? "-"}</dd>
       <dt className="text-ink-2">WAM-verzekerd</dt>
-      <dd className="text-ink">{vehicle.wam_verzekerd ?? "-"}</dd>
+      <dd className="text-ink"><WamBadge wamVerzekerd={vehicle.wam_verzekerd} /></dd>
     </dl>
   );
 }
