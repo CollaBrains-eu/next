@@ -26,10 +26,18 @@ async def create_case(db: AsyncSession, *, user_id: UUID, name: str, description
 
 
 async def list_cases(db: AsyncSession, *, user_id: UUID) -> list[Case]:
+    """Cases the user owns, plus cases where they're an *accepted* member --
+    a pending invitation doesn't put the case in this list (see
+    list_pending_invitations for those)."""
     result = await db.execute(
         select(Case)
         .outerjoin(CaseMember, CaseMember.case_id == Case.id)
-        .where(or_(Case.user_id == user_id, CaseMember.user_id == user_id))
+        .where(
+            or_(
+                Case.user_id == user_id,
+                (CaseMember.user_id == user_id) & (CaseMember.status == "accepted"),
+            )
+        )
         .order_by(Case.created_at.desc())
         .distinct()
     )
@@ -37,8 +45,12 @@ async def list_cases(db: AsyncSession, *, user_id: UUID) -> list[Case]:
 
 
 async def is_case_member(db: AsyncSession, *, case_id: UUID, user_id: UUID) -> bool:
+    """True only for an *accepted* membership -- a pending invitation
+    doesn't grant access yet."""
     result = await db.execute(
-        select(CaseMember).where(CaseMember.case_id == case_id, CaseMember.user_id == user_id)
+        select(CaseMember).where(
+            CaseMember.case_id == case_id, CaseMember.user_id == user_id, CaseMember.status == "accepted"
+        )
     )
     return result.scalar_one_or_none() is not None
 
@@ -50,19 +62,50 @@ async def list_case_members(db: AsyncSession, *, case_id: UUID) -> list[CaseMemb
     return list(result.scalars().all())
 
 
+async def list_pending_invitations(db: AsyncSession, *, user_id: UUID) -> list[CaseMember]:
+    result = await db.execute(
+        select(CaseMember)
+        .where(CaseMember.user_id == user_id, CaseMember.status == "pending")
+        .order_by(CaseMember.created_at)
+    )
+    return list(result.scalars().all())
+
+
 async def add_case_member(db: AsyncSession, *, case_id: UUID, user_id: UUID, role: str = "member") -> CaseMember:
+    """Invites a user to a case -- creates a `pending` invitation, it
+    doesn't grant access until the invited user accepts (see
+    accept_case_member). Re-inviting someone whose invitation was
+    declined resets it back to pending with the new role."""
     existing = await db.execute(
         select(CaseMember).where(CaseMember.case_id == case_id, CaseMember.user_id == user_id)
     )
     member = existing.scalar_one_or_none()
     if member is not None:
         member.role = role
+        member.status = "pending"
         await db.commit()
         await db.refresh(member)
         return member
 
-    member = CaseMember(case_id=case_id, user_id=user_id, role=role)
+    member = CaseMember(case_id=case_id, user_id=user_id, role=role, status="pending")
     db.add(member)
+    await db.commit()
+    await db.refresh(member)
+    return member
+
+
+async def respond_to_case_invitation(
+    db: AsyncSession, *, case_id: UUID, user_id: UUID, accept: bool
+) -> CaseMember | None:
+    result = await db.execute(
+        select(CaseMember).where(
+            CaseMember.case_id == case_id, CaseMember.user_id == user_id, CaseMember.status == "pending"
+        )
+    )
+    member = result.scalar_one_or_none()
+    if member is None:
+        return None
+    member.status = "accepted" if accept else "declined"
     await db.commit()
     await db.refresh(member)
     return member
