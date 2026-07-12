@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import Card from "../components/Card";
+import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
 import { TextField } from "../components/ui/form";
@@ -300,7 +301,11 @@ function UsersTab() {
     { key: "username", header: t("admin.usernameLabel"), render: (row) => row.username },
     { key: "display_name", header: t("admin.displayNameLabel"), render: (row) => row.display_name },
     { key: "email", header: t("admin.emailLabel"), render: (row) => row.email ?? "" },
-    { key: "role", header: t("admin.roleColumn"), render: (row) => row.role },
+    {
+      key: "role",
+      header: t("admin.roleColumn"),
+      render: (row) => <Badge variant={row.role === "admin" ? "warning" : "default"}>{row.role}</Badge>,
+    },
     { key: "phone_number", header: t("admin.phoneColumn"), render: (row) => row.phone_number ?? "" },
     {
       key: "created_at",
