@@ -486,6 +486,8 @@ class UserPreference(Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False
     )
     preferred_language: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    date_format: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    time_format: Mapped[str | None] = mapped_column(String(10), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

@@ -46,7 +46,7 @@ describe("Tasks", () => {
     renderPage();
     expect(await screen.findByText("Review lease")).toBeInTheDocument();
     expect(screen.getByText("Check termination clause")).toBeInTheDocument();
-    expect(screen.getByText("Due 2026-08-01")).toBeInTheDocument();
+    expect(screen.getByText("Due 01/08/2026")).toBeInTheDocument();
     expect(screen.getByText("Assignee: Ada")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Source document" })).toHaveAttribute("href", "/documents/d1");
   });

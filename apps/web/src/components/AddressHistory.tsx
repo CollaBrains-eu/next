@@ -6,6 +6,7 @@ import EmptyState from "./EmptyState";
 import { Alert } from "./ui/Alert";
 import { Badge } from "./ui/Badge";
 import { Button } from "./ui/Button";
+import { useDateFormat } from "../hooks/useDateFormat";
 import {
   ApiError,
   approveResidency,
@@ -32,6 +33,7 @@ function formatAddressLine(residency: ResidencyOut): string {
  * to make, admin can only observe). */
 export function AddressHistory({ userId }: { userId?: string }) {
   const { t } = useTranslation();
+  const { formatDate } = useDateFormat();
   const [residencies, setResidencies] = useState<ResidencyOut[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -98,8 +100,8 @@ export function AddressHistory({ userId }: { userId?: string }) {
             <div>
               <p className="font-medium text-ink">{formatAddressLine(residency)}</p>
               <p className="text-xs text-ink-3">
-                {residency.valid_from ?? "?"} &rarr;{" "}
-                {residency.valid_to ?? t("addressHistory.current")}
+                {residency.valid_from ? formatDate(residency.valid_from) : "?"} &rarr;{" "}
+                {residency.valid_to ? formatDate(residency.valid_to) : t("addressHistory.current")}
               </p>
             </div>
             {residency.status === "pending_review" ? (

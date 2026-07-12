@@ -7,9 +7,11 @@ import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 import { SkeletonLines } from "../components/ui/Skeleton";
 import { ApiError, createCase, listCases, type CaseOut } from "../lib/api";
+import { useDateFormat } from "../hooks/useDateFormat";
 
 export default function Cases() {
   const { t } = useTranslation();
+  const { formatDate } = useDateFormat();
   const [cases, setCases] = useState<CaseOut[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -105,7 +107,7 @@ export default function Cases() {
                 </div>
                 {c.description && <p className="text-sm text-ink-2">{c.description}</p>}
                 <span className="mt-auto text-xs text-ink-3">
-                  {new Date(c.created_at).toLocaleDateString()}
+                  {formatDate(c.created_at)}
                 </span>
               </Card>
             </Link>

@@ -7,6 +7,7 @@ import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
 import { Checkbox, TextField } from "../components/ui/form";
 import { DataTable, type Column } from "../components/ui/DataTable";
+import { useDateFormat } from "../hooks/useDateFormat";
 import { SkeletonLines } from "../components/ui/Skeleton";
 import {
   ApiError,
@@ -165,6 +166,7 @@ function HealthTab() {
 
 function BugsTab() {
   const { t } = useTranslation();
+  const { formatDateTime } = useDateFormat();
   const [reports, setReports] = useState<BugReportOut[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
@@ -198,7 +200,7 @@ function BugsTab() {
       {reports.map((report) => (
         <Card key={report.id} className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-ink-3">{new Date(report.created_at).toLocaleString()}</span>
+            <span className="text-xs text-ink-3">{formatDateTime(report.created_at)}</span>
             <Badge variant={report.status === "closed" ? "success" : report.status === "analyzed" ? "default" : "warning"}>
               {report.status}
             </Badge>
@@ -224,6 +226,7 @@ function BugsTab() {
 
 function UsersTab() {
   const { t } = useTranslation();
+  const { formatDate } = useDateFormat();
   const [formOpen, setFormOpen] = useState(false);
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -298,7 +301,7 @@ function UsersTab() {
     {
       key: "created_at",
       header: t("admin.createdAtColumn"),
-      render: (row) => new Date(row.created_at).toLocaleDateString(),
+      render: (row) => formatDate(row.created_at),
     },
   ];
 

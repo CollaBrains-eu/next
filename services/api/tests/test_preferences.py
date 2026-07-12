@@ -49,6 +49,29 @@ async def test_set_preferences_upserts_an_existing_row():
     assert fetched.preferred_language == "nl"
 
 
+async def test_set_preferences_persists_date_and_time_format():
+    user = await _create_user(_unique("prefuser"))
+    async with async_session() as db:
+        preferences = await set_preferences(
+            db, user_id=user.id, preferred_language=None, date_format="us", time_format="h12"
+        )
+    assert preferences.date_format == "us"
+    assert preferences.time_format == "h12"
+
+    async with async_session() as db:
+        fetched = await get_preferences(db, user_id=user.id)
+    assert fetched.date_format == "us"
+    assert fetched.time_format == "h12"
+
+
+async def test_set_preferences_date_and_time_format_default_to_none():
+    user = await _create_user(_unique("prefuser"))
+    async with async_session() as db:
+        preferences = await set_preferences(db, user_id=user.id, preferred_language="de")
+    assert preferences.date_format is None
+    assert preferences.time_format is None
+
+
 async def test_delete_preferences_removes_the_row():
     user = await _create_user(_unique("prefuser"))
     async with async_session() as db:

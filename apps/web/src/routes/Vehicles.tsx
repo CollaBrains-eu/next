@@ -8,6 +8,8 @@ import { Button } from "../components/ui/Button";
 import { MetadataList } from "../components/ui/MetadataList";
 import { SkeletonLines } from "../components/ui/Skeleton";
 import { ApiError, listVehicles, lookupVehicle, type VehicleOut } from "../lib/api";
+import { useDateFormat } from "../hooks/useDateFormat";
+import { parseCompactDate } from "../lib/dateFormat";
 
 function WamBadge({ wamVerzekerd }: { wamVerzekerd: string | null }) {
   if (wamVerzekerd === null) return <span className="text-ink-3">-</span>;
@@ -16,19 +18,21 @@ function WamBadge({ wamVerzekerd }: { wamVerzekerd: string | null }) {
 }
 
 function VehicleStatus({ vehicle }: { vehicle: VehicleOut }) {
+  const { formatDate } = useDateFormat();
   if (vehicle.fetched_at === null) {
     return <p className="text-sm text-ink-3">Nog niet opgehaald.</p>;
   }
   if (vehicle.merk === null) {
     return <p className="text-sm text-ink-3">Geen RDW-gegevens gevonden voor dit kenteken.</p>;
   }
+  const apkDate = vehicle.vervaldatum_apk ? parseCompactDate(vehicle.vervaldatum_apk) : null;
   return (
     <MetadataList
       items={[
         { label: "Merk / model", value: `${vehicle.merk} ${vehicle.handelsbenaming}` },
         { label: "Voertuigsoort", value: vehicle.voertuigsoort ?? "-" },
         { label: "Kleur", value: vehicle.eerste_kleur ?? "-" },
-        { label: "APK-vervaldatum", value: vehicle.vervaldatum_apk ?? "-" },
+        { label: "APK-vervaldatum", value: apkDate ? formatDate(apkDate) : "-" },
         { label: "WAM-verzekerd", value: <WamBadge wamVerzekerd={vehicle.wam_verzekerd} /> },
       ]}
     />

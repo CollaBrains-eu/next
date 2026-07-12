@@ -6,10 +6,14 @@ import { PasskeySettings } from "../components/PasskeySettings";
 import { Button } from "../components/ui/Button";
 import { ApiError, getPreferences, setPreferences } from "../lib/api";
 import { syncLanguage } from "../lib/auth";
+import { toDateFormatPrefs, type DateFormat, type TimeFormat } from "../lib/dateFormat";
+import { setDateFormatPrefs } from "../hooks/useDateFormat";
 
 export default function Settings() {
   const { t } = useTranslation();
   const [language, setLanguage] = useState("");
+  const [dateFormat, setDateFormat] = useState<DateFormat>("eu");
+  const [timeFormat, setTimeFormat] = useState<TimeFormat>("h24");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -22,9 +26,25 @@ export default function Settings() {
     { value: "Deutsch", label: "Deutsch" },
   ];
 
+  const dateFormatOptions: { value: DateFormat; label: string }[] = [
+    { value: "eu", label: t("settings.dateFormatEu") },
+    { value: "us", label: t("settings.dateFormatUs") },
+    { value: "iso", label: t("settings.dateFormatIso") },
+  ];
+
+  const timeFormatOptions: { value: TimeFormat; label: string }[] = [
+    { value: "h24", label: t("settings.timeFormatH24") },
+    { value: "h12", label: t("settings.timeFormatH12") },
+  ];
+
   useEffect(() => {
     getPreferences()
-      .then((prefs) => setLanguage(prefs.preferred_language ?? ""))
+      .then((prefs) => {
+        setLanguage(prefs.preferred_language ?? "");
+        const parsed = toDateFormatPrefs(prefs.date_format, prefs.time_format);
+        setDateFormat(parsed.dateFormat);
+        setTimeFormat(parsed.timeFormat);
+      })
       .catch((err) => setError(err instanceof ApiError ? err.message : t("settings.loadError")))
       .finally(() => setLoading(false));
   }, [t]);
@@ -34,8 +54,9 @@ export default function Settings() {
     setSaved(false);
     setError(null);
     try {
-      await setPreferences(language || null);
+      await setPreferences({ preferredLanguage: language || null, dateFormat, timeFormat });
       syncLanguage(language || null);
+      setDateFormatPrefs({ dateFormat, timeFormat });
       setSaved(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("settings.saveError"));
@@ -58,21 +79,65 @@ export default function Settings() {
         {loading ? (
           <p className="text-sm text-ink-3">{t("common.loading")}</p>
         ) : (
-          <select
-            id="preferred-language"
-            value={language}
-            onChange={(e) => {
-              setLanguage(e.target.value);
-              setSaved(false);
-            }}
-            className="rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft"
-          >
-            {languageOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          <>
+            <select
+              id="preferred-language"
+              value={language}
+              onChange={(e) => {
+                setLanguage(e.target.value);
+                setSaved(false);
+              }}
+              className="rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft"
+            >
+              {languageOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+
+            <div>
+              <label className="text-sm font-medium text-ink" htmlFor="date-format">
+                {t("settings.dateFormat")}
+              </label>
+              <select
+                id="date-format"
+                value={dateFormat}
+                onChange={(e) => {
+                  setDateFormat(e.target.value as DateFormat);
+                  setSaved(false);
+                }}
+                className="mt-1 w-full rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft"
+              >
+                {dateFormatOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-ink" htmlFor="time-format">
+                {t("settings.timeFormat")}
+              </label>
+              <select
+                id="time-format"
+                value={timeFormat}
+                onChange={(e) => {
+                  setTimeFormat(e.target.value as TimeFormat);
+                  setSaved(false);
+                }}
+                className="mt-1 w-full rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft"
+              >
+                {timeFormatOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </>
         )}
         {error && <p className="text-sm text-danger">{error}</p>}
         {saved && <p className="text-sm text-success">{t("settings.saved")}</p>}

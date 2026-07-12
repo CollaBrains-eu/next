@@ -33,13 +33,27 @@ def build_language_instruction(preferred_language: str | None) -> str:
     )
 
 
-async def set_preferences(db: AsyncSession, *, user_id: UUID, preferred_language: str | None) -> UserPreference:
+async def set_preferences(
+    db: AsyncSession,
+    *,
+    user_id: UUID,
+    preferred_language: str | None,
+    date_format: str | None = None,
+    time_format: str | None = None,
+) -> UserPreference:
     preferences = await get_preferences(db, user_id=user_id)
     if preferences is None:
-        preferences = UserPreference(user_id=user_id, preferred_language=preferred_language)
+        preferences = UserPreference(
+            user_id=user_id,
+            preferred_language=preferred_language,
+            date_format=date_format,
+            time_format=time_format,
+        )
         db.add(preferences)
     else:
         preferences.preferred_language = preferred_language
+        preferences.date_format = date_format
+        preferences.time_format = time_format
     await db.commit()
     await db.refresh(preferences)
     return preferences

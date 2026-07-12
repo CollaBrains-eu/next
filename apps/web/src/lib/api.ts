@@ -473,16 +473,26 @@ export function askManager(message: string): Promise<AskResponse> {
 
 export interface PreferencesOut {
   preferred_language: string | null;
+  date_format: string | null;
+  time_format: string | null;
 }
 
 export function getPreferences(): Promise<PreferencesOut> {
   return request<PreferencesOut>("/preferences/me");
 }
 
-export function setPreferences(preferredLanguage: string | null): Promise<PreferencesOut> {
+export function setPreferences(prefs: {
+  preferredLanguage: string | null;
+  dateFormat: string;
+  timeFormat: string;
+}): Promise<PreferencesOut> {
   return request<PreferencesOut>("/preferences/me", {
     method: "PUT",
-    body: JSON.stringify({ preferred_language: preferredLanguage }),
+    body: JSON.stringify({
+      preferred_language: prefs.preferredLanguage,
+      date_format: prefs.dateFormat,
+      time_format: prefs.timeFormat,
+    }),
   });
 }
 

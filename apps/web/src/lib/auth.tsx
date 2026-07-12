@@ -2,7 +2,9 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { Navigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ApiError, clearToken, fetchMe, getPreferences, login as apiLogin, setToken, type UserOut } from "./api";
+import { toDateFormatPrefs } from "./dateFormat";
 import i18n, { LANGUAGE_NAME_TO_CODE } from "./i18n";
+import { setDateFormatPrefs } from "../hooks/useDateFormat";
 import { loginWithPasskey as passkeyCeremony } from "./webauthn";
 
 // The same preferred_language setting drives both the AI response language
@@ -48,9 +50,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) return;
     getPreferences()
-      .then((prefs) => syncLanguage(prefs.preferred_language))
+      .then((prefs) => {
+        syncLanguage(prefs.preferred_language);
+        setDateFormatPrefs(toDateFormatPrefs(prefs.date_format, prefs.time_format));
+      })
       .catch(() => {
-        // Language sync is a nice-to-have; the default (English) stays in effect on failure.
+        // Preference sync is a nice-to-have; the defaults stay in effect on failure.
       });
   }, [user]);
 

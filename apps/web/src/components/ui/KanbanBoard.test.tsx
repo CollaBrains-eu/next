@@ -38,7 +38,7 @@ describe("KanbanBoard", () => {
       task({ id: "c", title: "Draft response", status: "in_progress", position: 0 }),
       task({ id: "d", title: "Upload policy", status: "done", position: 0 }),
     ];
-    render(<KanbanBoard tasks={tasks} onMove={() => {}} />);
+    render(<KanbanBoard tasks={tasks} onMove={() => {}} formatDate={(v) => v} />);
 
     expect(screen.getByRole("group", { name: "To do" })).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "In progress" })).toBeInTheDocument();
@@ -51,7 +51,7 @@ describe("KanbanBoard", () => {
 
   it("shows due date and assignee meta when present", () => {
     const tasks = [task({ due_date: "2026-08-01", assignee: "Alice" })];
-    render(<KanbanBoard tasks={tasks} onMove={() => {}} />);
+    render(<KanbanBoard tasks={tasks} onMove={() => {}} formatDate={(v) => v} />);
     expect(screen.getByText("Due 2026-08-01 · Alice")).toBeInTheDocument();
   });
 
@@ -61,7 +61,7 @@ describe("KanbanBoard", () => {
       task({ id: "a", title: "Task A", status: "open", position: 0 }),
       task({ id: "b", title: "Task B", status: "in_progress", position: 0 }),
     ];
-    render(<KanbanBoard tasks={tasks} onMove={onMove} />);
+    render(<KanbanBoard tasks={tasks} onMove={onMove} formatDate={(v) => v} />);
 
     const inProgressColumn = screen.getByRole("group", { name: "In progress" });
     const dataTransfer = makeDataTransfer("a");
@@ -79,7 +79,7 @@ describe("KanbanBoard", () => {
       task({ id: "b", title: "Task B", status: "open", position: 1 }),
       task({ id: "c", title: "Task C", status: "in_progress", position: 0 }),
     ];
-    render(<KanbanBoard tasks={tasks} onMove={onMove} />);
+    render(<KanbanBoard tasks={tasks} onMove={onMove} formatDate={(v) => v} />);
 
     const targetCard = screen.getByText("Task B").closest("[draggable]") as HTMLElement;
     const dataTransfer = makeDataTransfer("c");
@@ -92,7 +92,7 @@ describe("KanbanBoard", () => {
 
   it("treats an unknown status as the 'open' column rather than dropping the task", () => {
     const tasks = [task({ id: "a", title: "Weird status task", status: "archived" })];
-    render(<KanbanBoard tasks={tasks} onMove={() => {}} />);
+    render(<KanbanBoard tasks={tasks} onMove={() => {}} formatDate={(v) => v} />);
     const todoColumn = screen.getByRole("group", { name: "To do" });
     expect(todoColumn).toHaveTextContent("Weird status task");
   });
