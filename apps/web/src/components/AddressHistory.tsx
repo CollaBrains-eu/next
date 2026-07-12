@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import Card from "./Card";
 import EmptyState from "./EmptyState";
+import { Alert } from "./ui/Alert";
 import { Button } from "./ui/Button";
 import {
   ApiError,
@@ -84,7 +85,7 @@ export function AddressHistory({ userId }: { userId?: string }) {
     }
   }
 
-  if (error) return <p className="text-sm text-danger">{error}</p>;
+  if (error) return <Alert variant="danger" title={t("addressHistory.loadError")}>{error}</Alert>;
   if (residencies === null) return <p className="text-sm text-ink-3">{t("common.loading")}</p>;
   if (residencies.length === 0) return <EmptyState message={t("addressHistory.empty")} />;
 

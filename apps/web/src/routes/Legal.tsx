@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ApiError, legalDraft, listDocuments, type Citation, type DocumentOut } from "../lib/api";
+import { Alert } from "../components/ui/Alert";
 import { Button } from "../components/ui/Button";
 import { Combobox } from "../components/ui/Combobox";
 import { useLoadingBar } from "../lib/loadingBar";
@@ -77,7 +78,7 @@ export default function Legal() {
 
       {result && (
         <div className="flex flex-col gap-3 rounded-2xl border border-edge bg-surface p-4">
-          <p className="rounded-xl bg-warning-soft p-3 text-xs text-warning">{result.disclaimer}</p>
+          <Alert variant="warning">{result.disclaimer}</Alert>
           <p className="whitespace-pre-wrap text-sm text-ink">{result.draft}</p>
           {result.citations.length > 0 && (
             <div className="flex flex-wrap gap-2 border-t border-edge pt-2 text-xs text-ink-3">
