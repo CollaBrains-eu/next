@@ -12,6 +12,7 @@ import {
   type TaskStatus,
 } from "../lib/api";
 import Card from "../components/Card";
+import EmptyState from "../components/EmptyState";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { KanbanBoard } from "../components/ui/KanbanBoard";
@@ -207,7 +208,7 @@ export default function Tasks() {
       ) : view === "board" ? (
         <KanbanBoard tasks={tasks} onMove={handleMove} />
       ) : tasks.length === 0 ? (
-        <p className="text-ink-3">{t("tasks.emptyMessage", { filter: filter !== "all" ? FILTER_LABELS[filter] : "" })}</p>
+        <EmptyState message={t("tasks.emptyMessage", { filter: filter !== "all" ? FILTER_LABELS[filter] : "" })} />
       ) : (
         <div className="flex flex-col divide-y divide-edge rounded-2xl border border-edge bg-surface">
           {tasks.map((task) => {
