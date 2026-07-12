@@ -40,16 +40,19 @@ describe("Legal", () => {
     });
   });
 
-  it("lists documents as checkboxes once loaded", async () => {
+  it("lists documents in the scope combobox once loaded", async () => {
     renderPage();
-    expect(await screen.findByLabelText("Lease Agreement")).toBeInTheDocument();
-    expect(screen.getByLabelText("Evidence letter")).toBeInTheDocument();
+    await screen.findByText("Scope to documents (optional)");
+    fireEvent.click(screen.getByPlaceholderText("Search…"));
+    expect(screen.getByRole("button", { name: "Lease Agreement" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Evidence letter" })).toBeInTheDocument();
   });
 
   it("drafts and renders the result with disclaimer and citation", async () => {
     renderPage();
-    await screen.findByLabelText("Lease Agreement");
-    fireEvent.click(screen.getByLabelText("Lease Agreement"));
+    await screen.findByText("Scope to documents (optional)");
+    fireEvent.click(screen.getByPlaceholderText("Search…"));
+    fireEvent.click(screen.getByRole("button", { name: "Lease Agreement" }));
     fireEvent.change(screen.getByPlaceholderText(/Draft a letter/), { target: { value: "Summarize the lease." } });
     fireEvent.click(screen.getByRole("button", { name: "Draft" }));
     await waitFor(() => expect(api.legalDraft).toHaveBeenCalledWith("Summarize the lease.", ["d1"]));
@@ -61,7 +64,7 @@ describe("Legal", () => {
   it("shows an error message when the request fails", async () => {
     vi.mocked(api.legalDraft).mockRejectedValue(new api.ApiError(500, "Draft boom"));
     renderPage();
-    await screen.findByLabelText("Lease Agreement");
+    await screen.findByText("Scope to documents (optional)");
     fireEvent.change(screen.getByPlaceholderText(/Draft a letter/), { target: { value: "hi" } });
     fireEvent.click(screen.getByRole("button", { name: "Draft" }));
     expect(await screen.findByText("Draft boom")).toBeInTheDocument();

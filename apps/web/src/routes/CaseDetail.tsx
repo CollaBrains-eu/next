@@ -5,6 +5,7 @@ import Card from "../components/Card";
 import { Alert } from "../components/ui/Alert";
 import { Breadcrumbs } from "../components/ui/Breadcrumbs";
 import { Button } from "../components/ui/Button";
+import { Combobox } from "../components/ui/Combobox";
 import { StatusPipeline } from "../components/ui/StatusPipeline";
 import {
   ApiError,
@@ -117,20 +118,16 @@ export default function CaseDetail() {
       );
     }
     const options = attachOptions[section];
+    const selectedOption = options.find((o) => o.id === selected);
     return (
       <div className="flex flex-wrap items-center gap-2">
-        <select
-          value={selected}
-          onChange={(e) => setSelected(e.target.value)}
-          className="rounded-xl border border-edge bg-surface px-2 py-1 text-xs text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft"
-        >
-          <option value="">{t("caseDetail.selectPlaceholder")}</option>
-          {options.map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+        <Combobox
+          multiple={false}
+          options={options}
+          selected={selectedOption ? [selectedOption] : []}
+          onChange={(next) => setSelected(next[0]?.id ?? "")}
+          placeholder={t("caseDetail.selectPlaceholder")}
+        />
         <Button size="sm" onClick={handleAttach} disabled={!selected}>
           {t("caseDetail.attachConfirm")}
         </Button>
