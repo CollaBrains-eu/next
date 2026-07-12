@@ -65,7 +65,7 @@ export function CommandPalette({
           placeholder="Search documents, cases, vehicles…"
           className="w-full border-b border-edge bg-transparent px-4 py-4 text-sm text-ink outline-none"
         />
-        <div>
+        <div className="max-h-[60vh] overflow-y-auto">
           {filtered.map((item, index) => (
             <div
               key={item.label}
