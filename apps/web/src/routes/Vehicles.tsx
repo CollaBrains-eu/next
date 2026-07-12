@@ -6,6 +6,8 @@ import LicensePlateInput from "../components/LicensePlateInput";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { ApiError, listVehicles, lookupVehicle, type VehicleOut } from "../lib/api";
+import { useDateFormat } from "../hooks/useDateFormat";
+import { parseCompactDate } from "../lib/dateFormat";
 
 function WamBadge({ wamVerzekerd }: { wamVerzekerd: string | null }) {
   if (wamVerzekerd === null) return <span className="text-ink-3">-</span>;
@@ -14,12 +16,14 @@ function WamBadge({ wamVerzekerd }: { wamVerzekerd: string | null }) {
 }
 
 function VehicleStatus({ vehicle }: { vehicle: VehicleOut }) {
+  const { formatDate } = useDateFormat();
   if (vehicle.fetched_at === null) {
     return <p className="text-sm text-ink-3">Nog niet opgehaald.</p>;
   }
   if (vehicle.merk === null) {
     return <p className="text-sm text-ink-3">Geen RDW-gegevens gevonden voor dit kenteken.</p>;
   }
+  const apkDate = vehicle.vervaldatum_apk ? parseCompactDate(vehicle.vervaldatum_apk) : null;
   return (
     <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
       <dt className="text-ink-2">Merk / model</dt>
@@ -29,7 +33,7 @@ function VehicleStatus({ vehicle }: { vehicle: VehicleOut }) {
       <dt className="text-ink-2">Kleur</dt>
       <dd className="text-ink">{vehicle.eerste_kleur ?? "-"}</dd>
       <dt className="text-ink-2">APK-vervaldatum</dt>
-      <dd className="text-ink">{vehicle.vervaldatum_apk ?? "-"}</dd>
+      <dd className="text-ink">{apkDate ? formatDate(apkDate) : "-"}</dd>
       <dt className="text-ink-2">WAM-verzekerd</dt>
       <dd className="text-ink"><WamBadge wamVerzekerd={vehicle.wam_verzekerd} /></dd>
     </dl>

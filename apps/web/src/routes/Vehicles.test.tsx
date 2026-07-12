@@ -15,7 +15,7 @@ vi.mock("../lib/api", async () => {
 const VEHICLE: api.VehicleOut = {
   id: "v1", kenteken: "AB-12-CD", vin: null, voertuigsoort: "Personenauto", merk: "Volkswagen",
   handelsbenaming: "Golf", eerste_kleur: "Grijs", datum_eerste_toelating: null,
-  vervaldatum_apk: "2027-01-01", wam_verzekerd: "Ja", openstaande_terugroepactie_indicator: null,
+  vervaldatum_apk: "20270101", wam_verzekerd: "Ja", openstaande_terugroepactie_indicator: null,
   brandstofomschrijving: null, fetched_at: "2026-01-01T00:00:00Z", created_at: "2026-01-01T00:00:00Z",
 };
 
@@ -30,6 +30,11 @@ describe("Vehicles", () => {
     render(<Vehicles />);
     expect(await screen.findByText("AB-12-CD")).toBeInTheDocument();
     expect(screen.getByText("Volkswagen Golf")).toBeInTheDocument();
+  });
+
+  it("formats the RDW compact APK expiry date per the user's date-format preference", async () => {
+    render(<Vehicles />);
+    expect(await screen.findByText("01/01/2027")).toBeInTheDocument();
   });
 
   it("shows EmptyState when there are no vehicles", async () => {
