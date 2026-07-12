@@ -10,9 +10,11 @@ const COLUMNS: { status: TaskStatus; label: string }[] = [
 export function KanbanBoard({
   tasks,
   onMove,
+  formatDate,
 }: {
   tasks: TaskOut[];
   onMove: (taskId: string, status: TaskStatus, position: number) => void;
+  formatDate: (value: string) => string;
 }) {
   const [dragOverColumn, setDragOverColumn] = useState<TaskStatus | null>(null);
 
@@ -80,7 +82,7 @@ export function KanbanBoard({
                 <div className="font-semibold text-ink">{task.title}</div>
                 {(task.due_date || task.assignee) && (
                   <div className="mt-1 text-[11px] text-ink-3">
-                    {task.due_date ? `Due ${task.due_date}` : null}
+                    {task.due_date ? `Due ${formatDate(task.due_date)}` : null}
                     {task.due_date && task.assignee ? " · " : null}
                     {task.assignee ?? null}
                   </div>

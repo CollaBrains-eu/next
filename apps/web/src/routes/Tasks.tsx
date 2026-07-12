@@ -14,12 +14,17 @@ import {
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { KanbanBoard } from "../components/ui/KanbanBoard";
+import { useDateFormat } from "../hooks/useDateFormat";
 
 type Filter = "open" | "done" | "all";
 type View = "list" | "board";
 type Cadence = "once" | RecurrenceRule;
 
-function dueBadge(dueDate: string, t: (key: string, opts?: Record<string, unknown>) => string) {
+function dueBadge(
+  dueDate: string,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+  formatDate: (value: string) => string,
+) {
   const today = new Date().toISOString().slice(0, 10);
   if (dueDate < today) {
     const days = Math.round((new Date(today).getTime() - new Date(dueDate).getTime()) / 86400000);
@@ -28,11 +33,12 @@ function dueBadge(dueDate: string, t: (key: string, opts?: Record<string, unknow
   if (dueDate === today) {
     return { variant: "warning" as const, label: t("tasks.dueToday") };
   }
-  return { variant: "default" as const, label: t("tasks.due", { date: dueDate }) };
+  return { variant: "default" as const, label: t("tasks.due", { date: formatDate(dueDate) }) };
 }
 
 export default function Tasks() {
   const { t } = useTranslation();
+  const { formatDate } = useDateFormat();
   const [tasks, setTasks] = useState<TaskOut[]>([]);
   const [filter, setFilter] = useState<Filter>("open");
   const [view, setView] = useState<View>("list");
@@ -204,13 +210,13 @@ export default function Tasks() {
       {loading ? (
         <p className="text-ink-3">{t("common.loading")}</p>
       ) : view === "board" ? (
-        <KanbanBoard tasks={tasks} onMove={handleMove} />
+        <KanbanBoard tasks={tasks} onMove={handleMove} formatDate={formatDate} />
       ) : tasks.length === 0 ? (
         <p className="text-ink-3">{t("tasks.emptyMessage", { filter: filter !== "all" ? FILTER_LABELS[filter] : "" })}</p>
       ) : (
         <div className="flex flex-col divide-y divide-edge rounded-2xl border border-edge bg-surface">
           {tasks.map((task) => {
-            const badge = task.due_date ? dueBadge(task.due_date, t) : null;
+            const badge = task.due_date ? dueBadge(task.due_date, t, formatDate) : null;
             return (
               <div key={task.id} className="flex items-start gap-3 px-4 py-3">
                 <input
