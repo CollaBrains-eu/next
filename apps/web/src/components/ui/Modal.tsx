@@ -26,7 +26,7 @@ export function Modal({
       <div
         role="dialog"
         aria-modal="true"
-        className="fixed left-1/2 top-1/2 z-[71] w-[min(380px,90vw)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-edge bg-surface p-6 shadow-modal"
+        className="fixed left-1/2 top-1/2 z-[71] max-h-[85vh] w-[min(380px,90vw)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-edge bg-surface p-6 shadow-modal"
         onClick={(event) => event.stopPropagation()}
       >
         <h4 className="mb-2 text-base font-semibold text-ink">{title}</h4>
