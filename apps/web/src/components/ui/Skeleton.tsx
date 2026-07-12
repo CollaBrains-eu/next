@@ -5,3 +5,13 @@ export function Skeleton({ className = "" }: { className?: string }) {
     </div>
   );
 }
+
+export function SkeletonLines({ className = "" }: { className?: string }) {
+  return (
+    <div className={`flex flex-col gap-2 ${className}`} data-testid="skeleton-lines">
+      <Skeleton className="h-4 w-full" />
+      <Skeleton className="h-4 w-3/4" />
+      <Skeleton className="h-4 w-1/2" />
+    </div>
+  );
+}

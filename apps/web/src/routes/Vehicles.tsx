@@ -6,6 +6,7 @@ import LicensePlateInput from "../components/LicensePlateInput";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { MetadataList } from "../components/ui/MetadataList";
+import { SkeletonLines } from "../components/ui/Skeleton";
 import { ApiError, listVehicles, lookupVehicle, type VehicleOut } from "../lib/api";
 
 function WamBadge({ wamVerzekerd }: { wamVerzekerd: string | null }) {
@@ -82,7 +83,7 @@ export default function Vehicles() {
       </Card>
 
       {loading ? (
-        <p className="text-ink-3">{t("common.loading")}</p>
+        <SkeletonLines />
       ) : vehicles.length === 0 ? (
         <EmptyState message={t("vehicles.emptyMessage")} />
       ) : (

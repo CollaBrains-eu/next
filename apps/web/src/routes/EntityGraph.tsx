@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { ApiError, getEntityGraph, type EntityGraphOut } from "../lib/api";
 import EmptyState from "../components/EmptyState";
 import { Breadcrumbs } from "../components/ui/Breadcrumbs";
+import { SkeletonLines } from "../components/ui/Skeleton";
 
 // Categorical colors distinguishing entity types on the graph -- like
 // Avatar's palette, these identify a category and must stay visually
@@ -58,7 +59,7 @@ export default function EntityGraph() {
     );
   }
 
-  if (!graph) return <p className="text-ink-3">{t("common.loading")}</p>;
+  if (!graph) return <SkeletonLines className="max-w-md" />;
 
   const positions = new Map<string, { x: number; y: number }>();
   positions.set(graph.center.id, CENTER);
