@@ -17,19 +17,23 @@ async def test_get_preferences_returns_null_when_unset(client):
     response = await client.get("/preferences/me", headers=headers)
 
     assert response.status_code == 200
-    assert response.json() == {"preferred_language": None}
+    assert response.json() == {"preferred_language": None, "date_format": None, "time_format": None}
 
 
 async def test_set_and_get_preferences_round_trip(client):
     token = await _login(client, "prefrouteruser2")
     headers = {"Authorization": f"Bearer {token}"}
 
-    put_response = await client.put("/preferences/me", headers=headers, json={"preferred_language": "de"})
+    put_response = await client.put(
+        "/preferences/me",
+        headers=headers,
+        json={"preferred_language": "de", "date_format": "us", "time_format": "h12"},
+    )
     assert put_response.status_code == 200
-    assert put_response.json() == {"preferred_language": "de"}
+    assert put_response.json() == {"preferred_language": "de", "date_format": "us", "time_format": "h12"}
 
     get_response = await client.get("/preferences/me", headers=headers)
-    assert get_response.json() == {"preferred_language": "de"}
+    assert get_response.json() == {"preferred_language": "de", "date_format": "us", "time_format": "h12"}
 
 
 async def test_delete_preferences(client):
@@ -42,7 +46,7 @@ async def test_delete_preferences(client):
     assert delete_response.status_code == 204
 
     get_response = await client.get("/preferences/me", headers=headers)
-    assert get_response.json() == {"preferred_language": None}
+    assert get_response.json() == {"preferred_language": None, "date_format": None, "time_format": None}
 
 
 async def test_delete_preferences_returns_404_when_nothing_to_delete(client):
@@ -62,7 +66,7 @@ async def test_preferences_endpoints_are_scoped_to_the_caller(client):
     )
 
     response_b = await client.get("/preferences/me", headers={"Authorization": f"Bearer {token_b}"})
-    assert response_b.json() == {"preferred_language": None}
+    assert response_b.json() == {"preferred_language": None, "date_format": None, "time_format": None}
 
 
 async def test_get_preferences_rejects_missing_token(client):
