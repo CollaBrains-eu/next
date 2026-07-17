@@ -4,6 +4,7 @@ from sqlalchemy import text
 
 from api import tools as _tools  # noqa: F401 - import side effect: registers built-in tools (ADR 0021)
 from api.admin_router import router as admin_router
+from api.appointments import router as appointments_router
 from api.auth import router as auth_router
 from api.cases_router import router as cases_router
 from api.categories_router import router as categories_router
@@ -62,6 +63,7 @@ app.include_router(vehicles_router)
 app.include_router(residencies_router)
 app.include_router(webauthn_router)
 app.include_router(onboarding_router)
+app.include_router(appointments_router)
 
 
 @app.get("/health")
