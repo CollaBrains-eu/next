@@ -1,8 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { listEntities, type EntityOut } from "../lib/api";
+import { ApiError, createEntity, listEntities, type EntityOut } from "../lib/api";
+import Card from "../components/Card";
 import EmptyState from "../components/EmptyState";
+import { Button } from "../components/ui/Button";
 import { SkeletonLines } from "../components/ui/Skeleton";
 
 const TYPE_STYLES: Record<string, string> = {
@@ -20,6 +22,12 @@ function TypeBadge({ type }: { type: string }) {
   );
 }
 
+const MANUAL_ENTITY_TYPES = ["person", "organization", "location", "address"] as const;
+
+function manualTypeLabelKey(type: string): string {
+  return `entities.type${type.charAt(0).toUpperCase()}${type.slice(1)}`;
+}
+
 export default function Entities() {
   const { t } = useTranslation();
   const [entities, setEntities] = useState<EntityOut[]>([]);
@@ -27,24 +35,86 @@ export default function Entities() {
   const [entityType, setEntityType] = useState("");
   const [statusFilter, setStatusFilter] = useState("confirmed");
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newType, setNewType] = useState<(typeof MANUAL_ENTITY_TYPES)[number]>("person");
+  const [createErr, setCreateErr] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
+  function refresh() {
     setLoading(true);
     listEntities(q || undefined, entityType || undefined, statusFilter)
       .then(setEntities)
       .finally(() => setLoading(false));
-  }, [q, entityType, statusFilter]);
+  }
+
+  useEffect(refresh, [q, entityType, statusFilter]);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
   }
 
+  async function handleCreate(e: FormEvent) {
+    e.preventDefault();
+    if (!newName.trim() || submitting) return;
+    setSubmitting(true);
+    setCreateErr(null);
+    try {
+      await createEntity(newName.trim(), newType);
+      setNewName("");
+      setNewType("person");
+      setCreating(false);
+      refresh();
+    } catch (err) {
+      setCreateErr(err instanceof ApiError ? err.message : t("entities.createError"));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold text-ink">{t("entities.title")}</h1>
-        <p className="mt-1 text-sm text-ink-2">{t("entities.description")}</p>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-ink">{t("entities.title")}</h1>
+          <p className="mt-1 text-sm text-ink-2">{t("entities.description")}</p>
+        </div>
+        {!creating && <Button onClick={() => setCreating(true)}>{t("entities.newEntity")}</Button>}
       </div>
+
+      {creating && (
+        <Card>
+          <form onSubmit={handleCreate} className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-ink">{t("entities.newEntity")}</span>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setCreating(false)}>
+                {t("common.cancel")}
+              </Button>
+            </div>
+            <input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder={t("entities.namePlaceholder")}
+              className="w-full rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none transition-colors duration-fast focus:border-accent focus:ring-2 focus:ring-accent-soft"
+            />
+            <select
+              value={newType}
+              onChange={(e) => setNewType(e.target.value as (typeof MANUAL_ENTITY_TYPES)[number])}
+              className="w-full rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft"
+            >
+              {MANUAL_ENTITY_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {t(manualTypeLabelKey(type))}
+                </option>
+              ))}
+            </select>
+            {createErr && <p className="text-sm text-danger">{createErr}</p>}
+            <Button type="submit" disabled={submitting || !newName.trim()} className="self-start">
+              {t("common.create")}
+            </Button>
+          </form>
+        </Card>
+      )}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <form onSubmit={handleSubmit} className="flex flex-wrap gap-2">

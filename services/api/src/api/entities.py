@@ -4,13 +4,18 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth import get_effective_user
 from api.db import get_db
-from api.entity_agent import extract_entities
+from api.entity_agent import VALID_ENTITY_TYPES, extract_entities
 from api.models import Document, Entity, EntityMention, EntityMergeLog, EntityRelationship, User
+
+# Types a user can pick when manually creating an entity -- "other" is an auto-extraction
+# fallback bucket, not a meaningful manual choice, and vehicles have their own dedicated
+# creation flow (kenteken lookup in Vehicles.tsx), so both are excluded here.
+MANUALLY_CREATABLE_ENTITY_TYPES = VALID_ENTITY_TYPES - {"other", "vehicle"}
 
 router = APIRouter(tags=["entities"])
 
@@ -59,6 +64,57 @@ async def list_entities(
         query = query.where(Entity.status == status)
     result = await db.execute(query)
     return list(result.scalars().all())
+
+
+@router.get("/entities/pending-review-count")
+async def count_pending_review_entities(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_effective_user),
+) -> dict[str, int]:
+    result = await db.execute(select(func.count()).select_from(Entity).where(Entity.status == "pending_review"))
+    return {"count": result.scalar_one()}
+
+
+class EntityCreate(BaseModel):
+    name: str
+    entity_type: str
+
+
+@router.post("/entities", response_model=EntityOut, status_code=status.HTTP_201_CREATED)
+async def create_entity(
+    payload: EntityCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_effective_user),
+) -> Entity:
+    """Manually create a person/organization/location/address entity.
+
+    Person and location entities are no longer auto-extracted from documents (see
+    entity_agent.AUTO_EXTRACTED_ENTITY_TYPES) -- this is now the only way to add them.
+    A manually-created entity is trusted by definition, so it starts `confirmed`
+    rather than `pending_review`.
+    """
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Name is required")
+    if payload.entity_type not in MANUALLY_CREATABLE_ENTITY_TYPES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid entity type")
+
+    existing = await db.execute(
+        select(Entity).where(func.lower(Entity.name) == name.lower(), Entity.entity_type == payload.entity_type)
+    )
+    entity = existing.scalar_one_or_none()
+    if entity is not None:
+        if entity.status != "confirmed":
+            entity.status = "confirmed"
+            await db.commit()
+            await db.refresh(entity)
+        return entity
+
+    entity = Entity(name=name, entity_type=payload.entity_type, status="confirmed")
+    db.add(entity)
+    await db.commit()
+    await db.refresh(entity)
+    return entity
 
 
 class BulkReviewItem(BaseModel):

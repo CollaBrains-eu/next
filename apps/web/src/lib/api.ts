@@ -323,6 +323,17 @@ export function listEntities(q?: string, entityType?: string, status?: string): 
   return request<EntityOut[]>(`/entities${query ? `?${query}` : ""}`);
 }
 
+export function createEntity(name: string, entityType: string): Promise<EntityOut> {
+  return request<EntityOut>("/entities", {
+    method: "POST",
+    body: JSON.stringify({ name, entity_type: entityType }),
+  });
+}
+
+export function getPendingReviewEntityCount(): Promise<{ count: number }> {
+  return request<{ count: number }>("/entities/pending-review-count");
+}
+
 export function approveEntity(id: string): Promise<EntityOut> {
   return request<EntityOut>(`/entities/${id}/approve`, { method: "POST" });
 }

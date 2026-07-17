@@ -6,7 +6,7 @@ import * as api from "../lib/api";
 
 vi.mock("../lib/api", async () => {
   const actual = await vi.importActual<typeof api>("../lib/api");
-  return { ...actual, listEntities: vi.fn() };
+  return { ...actual, getPendingReviewEntityCount: vi.fn() };
 });
 
 function renderBell() {
@@ -23,17 +23,14 @@ describe("AlertsBell", () => {
   });
 
   it("shows no count badge when there is nothing pending", async () => {
-    vi.mocked(api.listEntities).mockResolvedValue([]);
+    vi.mocked(api.getPendingReviewEntityCount).mockResolvedValue({ count: 0 });
     renderBell();
     await screen.findByLabelText("Alerts");
     expect(screen.queryByTestId("alerts-bell-badge")).not.toBeInTheDocument();
   });
 
   it("shows the pending count as a badge and lists it in the dropdown", async () => {
-    vi.mocked(api.listEntities).mockResolvedValue([
-      { id: "e1", name: "Acme BV", entity_type: "organization", status: "pending_review", created_at: "2026-01-01T00:00:00Z" },
-      { id: "e2", name: "Jane Doe", entity_type: "person", status: "pending_review", created_at: "2026-01-01T00:00:00Z" },
-    ]);
+    vi.mocked(api.getPendingReviewEntityCount).mockResolvedValue({ count: 2 });
     renderBell();
     expect(await screen.findByTestId("alerts-bell-badge")).toHaveTextContent("2");
     fireEvent.click(screen.getByLabelText("Alerts"));
@@ -41,9 +38,7 @@ describe("AlertsBell", () => {
   });
 
   it("navigates to the review queue when the pending item is selected", async () => {
-    vi.mocked(api.listEntities).mockResolvedValue([
-      { id: "e1", name: "Acme BV", entity_type: "organization", status: "pending_review", created_at: "2026-01-01T00:00:00Z" },
-    ]);
+    vi.mocked(api.getPendingReviewEntityCount).mockResolvedValue({ count: 1 });
     renderBell();
     await screen.findByTestId("alerts-bell-badge");
     fireEvent.click(screen.getByLabelText("Alerts"));
@@ -54,10 +49,16 @@ describe("AlertsBell", () => {
   });
 
   it("shows the caught-up message when nothing is pending", async () => {
-    vi.mocked(api.listEntities).mockResolvedValue([]);
+    vi.mocked(api.getPendingReviewEntityCount).mockResolvedValue({ count: 0 });
     renderBell();
     await screen.findByLabelText("Alerts");
     fireEvent.click(screen.getByLabelText("Alerts"));
     expect(screen.getByText("You're all caught up")).toBeInTheDocument();
+  });
+
+  it("shows a count beyond the old list-endpoint's 50-row cap correctly", async () => {
+    vi.mocked(api.getPendingReviewEntityCount).mockResolvedValue({ count: 137 });
+    renderBell();
+    expect(await screen.findByTestId("alerts-bell-badge")).toHaveTextContent("137");
   });
 });
