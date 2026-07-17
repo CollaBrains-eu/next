@@ -101,6 +101,38 @@ async def test_delete_appointment_removes_it(client):
     assert list_response.json() == []
 
 
+async def test_export_ics_returns_well_formed_vevent(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    create = await client.post(
+        "/appointments",
+        headers=headers,
+        json={"title": "APK inspection", "starts_at": "2026-07-14T09:30:00Z", "location": "RDW Keuringsstation, Arnhem"},
+    )
+    appointment_id = create.json()["id"]
+
+    response = await client.get(f"/appointments/{appointment_id}/ics", headers=headers)
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/calendar")
+    assert 'filename="apk-inspection.ics"' in response.headers["content-disposition"]
+    body = response.text
+    assert "BEGIN:VEVENT" in body
+    assert "SUMMARY:APK inspection" in body
+    assert "LOCATION:RDW Keuringsstation\\, Arnhem" in body
+
+
+async def test_export_ics_rejects_unknown_id(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = await client.get(
+        "/appointments/00000000-0000-0000-0000-000000000000/ics", headers=headers
+    )
+
+    assert response.status_code == 404
+
+
 async def test_appointments_require_auth(client):
     response = await client.get("/appointments", params={"from": "2026-07-01", "to": "2026-07-31"})
     assert response.status_code == 401

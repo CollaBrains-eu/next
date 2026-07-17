@@ -6,7 +6,7 @@ docs/superpowers/specs/2026-07-09-phase27b-calendar-design.md.
 from datetime import date, datetime, time, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -123,3 +123,59 @@ async def delete_appointment(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appointment not found")
     await db.delete(appointment)
     await db.commit()
+
+
+def _escape_ics_text(value: str) -> str:
+    return value.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
+
+
+def _format_ics_datetime(value: datetime) -> str:
+    return value.strftime("%Y%m%dT%H%M%SZ")
+
+
+def build_ics(appointment: Appointment) -> str:
+    lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//CollaBrains//Appointments//EN",
+        "BEGIN:VEVENT",
+        f"UID:{appointment.id}@collabrains.eu",
+        f"DTSTAMP:{_format_ics_datetime(datetime.now(timezone.utc))}",
+        f"DTSTART:{_format_ics_datetime(appointment.starts_at)}",
+    ]
+    if appointment.ends_at:
+        lines.append(f"DTEND:{_format_ics_datetime(appointment.ends_at)}")
+    lines.append(f"SUMMARY:{_escape_ics_text(appointment.title)}")
+    if appointment.location:
+        lines.append(f"LOCATION:{_escape_ics_text(appointment.location)}")
+    if appointment.notes:
+        lines.append(f"DESCRIPTION:{_escape_ics_text(appointment.notes)}")
+    lines.append("END:VEVENT")
+    lines.append("END:VCALENDAR")
+    return "\r\n".join(lines) + "\r\n"
+
+
+def _ics_slug(title: str) -> str:
+    slug = "".join(c if c.isalnum() else "-" for c in title.lower()).strip("-")
+    while "--" in slug:
+        slug = slug.replace("--", "-")
+    return slug or "appointment"
+
+
+@router.get("/appointments/{appointment_id}/ics")
+async def export_appointment_ics(
+    appointment_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Response:
+    appointment = await db.get(Appointment, appointment_id)
+    if appointment is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appointment not found")
+
+    ics_text = build_ics(appointment)
+    slug = _ics_slug(appointment.title)
+    return Response(
+        content=ics_text,
+        media_type="text/calendar",
+        headers={"Content-Disposition": f'attachment; filename="{slug}.ics"'},
+    )
