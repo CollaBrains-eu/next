@@ -95,11 +95,11 @@ export default function Cases() {
       {loading ? (
         <SkeletonLines />
       ) : cases.length === 0 && !creating ? (
-        <EmptyState message={t("cases.emptyMessage")} action={newCaseButton} />
+        <EmptyState heading={t("cases.emptyMessage")} message={t("cases.emptyMessageSub")} action={newCaseButton} />
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {cases.map((c) => (
-            <Link key={c.id} to={`/cases/${c.id}`}>
+          {cases.map((c, index) => (
+            <Link key={c.id} to={`/cases/${c.id}`} className="card-tilt animate-cardIn rounded-2xl opacity-0" style={{ animationDelay: `${Math.min(index, 8) * 90}ms` }}>
               <Card className="flex h-full flex-col gap-2 transition-colors duration-fast hover:border-accent">
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-ink">{c.name}</span>

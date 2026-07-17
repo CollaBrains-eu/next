@@ -118,9 +118,10 @@
     "newCase": "New case",
     "namePlaceholder": "Case name",
     "descriptionPlaceholder": "Description (optional)",
-    "emptyMessage": "No cases yet.",
+    "emptyMessage": "No cases yet",
     "loadError": "Failed to load cases",
-    "createError": "Failed to create case"
+    "createError": "Failed to create case",
+    "emptyMessageSub": "Cases you create or that get shared with you will show up here."
   },
   "tasks": {
     "title": "Tasks",

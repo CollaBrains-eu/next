@@ -51,6 +51,7 @@ export default {
           to: { opacity: "1", transform: "scale(1)" },
         },
         cardIn: {
+          from: { opacity: "0", transform: "translateY(8px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
         floaty: {
@@ -60,6 +61,9 @@ export default {
         shimmer: {
           "100%": { transform: "translateX(100%)" },
         },
+      },
+      animation: {
+        cardIn: "cardIn 320ms cubic-bezier(.16,1,.3,1) both",
       },
     },
   },

@@ -118,9 +118,10 @@
     "newCase": "Neuer Fall",
     "namePlaceholder": "Name des Falls",
     "descriptionPlaceholder": "Beschreibung (optional)",
-    "emptyMessage": "Noch keine Fälle.",
+    "emptyMessage": "Noch keine Fälle",
     "loadError": "Fälle konnten nicht geladen werden",
-    "createError": "Fall konnte nicht erstellt werden"
+    "createError": "Fall konnte nicht erstellt werden",
+    "emptyMessageSub": "Fälle, die du erstellst oder die mit dir geteilt werden, erscheinen hier."
   },
   "tasks": {
     "title": "Aufgaben",
