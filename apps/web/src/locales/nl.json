@@ -118,9 +118,10 @@
     "newCase": "Nieuwe zaak",
     "namePlaceholder": "Naam van de zaak",
     "descriptionPlaceholder": "Omschrijving (optioneel)",
-    "emptyMessage": "Nog geen zaken.",
+    "emptyMessage": "Nog geen zaken",
     "loadError": "Kon zaken niet laden",
-    "createError": "Kon zaak niet aanmaken"
+    "createError": "Kon zaak niet aanmaken",
+    "emptyMessageSub": "Zaken die je aanmaakt of die met je worden gedeeld, verschijnen hier."
   },
   "tasks": {
     "title": "Taken",

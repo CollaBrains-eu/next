@@ -264,9 +264,9 @@ async def test_link_decision_to_case(client):
     assert [d["id"] for d in dashboard.json()["decisions"]] == [str(decision.id)]
 
 
-async def _create_vehicle_router(kenteken: str) -> Vehicle:
+async def _create_vehicle_router(kenteken: str, owner_id) -> Vehicle:
     async with async_session() as db:
-        entity = Entity(name=kenteken, entity_type="vehicle")
+        entity = Entity(name=kenteken, entity_type="vehicle", owner_id=owner_id)
         db.add(entity)
         await db.flush()
         vehicle = Vehicle(entity_id=entity.id, kenteken=kenteken)
@@ -279,7 +279,8 @@ async def _create_vehicle_router(kenteken: str) -> Vehicle:
 async def test_link_vehicle_to_case(client):
     token = await _login(client, "caserouteruser21")
     headers = {"Authorization": f"Bearer {token}"}
-    vehicle = await _create_vehicle_router(f"LV-{uuid4().hex[:2].upper()}-ST")
+    owner_id = await _user_id_for("caserouteruser21")
+    vehicle = await _create_vehicle_router(f"LV-{uuid4().hex[:2].upper()}-ST", owner_id)
 
     create_response = await client.post("/cases", headers=headers, json={"name": "A case"})
     case_id = create_response.json()["id"]
@@ -300,3 +301,20 @@ async def test_link_vehicle_to_case_rejects_unknown_vehicle(client):
 
     response = await client.post(f"/cases/{case_id}/vehicles/{uuid4()}", headers=headers)
     assert response.status_code == 404
+
+
+async def test_link_vehicle_rejects_non_owner_vehicle(client):
+    await _login(client, "caserouteruser23")
+    intruder_token = await _login(client, "caserouteruser24")
+    owner_id = await _user_id_for("caserouteruser23")
+    vehicle = await _create_vehicle_router(f"LV-{uuid4().hex[:2].upper()}-ST", owner_id)
+
+    create_response = await client.post(
+        "/cases", headers={"Authorization": f"Bearer {intruder_token}"}, json={"name": "Intruder's case"}
+    )
+    case_id = create_response.json()["id"]
+
+    response = await client.post(
+        f"/cases/{case_id}/vehicles/{vehicle.id}", headers={"Authorization": f"Bearer {intruder_token}"}
+    )
+    assert response.status_code == 403

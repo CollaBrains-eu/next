@@ -244,8 +244,10 @@ class Task(Base):
 class Entity(Base):
     """A person, organization, location, or other named thing extracted from documents.
 
-    Deduplicated by exact case-insensitive (name, entity_type) match only
-    -- see docs/adr/0008-phase4-entity-graph.md for why fuzzy/LLM-based
+    Deduplicated by exact case-insensitive (name, entity_type) match --
+    scoped per `owner_id` (Phase 28, matching v2/v3: each account has its
+    own entity graph, not a system-wide one) -- see
+    docs/adr/0008-phase4-entity-graph.md for why fuzzy/LLM-based
     resolution is deliberately out of scope for now.
 
     `status` gates whether an extracted entity is trusted: new entities
@@ -257,6 +259,7 @@ class Entity(Base):
     __tablename__ = "entities"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    owner_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     name: Mapped[str] = mapped_column(String(500), nullable=False)
     entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending_review", server_default="pending_review")

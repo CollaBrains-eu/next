@@ -245,9 +245,9 @@ async def test_delete_case_returns_false_for_unknown_id():
     assert deleted is False
 
 
-async def _create_vehicle(kenteken: str) -> Vehicle:
+async def _create_vehicle(kenteken: str, owner_id) -> Vehicle:
     async with async_session() as db:
-        entity = Entity(name=kenteken, entity_type="vehicle")
+        entity = Entity(name=kenteken, entity_type="vehicle", owner_id=owner_id)
         db.add(entity)
         await db.flush()
         vehicle = Vehicle(entity_id=entity.id, kenteken=kenteken)
@@ -266,7 +266,7 @@ async def test_link_vehicle_to_case_and_dashboard_includes_it():
 
     async with async_session() as db:
         case = await create_case(db, user_id=user.id, name="A case")
-        vehicle = await _create_vehicle(_unique("VE") + "-01-ST")
+        vehicle = await _create_vehicle(_unique("VE") + "-01-ST", user.id)
         linked = await link_vehicle_to_case(db, case_id=case.id, vehicle_id=vehicle.id)
         assert linked is True
 

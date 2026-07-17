@@ -51,28 +51,38 @@ def detect_vins(text: str) -> list[str]:
 
 
 async def _get_or_create_vehicle_entity(
-    db: AsyncSession, *, kenteken: str | None, vin: str | None
+    db: AsyncSession, *, kenteken: str | None, vin: str | None, owner_id: UUID
 ) -> tuple[Entity, Vehicle]:
-    """Get-or-create the Entity+Vehicle pair for a detected kenteken/VIN.
+    """Get-or-create the Entity+Vehicle pair for a detected kenteken/VIN, scoped to
+    `owner_id` (Phase 28: vehicles are per-account, not system-wide).
 
-    Kenteken is the dedup key once known. A VIN-only vehicle dedupes on
-    VIN among rows that have no kenteken yet; if a kenteken for that same
-    real-world vehicle surfaces later in a different document, a second,
-    separate row is created rather than merged -- the same "no fuzzy
-    resolution" stance ADR 0008 already takes for person/organization
-    entities, applied here too (see the spec's Consequences section).
+    Kenteken is the dedup key once known, within that owner's own vehicles. A
+    VIN-only vehicle dedupes on VIN among that owner's rows that have no kenteken
+    yet; if a kenteken for that same real-world vehicle surfaces later in a
+    different document, a second, separate row is created rather than merged --
+    the same "no fuzzy resolution" stance ADR 0008 already takes for
+    person/organization entities, applied here too (see the spec's Consequences
+    section).
     """
     vehicle: Vehicle | None = None
 
     if kenteken is not None:
-        result = await db.execute(select(Vehicle).where(Vehicle.kenteken == kenteken))
+        result = await db.execute(
+            select(Vehicle).join(Entity, Entity.id == Vehicle.entity_id).where(
+                Vehicle.kenteken == kenteken, Entity.owner_id == owner_id
+            )
+        )
         vehicle = result.scalar_one_or_none()
     elif vin is not None:
-        result = await db.execute(select(Vehicle).where(Vehicle.vin == vin, Vehicle.kenteken.is_(None)))
+        result = await db.execute(
+            select(Vehicle).join(Entity, Entity.id == Vehicle.entity_id).where(
+                Vehicle.vin == vin, Vehicle.kenteken.is_(None), Entity.owner_id == owner_id
+            )
+        )
         vehicle = result.scalar_one_or_none()
 
     if vehicle is None:
-        entity = Entity(name=kenteken or vin, entity_type="vehicle")
+        entity = Entity(name=kenteken or vin, entity_type="vehicle", owner_id=owner_id)
         db.add(entity)
         await db.flush()
         vehicle = Vehicle(entity_id=entity.id, kenteken=kenteken, vin=vin)
@@ -90,10 +100,10 @@ async def _get_or_create_vehicle_entity(
 
 
 async def _get_or_create_validated_vehicle(
-    db: AsyncSession, *, kenteken: str, vin: str | None
+    db: AsyncSession, *, kenteken: str, vin: str | None, owner_id: UUID
 ) -> tuple[Entity, Vehicle] | None:
     """Like `_get_or_create_vehicle_entity`, but for a kenteken that isn't
-    already known in the DB, RDW is checked *before* anything is created.
+    already known for this owner, RDW is checked *before* anything is created.
     Returns `None` -- creating and persisting nothing -- if RDW confirms
     no such vehicle exists, so a false-positive regex match (garbage OCR
     text that happens to look like a plate) never becomes a stored row.
@@ -101,13 +111,17 @@ async def _get_or_create_validated_vehicle(
     A transient RDW failure does not block creation: the row is created
     unenriched, same as before this change, and left for
     `_enrich_from_rdw` to retry later. Only a confirmed not-found skips
-    creation. Kentekens already known in the DB skip the RDW check
+    creation. Kentekens already known for this owner skip the RDW check
     entirely here and go through the normal enrich-if-not-yet-fetched
     retry path instead.
     """
-    existing = await db.execute(select(Vehicle).where(Vehicle.kenteken == kenteken))
+    existing = await db.execute(
+        select(Vehicle).join(Entity, Entity.id == Vehicle.entity_id).where(
+            Vehicle.kenteken == kenteken, Entity.owner_id == owner_id
+        )
+    )
     if existing.scalar_one_or_none() is not None:
-        entity, vehicle = await _get_or_create_vehicle_entity(db, kenteken=kenteken, vin=vin)
+        entity, vehicle = await _get_or_create_vehicle_entity(db, kenteken=kenteken, vin=vin, owner_id=owner_id)
         await _enrich_from_rdw(vehicle)
         return entity, vehicle
 
@@ -115,12 +129,12 @@ async def _get_or_create_validated_vehicle(
         data = await fetch_vehicle_data(kenteken)
     except RdwLookupError as exc:
         logger.warning("vehicle_agent: RDW lookup failed for %s: %s", kenteken, exc)
-        return await _get_or_create_vehicle_entity(db, kenteken=kenteken, vin=vin)
+        return await _get_or_create_vehicle_entity(db, kenteken=kenteken, vin=vin, owner_id=owner_id)
 
     if data is None:
         return None
 
-    entity, vehicle = await _get_or_create_vehicle_entity(db, kenteken=kenteken, vin=vin)
+    entity, vehicle = await _get_or_create_vehicle_entity(db, kenteken=kenteken, vin=vin, owner_id=owner_id)
     for field, value in data.items():
         setattr(vehicle, field, value)
     vehicle.fetched_at = datetime.now(timezone.utc)
@@ -156,13 +170,14 @@ async def _enrich_from_rdw(vehicle: Vehicle) -> None:
     vehicle.fetched_at = datetime.now(timezone.utc)
 
 
-async def detect_and_link_vehicles(db: AsyncSession, *, document_id: UUID, text: str) -> list[Vehicle]:
+async def detect_and_link_vehicles(db: AsyncSession, *, document_id: UUID, text: str, owner_id: UUID) -> list[Vehicle]:
     """Regex-detect kentekens/VINs in `text`, get-or-create Vehicle/Entity
-    rows, link them to `document_id`, and enrich any newly-known kenteken
-    from RDW. A brand-new kenteken that RDW confirms doesn't exist is not
-    persisted at all (see `_get_or_create_validated_vehicle`). VIN-only
-    detections have no RDW-by-VIN lookup available and are unaffected --
-    they're created as before. Commits internally (same convention as
+    rows scoped to `owner_id` (Phase 28), link them to `document_id`, and
+    enrich any newly-known kenteken from RDW. A brand-new kenteken that RDW
+    confirms doesn't exist is not persisted at all (see
+    `_get_or_create_validated_vehicle`). VIN-only detections have no
+    RDW-by-VIN lookup available and are unaffected -- they're created as
+    before. Commits internally (same convention as
     `entity_agent.extract_entities`) -- callers don't manage the
     transaction."""
     kentekens = detect_kentekens(text)
@@ -171,20 +186,20 @@ async def detect_and_link_vehicles(db: AsyncSession, *, document_id: UUID, text:
 
     if len(kentekens) == 1 and len(vins) == 1:
         # Exactly one of each in the same document -- treat as one vehicle.
-        result = await _get_or_create_validated_vehicle(db, kenteken=kentekens[0], vin=vins[0])
+        result = await _get_or_create_validated_vehicle(db, kenteken=kentekens[0], vin=vins[0], owner_id=owner_id)
         if result is not None:
             entity, vehicle = result
             await _link_mention(db, entity.id, document_id)
             vehicles.append(vehicle)
     else:
         for kenteken in kentekens:
-            result = await _get_or_create_validated_vehicle(db, kenteken=kenteken, vin=None)
+            result = await _get_or_create_validated_vehicle(db, kenteken=kenteken, vin=None, owner_id=owner_id)
             if result is not None:
                 entity, vehicle = result
                 await _link_mention(db, entity.id, document_id)
                 vehicles.append(vehicle)
         for vin in vins:
-            entity, vehicle = await _get_or_create_vehicle_entity(db, kenteken=None, vin=vin)
+            entity, vehicle = await _get_or_create_vehicle_entity(db, kenteken=None, vin=vin, owner_id=owner_id)
             await _link_mention(db, entity.id, document_id)
             vehicles.append(vehicle)
 
@@ -194,7 +209,7 @@ async def detect_and_link_vehicles(db: AsyncSession, *, document_id: UUID, text:
     return vehicles
 
 
-async def lookup_vehicle(*, kenteken: str) -> Vehicle | None:
+async def lookup_vehicle(*, kenteken: str, owner_id: UUID) -> Vehicle | None:
     """Actively look up (or force-refresh) a vehicle by kenteken -- backs
     the `lookup_vehicle` tool. Unlike the passive pipeline path, this
     always calls RDW even if a row already exists and was already
@@ -220,13 +235,17 @@ async def lookup_vehicle(*, kenteken: str) -> Vehicle | None:
     data = await fetch_vehicle_data(normalized)
 
     async with _async_session() as db:
-        existing = await db.execute(select(Vehicle).where(Vehicle.kenteken == normalized))
+        existing = await db.execute(
+            select(Vehicle).join(Entity, Entity.id == Vehicle.entity_id).where(
+                Vehicle.kenteken == normalized, Entity.owner_id == owner_id
+            )
+        )
         already_known = existing.scalar_one_or_none() is not None
 
         if data is None and not already_known:
             return None
 
-        entity, vehicle = await _get_or_create_vehicle_entity(db, kenteken=normalized, vin=None)
+        entity, vehicle = await _get_or_create_vehicle_entity(db, kenteken=normalized, vin=None, owner_id=owner_id)
         if data is not None:
             for field, value in data.items():
                 setattr(vehicle, field, value)

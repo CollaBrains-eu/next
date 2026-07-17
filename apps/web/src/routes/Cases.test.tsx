@@ -44,7 +44,7 @@ describe("Cases", () => {
   it("shows EmptyState when there are no cases", async () => {
     vi.mocked(api.listCases).mockResolvedValue([]);
     renderPage();
-    expect(await screen.findByText("No cases yet.")).toBeInTheDocument();
+    expect(await screen.findByText("No cases yet")).toBeInTheDocument();
   });
 
   it("reveals the create form when New case is clicked", async () => {

@@ -1,9 +1,18 @@
 from unittest.mock import patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from api.db import async_session
 from api.ldap_auth import LdapIdentity
-from api.models import Entity, Vehicle
+from api.models import Entity, User, Vehicle
+
+
+async def _create_user(username: str) -> User:
+    async with async_session() as db:
+        user = User(username=username, display_name=username, role="member")
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        return user
 
 
 async def _login(client, username: str) -> str:
@@ -13,9 +22,9 @@ async def _login(client, username: str) -> str:
     return response.json()["access_token"]
 
 
-async def _create_vehicle(kenteken: str, *, merk: str | None = None) -> Vehicle:
+async def _create_vehicle(kenteken: str, owner_id: UUID, *, merk: str | None = None) -> Vehicle:
     async with async_session() as db:
-        entity = Entity(name=kenteken, entity_type="vehicle")
+        entity = Entity(name=kenteken, entity_type="vehicle", owner_id=owner_id)
         db.add(entity)
         await db.flush()
         vehicle = Vehicle(entity_id=entity.id, kenteken=kenteken, merk=merk)
@@ -25,16 +34,35 @@ async def _create_vehicle(kenteken: str, *, merk: str | None = None) -> Vehicle:
         return vehicle
 
 
-async def test_list_vehicles_returns_created_vehicles(client):
-    token = await _login(client, f"vehiclerouter-{uuid4().hex[:8]}")
+async def test_list_vehicles_returns_own_created_vehicles(client):
+    username = f"vehiclerouter-{uuid4().hex[:8]}"
+    user = await _create_user(username)
+    token = await _login(client, username)
     headers = {"Authorization": f"Bearer {token}"}
-    vehicle = await _create_vehicle(f"LI-{uuid4().hex[:2].upper()}-ST", merk="TOYOTA")
+    vehicle = await _create_vehicle(f"LI-{uuid4().hex[:2].upper()}-ST", user.id, merk="TOYOTA")
 
     response = await client.get("/vehicles", headers=headers)
 
     assert response.status_code == 200
     kentekens = {v["kenteken"] for v in response.json()}
     assert vehicle.kenteken in kentekens
+
+
+async def test_list_vehicles_excludes_another_owners_vehicles(client):
+    other_owner = await _create_user(f"vehicleowner-{uuid4().hex[:8]}")
+    other_kenteken = f"LI-{uuid4().hex[:2].upper()}-ST"
+    await _create_vehicle(other_kenteken, other_owner.id, merk="TOYOTA")
+
+    username = f"vehiclerouter-{uuid4().hex[:8]}"
+    await _create_user(username)
+    token = await _login(client, username)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = await client.get("/vehicles", headers=headers)
+
+    assert response.status_code == 200
+    kentekens = {v["kenteken"] for v in response.json()}
+    assert other_kenteken not in kentekens
 
 
 async def test_list_vehicles_requires_auth(client):
@@ -54,15 +82,18 @@ FAKE_RDW_DATA = {
 
 
 async def test_lookup_vehicle_endpoint_returns_rdw_data(client):
-    token = await _login(client, f"vehiclerouter-{uuid4().hex[:8]}")
+    username = f"vehiclerouter-{uuid4().hex[:8]}"
+    user = await _create_user(username)
+    token = await _login(client, username)
     headers = {"Authorization": f"Bearer {token}"}
 
     with patch("api.vehicles_router.lookup_vehicle") as mock_lookup:
-        mock_lookup.return_value = await _create_vehicle("LO-01-OK", merk="TOYOTA")
+        mock_lookup.return_value = await _create_vehicle("LO-01-OK", user.id, merk="TOYOTA")
         response = await client.post("/vehicles/lookup", headers=headers, json={"kenteken": "LO-01-OK"})
 
     assert response.status_code == 200
     assert response.json()["merk"] == "TOYOTA"
+    assert mock_lookup.call_args.kwargs["owner_id"] == user.id
 
 
 async def test_lookup_vehicle_endpoint_returns_502_on_rdw_outage(client):

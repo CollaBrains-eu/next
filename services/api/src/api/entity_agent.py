@@ -64,8 +64,10 @@ def _normalize_address_key(item: dict) -> str:
     return f"{postal}|{house}|{street}"
 
 
-async def _get_or_create_entity(db: AsyncSession, name: str, entity_type: str) -> Entity | None:
-    """Look up an existing entity by case-insensitive (name, entity_type).
+async def _get_or_create_entity(db: AsyncSession, name: str, entity_type: str, owner_id: UUID) -> Entity | None:
+    """Look up an existing entity by case-insensitive (name, entity_type), scoped to
+    `owner_id` -- entities are per-account (Phase 28), not a system-wide graph, so two
+    different accounts extracting "Acme Corp" get two independent rows.
 
     Returns the existing row if it is `confirmed` or `pending_review`
     (reusing it rather than creating a duplicate pending row), `None` if
@@ -74,27 +76,32 @@ async def _get_or_create_entity(db: AsyncSession, name: str, entity_type: str) -
     creates a new `pending_review` row if there is no match at all.
     """
     result = await db.execute(
-        select(Entity).where(func.lower(Entity.name) == name.lower().strip(), Entity.entity_type == entity_type)
+        select(Entity).where(
+            func.lower(Entity.name) == name.lower().strip(),
+            Entity.entity_type == entity_type,
+            Entity.owner_id == owner_id,
+        )
     )
     entity = result.scalar_one_or_none()
     if entity is not None:
         if entity.status == "rejected":
             return None
         return entity
-    entity = Entity(name=name.strip(), entity_type=entity_type)
+    entity = Entity(name=name.strip(), entity_type=entity_type, owner_id=owner_id)
     db.add(entity)
     await db.flush()
     return entity
 
 
-async def _get_or_create_address_entity(db: AsyncSession, item: dict) -> Entity | None:
+async def _get_or_create_address_entity(db: AsyncSession, item: dict, owner_id: UUID) -> Entity | None:
     """Same contract as `_get_or_create_entity`, but dedups address entities by
-    normalized structured fields instead of exact name match -- two LLM
-    extractions of the same real address rarely render as identical text."""
+    normalized structured fields (still scoped to `owner_id`) instead of exact name
+    match -- two LLM extractions of the same real address rarely render as identical
+    text."""
     normalized_key = _normalize_address_key(item)
     result = await db.execute(
         select(Entity).join(AddressDetail, AddressDetail.entity_id == Entity.id).where(
-            AddressDetail.normalized_key == normalized_key
+            AddressDetail.normalized_key == normalized_key, Entity.owner_id == owner_id
         )
     )
     entity = result.scalar_one_or_none()
@@ -103,7 +110,7 @@ async def _get_or_create_address_entity(db: AsyncSession, item: dict) -> Entity 
             return None
         return entity
 
-    entity = Entity(name=str(item.get("name") or "").strip() or normalized_key, entity_type="address")
+    entity = Entity(name=str(item.get("name") or "").strip() or normalized_key, entity_type="address", owner_id=owner_id)
     db.add(entity)
     await db.flush()
     db.add(
@@ -207,9 +214,9 @@ async def extract_entities(db: AsyncSession, *, document_id: UUID, text: str, us
         if entity_type not in AUTO_EXTRACTED_ENTITY_TYPES:
             continue
         if entity_type == "address":
-            entity = await _get_or_create_address_entity(db, item)
+            entity = await _get_or_create_address_entity(db, item, user_id)
         else:
-            entity = await _get_or_create_entity(db, item["name"], entity_type)
+            entity = await _get_or_create_entity(db, item["name"], entity_type, user_id)
         if entity is None:
             continue  # rejected entity, permanently suppressed
         entities_by_name[item["name"].strip().lower()] = entity

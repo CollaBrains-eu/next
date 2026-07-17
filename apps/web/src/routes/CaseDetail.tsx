@@ -166,75 +166,84 @@ export default function CaseDetail() {
 
       <Card>
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-sm font-medium text-ink">{t("nav.documents")}</span>
+          <span className="text-xs font-bold uppercase tracking-wide text-ink-2">{t("nav.documents")}</span>
           <AttachControl section="documents" />
         </div>
         {caseData.documents.length === 0 ? (
           <p className="text-sm text-ink-3">{t("caseDetail.nothingLinked")}</p>
         ) : (
-          <ul className="flex flex-col gap-1">
+          <div className="flex flex-col divide-y divide-edge overflow-hidden rounded-xl border border-edge">
             {caseData.documents.map((d) => (
-              <li key={d.id}>
-                <Link to={`/documents/${d.id}`} className="text-sm text-ink hover:text-accent hover:underline">
-                  {d.title}
-                </Link>
-              </li>
+              <Link
+                key={d.id}
+                to={`/documents/${d.id}`}
+                className="truncate px-3 py-2 text-sm text-ink transition-colors duration-fast hover:bg-hover hover:text-accent"
+                title={d.title}
+              >
+                {d.title}
+              </Link>
             ))}
-          </ul>
+          </div>
         )}
       </Card>
 
       <Card>
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-sm font-medium text-ink">{t("nav.tasks")}</span>
+          <span className="text-xs font-bold uppercase tracking-wide text-ink-2">{t("nav.tasks")}</span>
           <AttachControl section="tasks" />
         </div>
         {caseData.tasks.length === 0 ? (
           <p className="text-sm text-ink-3">{t("caseDetail.nothingLinked")}</p>
         ) : (
-          <ul className="flex flex-col gap-1">
-            {caseData.tasks.map((t) => (
-              <li key={t.id} className="text-sm text-ink">
-                {t.title} <span className="text-xs text-ink-3">({t.status})</span>
-              </li>
+          <div className="flex flex-col divide-y divide-edge overflow-hidden rounded-xl border border-edge">
+            {caseData.tasks.map((task) => (
+              <div key={task.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm text-ink">
+                <span className="truncate">{task.title}</span>
+                <span className="shrink-0 text-xs text-ink-3">{task.status}</span>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </Card>
 
       <Card>
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-sm font-medium text-ink">{t("caseDetail.decisions")}</span>
+          <span className="text-xs font-bold uppercase tracking-wide text-ink-2">{t("caseDetail.decisions")}</span>
           <AttachControl section="decisions" />
         </div>
         {caseData.decisions.length === 0 ? (
           <p className="text-sm text-ink-3">{t("caseDetail.nothingLinked")}</p>
         ) : (
-          <ul className="flex flex-col gap-1">
+          <div className="flex flex-col divide-y divide-edge overflow-hidden rounded-xl border border-edge">
             {caseData.decisions.map((d) => (
-              <li key={d.id} className="text-sm text-ink">
+              <div key={d.id} className="px-3 py-2 text-sm text-ink">
                 {d.summary}
-              </li>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </Card>
 
       <Card>
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-sm font-medium text-ink">{t("nav.vehicles")}</span>
+          <span className="text-xs font-bold uppercase tracking-wide text-ink-2">{t("nav.vehicles")}</span>
           <AttachControl section="vehicles" />
         </div>
         {caseData.vehicles.length === 0 ? (
           <p className="text-sm text-ink-3">{t("caseDetail.nothingLinked")}</p>
         ) : (
-          <ul className="flex flex-col gap-1">
+          <div className="flex flex-col divide-y divide-edge overflow-hidden rounded-xl border border-edge">
             {caseData.vehicles.map((v) => (
-              <li key={v.id} className="text-sm text-ink">
-                {v.kenteken} {v.merk && <span className="text-xs text-ink-3">({v.merk} {v.handelsbenaming})</span>}
-              </li>
+              <div key={v.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm text-ink">
+                <span className="truncate font-mono">{v.kenteken}</span>
+                {v.merk && (
+                  <span className="shrink-0 text-xs text-ink-3">
+                    {v.merk} {v.handelsbenaming}
+                  </span>
+                )}
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </Card>
     </div>

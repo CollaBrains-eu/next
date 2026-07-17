@@ -98,7 +98,7 @@ async def _extract_entities_handler(
 
 async def _lookup_vehicle_handler(*, db: AsyncSession, user_id: UUID, kenteken: str) -> dict[str, Any]:
     try:
-        vehicle = await _lookup_vehicle(kenteken=kenteken)
+        vehicle = await _lookup_vehicle(kenteken=kenteken, owner_id=user_id)
     except RdwLookupError:
         return {"kenteken": kenteken, "found": False, "error": "RDW lookup service unavailable, try again later"}
 

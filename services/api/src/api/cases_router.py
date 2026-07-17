@@ -31,7 +31,7 @@ from api.cases import (
     update_case,
 )
 from api.db import get_db
-from api.models import Case, CaseMember, Decision, Document, Task, User, Vehicle
+from api.models import Case, CaseMember, Decision, Document, Entity, Task, User, Vehicle
 
 router = APIRouter(tags=["cases"])
 
@@ -286,6 +286,9 @@ async def link_vehicle_endpoint(
     vehicle = await db.get(Vehicle, vehicle_id)
     if vehicle is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
+    vehicle_entity = await db.get(Entity, vehicle.entity_id)
+    if vehicle_entity.owner_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to link this vehicle")
 
     await link_vehicle_to_case(db, case_id=case_id, vehicle_id=vehicle_id)
 

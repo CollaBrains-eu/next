@@ -20,6 +20,16 @@ body {
   border-radius: 4px;
 }
 
+/* Violet DS "tilt on hover" card treatment: a subtle 3D lift, no layout shift. */
+.card-tilt {
+  transition: transform var(--tw-duration, 260ms) cubic-bezier(.16, 1, .3, 1), box-shadow var(--tw-duration, 260ms) cubic-bezier(.16, 1, .3, 1);
+  will-change: transform;
+}
+.card-tilt:hover {
+  transform: perspective(800px) rotateX(1.5deg) rotateY(-1.5deg) translateY(-3px);
+  box-shadow: var(--shadow-overlay);
+}
+
 /* iOS Safari zooms the whole page on focus when a form control's font-size is
    under 16px -- our text-sm/text-[13px] inputs all trip this. Force 16px on
    mobile widths only, so desktop keeps the smaller design-system type scale. */

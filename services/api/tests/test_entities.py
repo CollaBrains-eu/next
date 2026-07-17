@@ -450,3 +450,91 @@ async def test_pending_review_count_reflects_newly_extracted_entities(client):
 async def test_pending_review_count_rejects_missing_token(client):
     response = await client.get("/entities/pending-review-count")
     assert response.status_code == 401
+
+
+async def test_entities_list_excludes_another_owners_entities(client):
+    owner_token = await _login(client, "entityuser22")
+    owner_headers = {"Authorization": f"Bearer {owner_token}"}
+    create = await client.post(
+        "/entities", headers=owner_headers, json={"name": "Owner Only Person", "entity_type": "person"}
+    )
+    assert create.status_code == 201
+
+    other_token = await _login(client, "entityuser23")
+    other_headers = {"Authorization": f"Bearer {other_token}"}
+    listing = await client.get(
+        "/entities", headers=other_headers, params={"q": "Owner Only Person", "status": "all"}
+    )
+    assert listing.json() == []  # another account's entity must not leak into this list
+
+
+async def test_pending_review_count_excludes_another_owners_pending_entities(client):
+    owner_token = await _login(client, "entityuser24")
+    owner_headers = {"Authorization": f"Bearer {owner_token}"}
+    document_id = await _upload_ready_document(client, owner_headers, "Umbrella Corp appears here.")
+    fake = '{"entities": [{"name": "Umbrella Corp", "type": "organization"}], "relationships": []}'
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        await client.post(f"/documents/{document_id}/extract-entities", headers=owner_headers)
+
+    other_token = await _login(client, "entityuser25")
+    other_headers = {"Authorization": f"Bearer {other_token}"}
+    before = (await client.get("/entities/pending-review-count", headers=other_headers)).json()["count"]
+    # the owner's own count includes it, but a different account's count must not
+    owner_count = (await client.get("/entities/pending-review-count", headers=owner_headers)).json()["count"]
+    assert owner_count >= 1
+    assert before == 0  # entityuser25 is a fresh account with nothing pending of its own
+
+
+async def test_approve_entity_rejects_non_owner(client):
+    owner_token = await _login(client, "entityuser26")
+    owner_headers = {"Authorization": f"Bearer {owner_token}"}
+    document_id = await _upload_ready_document(client, owner_headers, "Wayne Enterprises appears here.")
+    fake = '{"entities": [{"name": "Wayne Enterprises", "type": "organization"}], "relationships": []}'
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        extracted = await client.post(f"/documents/{document_id}/extract-entities", headers=owner_headers)
+    entity_id = extracted.json()[0]["id"]
+
+    intruder_token = await _login(client, "entityuser27")
+    intruder_headers = {"Authorization": f"Bearer {intruder_token}"}
+    response = await client.post(f"/entities/{entity_id}/approve", headers=intruder_headers)
+    assert response.status_code == 403
+
+
+async def test_entity_graph_rejects_non_owner(client):
+    owner_token = await _login(client, "entityuser28")
+    owner_headers = {"Authorization": f"Bearer {owner_token}"}
+    document_id = await _upload_ready_document(client, owner_headers, "Stark Industries appears here.")
+    fake = '{"entities": [{"name": "Stark Industries", "type": "organization"}], "relationships": []}'
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        extracted = await client.post(f"/documents/{document_id}/extract-entities", headers=owner_headers)
+    entity_id = extracted.json()[0]["id"]
+
+    intruder_token = await _login(client, "entityuser29")
+    intruder_headers = {"Authorization": f"Bearer {intruder_token}"}
+    response = await client.get(f"/entities/{entity_id}/graph", headers=intruder_headers)
+    assert response.status_code == 403
+
+
+async def test_extract_entities_rejects_extracting_from_another_owners_document(client):
+    owner_token = await _login(client, "entityuser30")
+    owner_headers = {"Authorization": f"Bearer {owner_token}"}
+    document_id = await _upload_ready_document(client, owner_headers, "Some private text.")
+
+    intruder_token = await _login(client, "entityuser31")
+    intruder_headers = {"Authorization": f"Bearer {intruder_token}"}
+    response = await client.post(f"/documents/{document_id}/extract-entities", headers=intruder_headers)
+    assert response.status_code == 403
+
+
+async def test_same_named_entity_is_independent_across_two_owners(client):
+    token_a = await _login(client, "entityuser32")
+    token_b = await _login(client, "entityuser33")
+    headers_a = {"Authorization": f"Bearer {token_a}"}
+    headers_b = {"Authorization": f"Bearer {token_b}"}
+
+    create_a = await client.post("/entities", headers=headers_a, json={"name": "Shared Name Inc", "entity_type": "organization"})
+    create_b = await client.post("/entities", headers=headers_b, json={"name": "Shared Name Inc", "entity_type": "organization"})
+
+    assert create_a.status_code == 201
+    assert create_b.status_code == 201
+    assert create_a.json()["id"] != create_b.json()["id"]  # same name+type, different accounts -- not deduped together
