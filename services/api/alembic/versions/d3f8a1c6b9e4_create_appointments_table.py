@@ -1,7 +1,7 @@
 """create appointments table (Phase 27b, calendar/appointments)
 
 Revision ID: d3f8a1c6b9e4
-Revises: 1a9b3c5d7e2f
+Revises: c2d5e8f1a4b7
 Create Date: 2026-07-17
 
 """
@@ -12,7 +12,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "d3f8a1c6b9e4"
-down_revision: Union[str, None] = "1a9b3c5d7e2f"
+down_revision: Union[str, None] = "c2d5e8f1a4b7"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
