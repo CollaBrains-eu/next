@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ApiError, approveEntity, clearToken, login, request, setToken } from "./api";
+import { ApiError, approveEntity, clearToken, downloadAppointmentIcs, login, request, setToken } from "./api";
 
 describe("api request()", () => {
   beforeEach(() => {
@@ -88,5 +88,41 @@ describe("approveEntity", () => {
     const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(url).toContain("/entities/e1/approve");
     expect(init.method).toBe("POST");
+  });
+});
+
+describe("downloadAppointmentIcs", () => {
+  beforeEach(() => {
+    clearToken();
+    vi.stubGlobal("fetch", vi.fn());
+    URL.createObjectURL = vi.fn(() => "blob:mock-url");
+    URL.revokeObjectURL = vi.fn();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("fetches the ics endpoint with the auth header and triggers a download", async () => {
+    setToken("secret-token");
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(new Response("BEGIN:VCALENDAR", { status: 200 }));
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+    await downloadAppointmentIcs("a1", "appointment.ics");
+
+    const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toContain("/appointments/a1/ics");
+    expect((init.headers as Headers).get("Authorization")).toBe("Bearer secret-token");
+    expect(URL.createObjectURL).toHaveBeenCalled();
+    expect(clickSpy).toHaveBeenCalled();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:mock-url");
+
+    clickSpy.mockRestore();
+  });
+
+  it("throws ApiError on a non-ok response", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(new Response("", { status: 404, statusText: "Not Found" }));
+
+    await expect(downloadAppointmentIcs("missing", "x.ics")).rejects.toBeInstanceOf(ApiError);
   });
 });
