@@ -160,7 +160,16 @@
     "noAppointments": "No appointments on this day.",
     "openInMaps": "📍 Open in Maps",
     "downloadIcs": "⬇ Download .ics",
-    "loadError": "Failed to load appointments"
+    "loadError": "Failed to load appointments",
+    "titleLabel": "Title",
+    "startsAtLabel": "Starts at",
+    "locationLabel": "Location",
+    "notesLabel": "Notes",
+    "deleteModalTitle": "Delete this appointment?",
+    "deleteModalBody": "This can't be undone.",
+    "deleteConfirm": "Delete appointment",
+    "createError": "Failed to save appointment",
+    "deleteError": "Failed to delete appointment"
   },
   "vehicles": {
     "title": "Vehicles",

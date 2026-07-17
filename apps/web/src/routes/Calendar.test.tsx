@@ -87,3 +87,57 @@ describe("Calendar", () => {
     expect(api.downloadAppointmentIcs).toHaveBeenCalledWith("a1", "apk-inspection.ics");
   });
 });
+
+describe("Calendar create/edit/delete", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers({ toFake: ["Date"] }); // leave setTimeout real so waitFor/findBy* polling still works
+    vi.setSystemTime(new Date(2026, 6, 14));
+    vi.mocked(api.listAppointments).mockResolvedValue(JULY_APPOINTMENTS);
+    vi.mocked(api.createAppointment).mockResolvedValue({ ...JULY_APPOINTMENTS[0], id: "a2", title: "New one" });
+    vi.mocked(api.updateAppointment).mockResolvedValue({ ...JULY_APPOINTMENTS[0], title: "Edited" });
+    vi.mocked(api.deleteAppointment).mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("opens the create modal, submits, and calls createAppointment", async () => {
+    renderPage();
+    await screen.findByText("APK inspection");
+
+    fireEvent.click(screen.getByRole("button", { name: /new appointment/i }));
+    fireEvent.change(screen.getByLabelText(/title/i), { target: { value: "New one" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    await waitFor(() => expect(api.createAppointment).toHaveBeenCalled());
+    const [payload] = vi.mocked(api.createAppointment).mock.calls[0];
+    expect(payload.title).toBe("New one");
+  });
+
+  it("opens the edit modal pre-filled when an agenda item is clicked, and calls updateAppointment on submit", async () => {
+    renderPage();
+    await screen.findByText("APK inspection");
+
+    fireEvent.click(screen.getByText("APK inspection"));
+    const titleInput = screen.getByLabelText(/title/i) as HTMLInputElement;
+    expect(titleInput.value).toBe("APK inspection");
+
+    fireEvent.change(titleInput, { target: { value: "Edited" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    await waitFor(() => expect(api.updateAppointment).toHaveBeenCalledWith("a1", expect.objectContaining({ title: "Edited" })));
+  });
+
+  it("deletes an appointment via the confirm modal", async () => {
+    renderPage();
+    await screen.findByText("APK inspection");
+
+    fireEvent.click(screen.getByText("APK inspection"));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete appointment" }));
+
+    await waitFor(() => expect(api.deleteAppointment).toHaveBeenCalledWith("a1"));
+  });
+});

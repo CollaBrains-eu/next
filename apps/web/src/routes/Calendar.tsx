@@ -2,13 +2,17 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ApiError,
+  createAppointment,
+  deleteAppointment,
   downloadAppointmentIcs,
   listAppointments,
+  updateAppointment,
   type AppointmentOut,
 } from "../lib/api";
-import { getMonthGridDates, toDateKey } from "../lib/calendarGrid";
+import { fromDatetimeLocalValue, getMonthGridDates, toDateKey, toDatetimeLocalValue } from "../lib/calendarGrid";
 import { Button } from "../components/ui/Button";
 import { CalendarGrid } from "../components/ui/CalendarGrid";
+import { Modal } from "../components/ui/Modal";
 
 export default function Calendar() {
   const { t } = useTranslation();
@@ -63,6 +67,73 @@ export default function Calendar() {
     await downloadAppointmentIcs(appointment.id, `${slug}.ics`);
   }
 
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<AppointmentOut | null>(null);
+  const [formTitle, setFormTitle] = useState("");
+  const [formStartsAt, setFormStartsAt] = useState("");
+  const [formLocation, setFormLocation] = useState("");
+  const [formNotes, setFormNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  function openCreateForm() {
+    setEditing(null);
+    setFormTitle("");
+    setFormStartsAt(`${selectedDateKey}T09:00`);
+    setFormLocation("");
+    setFormNotes("");
+    setFormOpen(true);
+  }
+
+  function openEditForm(appointment: AppointmentOut) {
+    setEditing(appointment);
+    setFormTitle(appointment.title);
+    setFormStartsAt(toDatetimeLocalValue(appointment.starts_at));
+    setFormLocation(appointment.location ?? "");
+    setFormNotes(appointment.notes ?? "");
+    setFormOpen(true);
+  }
+
+  async function handleSubmitForm() {
+    if (!formTitle.trim() || !formStartsAt) return;
+    setSaving(true);
+    try {
+      const payload = {
+        title: formTitle.trim(),
+        starts_at: fromDatetimeLocalValue(formStartsAt),
+        location: formLocation.trim() || undefined,
+        notes: formNotes.trim() || undefined,
+      };
+      if (editing) {
+        await updateAppointment(editing.id, payload);
+      } else {
+        await createAppointment(payload);
+      }
+      setFormOpen(false);
+      refresh();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("calendar.createError"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleConfirmDelete() {
+    if (!editing) return;
+    setDeleting(true);
+    try {
+      await deleteAppointment(editing.id);
+      setConfirmDeleteOpen(false);
+      setFormOpen(false);
+      refresh();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("calendar.deleteError"));
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -73,6 +144,9 @@ export default function Calendar() {
           </Button>
           <Button size="sm" variant="ghost" onClick={goToNextMonth} aria-label={t("calendar.nextMonth")}>
             ›
+          </Button>
+          <Button size="sm" variant="secondary" onClick={openCreateForm}>
+            {t("calendar.newAppointment")}
           </Button>
         </div>
       </div>
@@ -97,7 +171,9 @@ export default function Calendar() {
           ) : (
             dayAppointments.map((appointment) => (
               <div key={appointment.id} className="flex flex-col gap-1 border-b border-edge pb-3 last:border-0">
-                <p className="text-sm font-medium text-ink">{appointment.title}</p>
+                <button type="button" onClick={() => openEditForm(appointment)} className="text-left text-sm font-medium text-ink hover:underline">
+                  {appointment.title}
+                </button>
                 {appointment.notes && <p className="text-xs text-ink-2">{appointment.notes}</p>}
                 <div className="mt-1 flex flex-wrap gap-2">
                   {appointment.location && (
@@ -123,6 +199,85 @@ export default function Calendar() {
           )}
         </div>
       </div>
+
+      <Modal open={formOpen} onClose={() => setFormOpen(false)} title={editing ? editing.title : t("calendar.newAppointment")}>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-ink-2" htmlFor="appointment-title">
+              {t("calendar.titleLabel")}
+            </label>
+            <input
+              id="appointment-title"
+              type="text"
+              value={formTitle}
+              onChange={(e) => setFormTitle(e.target.value)}
+              className="rounded-lg border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-ink-2" htmlFor="appointment-starts-at">
+              {t("calendar.startsAtLabel")}
+            </label>
+            <input
+              id="appointment-starts-at"
+              type="datetime-local"
+              value={formStartsAt}
+              onChange={(e) => setFormStartsAt(e.target.value)}
+              className="rounded-lg border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-ink-2" htmlFor="appointment-location">
+              {t("calendar.locationLabel")}
+            </label>
+            <input
+              id="appointment-location"
+              type="text"
+              value={formLocation}
+              onChange={(e) => setFormLocation(e.target.value)}
+              className="rounded-lg border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-ink-2" htmlFor="appointment-notes">
+              {t("calendar.notesLabel")}
+            </label>
+            <textarea
+              id="appointment-notes"
+              value={formNotes}
+              onChange={(e) => setFormNotes(e.target.value)}
+              className="rounded-lg border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+            />
+          </div>
+          <div className="flex justify-between gap-2">
+            {editing && (
+              <Button variant="danger" size="sm" onClick={() => setConfirmDeleteOpen(true)}>
+                {t("common.delete")}
+              </Button>
+            )}
+            <div className="ml-auto flex gap-2">
+              <Button size="sm" variant="ghost" onClick={() => setFormOpen(false)}>
+                {t("common.cancel")}
+              </Button>
+              <Button size="sm" variant="primary" onClick={handleSubmitForm} disabled={saving || !formTitle.trim()}>
+                {t("common.create")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={confirmDeleteOpen} onClose={() => setConfirmDeleteOpen(false)} title={t("calendar.deleteModalTitle")}>
+        <p className="mb-4 text-sm text-ink-2">{t("calendar.deleteModalBody")}</p>
+        <div className="flex justify-end gap-2">
+          <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteOpen(false)}>
+            {t("common.cancel")}
+          </Button>
+          <Button variant="danger" size="sm" onClick={handleConfirmDelete} disabled={deleting}>
+            {t("calendar.deleteConfirm")}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

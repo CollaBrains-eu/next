@@ -160,7 +160,16 @@
     "noAppointments": "Keine Termine an diesem Tag.",
     "openInMaps": "📍 In Maps öffnen",
     "downloadIcs": "⬇ .ics herunterladen",
-    "loadError": "Termine konnten nicht geladen werden"
+    "loadError": "Termine konnten nicht geladen werden",
+    "titleLabel": "Titel",
+    "startsAtLabel": "Beginnt um",
+    "locationLabel": "Ort",
+    "notesLabel": "Notizen",
+    "deleteModalTitle": "Diesen Termin löschen?",
+    "deleteModalBody": "Dies kann nicht rückgängig gemacht werden.",
+    "deleteConfirm": "Termin löschen",
+    "createError": "Termin konnte nicht gespeichert werden",
+    "deleteError": "Termin konnte nicht gelöscht werden"
   },
   "vehicles": {
     "title": "Fahrzeuge",
