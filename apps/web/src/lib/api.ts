@@ -470,6 +470,66 @@ export function linkVehicleToCase(caseId: string, vehicleId: string): Promise<vo
   return request<void>(`/cases/${caseId}/vehicles/${vehicleId}`, { method: "POST" });
 }
 
+export interface AppointmentOut {
+  id: string;
+  title: string;
+  starts_at: string;
+  ends_at: string | null;
+  location: string | null;
+  notes: string | null;
+  case_id: string | null;
+  vehicle_id: string | null;
+  created_at: string;
+}
+
+export interface AppointmentInput {
+  title: string;
+  starts_at: string;
+  ends_at?: string;
+  location?: string;
+  notes?: string;
+}
+
+export function listAppointments(from: string, to: string): Promise<AppointmentOut[]> {
+  const params = new URLSearchParams({ from, to });
+  return request<AppointmentOut[]>(`/appointments?${params}`);
+}
+
+export function createAppointment(input: AppointmentInput): Promise<AppointmentOut> {
+  return request<AppointmentOut>("/appointments", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateAppointment(id: string, input: Partial<AppointmentInput>): Promise<AppointmentOut> {
+  return request<AppointmentOut>(`/appointments/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteAppointment(id: string): Promise<void> {
+  return request<void>(`/appointments/${id}`, { method: "DELETE" });
+}
+
+export async function downloadAppointmentIcs(id: string, filename: string): Promise<void> {
+  const headers = new Headers();
+  const token = getToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const response = await fetch(`${API_URL}/appointments/${id}/ics`, { headers });
+  if (!response.ok) throw new ApiError(response.status, response.statusText);
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export interface AskResponse {
   answer: string;
   tools_called: string[];

@@ -5,6 +5,7 @@
     "aiChat": "KI-Chat",
     "legalDraft": "Rechtsentwurf",
     "tasks": "Aufgaben",
+    "calendar": "Kalender",
     "entities": "Entitäten",
     "cases": "Fälle",
     "vehicles": "Fahrzeuge",
@@ -150,6 +151,25 @@
     "cadenceWeekly": "Wöchentlich",
     "cadenceMonthly": "Monatlich",
     "createError": "Aufgabe konnte nicht erstellt werden"
+  },
+  "calendar": {
+    "title": "Kalender",
+    "prevMonth": "Vorheriger Monat",
+    "nextMonth": "Nächster Monat",
+    "newAppointment": "+ Neuer Termin",
+    "noAppointments": "Keine Termine an diesem Tag.",
+    "openInMaps": "📍 In Maps öffnen",
+    "downloadIcs": "⬇ .ics herunterladen",
+    "loadError": "Termine konnten nicht geladen werden",
+    "titleLabel": "Titel",
+    "startsAtLabel": "Beginnt um",
+    "locationLabel": "Ort",
+    "notesLabel": "Notizen",
+    "deleteModalTitle": "Diesen Termin löschen?",
+    "deleteModalBody": "Dies kann nicht rückgängig gemacht werden.",
+    "deleteConfirm": "Termin löschen",
+    "createError": "Termin konnte nicht gespeichert werden",
+    "deleteError": "Termin konnte nicht gelöscht werden"
   },
   "vehicles": {
     "title": "Fahrzeuge",

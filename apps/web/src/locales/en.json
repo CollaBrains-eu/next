@@ -5,6 +5,7 @@
     "aiChat": "AI Chat",
     "legalDraft": "Legal Draft",
     "tasks": "Tasks",
+    "calendar": "Calendar",
     "entities": "Entities",
     "cases": "Cases",
     "vehicles": "Vehicles",
@@ -150,6 +151,25 @@
     "cadenceWeekly": "Weekly",
     "cadenceMonthly": "Monthly",
     "createError": "Failed to create task"
+  },
+  "calendar": {
+    "title": "Calendar",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "newAppointment": "+ New appointment",
+    "noAppointments": "No appointments on this day.",
+    "openInMaps": "📍 Open in Maps",
+    "downloadIcs": "⬇ Download .ics",
+    "loadError": "Failed to load appointments",
+    "titleLabel": "Title",
+    "startsAtLabel": "Starts at",
+    "locationLabel": "Location",
+    "notesLabel": "Notes",
+    "deleteModalTitle": "Delete this appointment?",
+    "deleteModalBody": "This can't be undone.",
+    "deleteConfirm": "Delete appointment",
+    "createError": "Failed to save appointment",
+    "deleteError": "Failed to delete appointment"
   },
   "vehicles": {
     "title": "Vehicles",
