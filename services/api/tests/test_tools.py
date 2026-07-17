@@ -107,7 +107,7 @@ async def test_extract_tasks_tool_returns_tasks():
 async def test_extract_entities_tool_returns_entities():
     user = await _create_user(f"tooluser-{uuid4().hex[:8]}")
     document = await _create_document(user.id)
-    fake_entity = Entity(id=uuid4(), name="Jane Doe", entity_type="person")
+    fake_entity = Entity(id=uuid4(), name="Jane Doe", entity_type="person", owner_id=user.id)
 
     async with async_session() as db:
         with patch("api.tools.extract_entities", return_value=[fake_entity]):

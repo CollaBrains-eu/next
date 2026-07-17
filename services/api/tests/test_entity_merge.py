@@ -1,5 +1,5 @@
 from unittest.mock import patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import select
@@ -32,9 +32,11 @@ async def _create_document(owner_id) -> Document:
         return document
 
 
-async def _create_entity(name: str, entity_type: str = "organization", status: str = "confirmed") -> Entity:
+async def _create_entity(
+    name: str, owner_id: UUID, entity_type: str = "organization", status: str = "confirmed"
+) -> Entity:
     async with async_session() as db:
-        entity = Entity(name=name, entity_type=entity_type, status=status)
+        entity = Entity(name=name, entity_type=entity_type, status=status, owner_id=owner_id)
         db.add(entity)
         await db.commit()
         await db.refresh(entity)
@@ -44,8 +46,8 @@ async def _create_entity(name: str, entity_type: str = "organization", status: s
 async def test_merge_moves_mention_to_target():
     user = await _create_user(_unique("mergeuser"))
     doc = await _create_document(user.id)
-    target = await _create_entity(_unique("Acme Corporation"))
-    source = await _create_entity(_unique("Acme Corp"))
+    target = await _create_entity(_unique("Acme Corporation"), user.id)
+    source = await _create_entity(_unique("Acme Corp"), user.id)
 
     async with async_session() as db:
         db.add(EntityMention(entity_id=source.id, document_id=doc.id))
@@ -65,8 +67,8 @@ async def test_merge_moves_mention_to_target():
 async def test_merge_drops_duplicate_mention_for_same_document():
     user = await _create_user(_unique("mergedupuser"))
     doc = await _create_document(user.id)
-    target = await _create_entity(_unique("Acme Corporation"))
-    source = await _create_entity(_unique("Acme Corp"))
+    target = await _create_entity(_unique("Acme Corporation"), user.id)
+    source = await _create_entity(_unique("Acme Corp"), user.id)
 
     async with async_session() as db:
         db.add(EntityMention(entity_id=target.id, document_id=doc.id))
@@ -86,9 +88,9 @@ async def test_merge_drops_duplicate_mention_for_same_document():
 
 async def test_merge_repoints_relationship_to_target():
     user = await _create_user(_unique("mergereluser"))
-    target = await _create_entity(_unique("Acme Corporation"))
-    source = await _create_entity(_unique("Acme Corp"))
-    other = await _create_entity(_unique("Jane Doe"), entity_type="person")
+    target = await _create_entity(_unique("Acme Corporation"), user.id)
+    source = await _create_entity(_unique("Acme Corp"), user.id)
+    other = await _create_entity(_unique("Jane Doe"), user.id, entity_type="person")
 
     async with async_session() as db:
         db.add(EntityRelationship(source_entity_id=other.id, target_entity_id=source.id, relationship_type="works_at"))
@@ -107,8 +109,8 @@ async def test_merge_repoints_relationship_to_target():
 
 async def test_merge_drops_relationship_that_would_become_a_self_loop():
     user = await _create_user(_unique("mergeselfloopuser"))
-    target = await _create_entity(_unique("Acme Corporation"))
-    source = await _create_entity(_unique("Acme Corp"))
+    target = await _create_entity(_unique("Acme Corporation"), user.id)
+    source = await _create_entity(_unique("Acme Corp"), user.id)
 
     async with async_session() as db:
         db.add(EntityRelationship(source_entity_id=target.id, target_entity_id=source.id, relationship_type="alias_of"))
@@ -131,8 +133,8 @@ async def test_merge_drops_relationship_that_would_become_a_self_loop():
 
 async def test_merge_deletes_source_entity():
     user = await _create_user(_unique("mergedeleteuser"))
-    target = await _create_entity(_unique("Acme Corporation"))
-    source = await _create_entity(_unique("Acme Corp"))
+    target = await _create_entity(_unique("Acme Corporation"), user.id)
+    source = await _create_entity(_unique("Acme Corp"), user.id)
 
     async with async_session() as db:
         await merge_entities(db, target_id=target.id, source_id=source.id, merged_by=user.id)
@@ -144,8 +146,8 @@ async def test_merge_deletes_source_entity():
 
 async def test_merge_logged_in_entity_merge_log():
     user = await _create_user(_unique("mergeloguser"))
-    target = await _create_entity(_unique("Acme Corporation"))
-    source = await _create_entity(_unique("Acme Corp"))
+    target = await _create_entity(_unique("Acme Corporation"), user.id)
+    source = await _create_entity(_unique("Acme Corp"), user.id)
 
     async with async_session() as db:
         await merge_entities(db, target_id=target.id, source_id=source.id, merged_by=user.id)
@@ -161,7 +163,7 @@ async def test_merge_logged_in_entity_merge_log():
 
 async def test_merge_raises_for_unknown_target():
     user = await _create_user(_unique("mergeunknownuser"))
-    source = await _create_entity(_unique("Acme Corp"))
+    source = await _create_entity(_unique("Acme Corp"), user.id)
 
     async with async_session() as db:
         with pytest.raises(ValueError):
@@ -176,8 +178,10 @@ async def _login(client, username: str) -> str:
 
 
 async def test_merge_endpoint_rejects_merging_entity_into_itself(client):
-    token = await _login(client, _unique("mergeselfuser"))
-    target = await _create_entity(_unique("Acme Corporation"))
+    username = _unique("mergeselfuser")
+    user = await _create_user(username)
+    token = await _login(client, username)
+    target = await _create_entity(_unique("Acme Corporation"), user.id)
 
     response = await client.post(
         f"/entities/{target.id}/merge",
@@ -188,8 +192,10 @@ async def test_merge_endpoint_rejects_merging_entity_into_itself(client):
 
 
 async def test_merge_endpoint_returns_404_for_unknown_source(client):
-    token = await _login(client, _unique("merge404user"))
-    target = await _create_entity(_unique("Acme Corporation"))
+    username = _unique("merge404user")
+    user = await _create_user(username)
+    token = await _login(client, username)
+    target = await _create_entity(_unique("Acme Corporation"), user.id)
 
     response = await client.post(
         f"/entities/{target.id}/merge",
@@ -200,9 +206,11 @@ async def test_merge_endpoint_returns_404_for_unknown_source(client):
 
 
 async def test_merge_endpoint_returns_merged_entity(client):
-    token = await _login(client, _unique("mergeendpointuser"))
-    target = await _create_entity(_unique("Acme Corporation"))
-    source = await _create_entity(_unique("Acme Corp"))
+    username = _unique("mergeendpointuser")
+    user = await _create_user(username)
+    token = await _login(client, username)
+    target = await _create_entity(_unique("Acme Corporation"), user.id)
+    source = await _create_entity(_unique("Acme Corp"), user.id)
 
     response = await client.post(
         f"/entities/{target.id}/merge",
@@ -214,6 +222,23 @@ async def test_merge_endpoint_returns_merged_entity(client):
 
 
 async def test_merge_endpoint_rejects_missing_token(client):
-    target = await _create_entity(_unique("Acme Corporation"))
+    user = await _create_user(_unique("mergenotokenuser"))
+    target = await _create_entity(_unique("Acme Corporation"), user.id)
     response = await client.post(f"/entities/{target.id}/merge", json={"source_entity_id": str(uuid4())})
     assert response.status_code == 401
+
+
+async def test_merge_endpoint_rejects_merging_another_owners_entity(client):
+    owner = await _create_user(_unique("mergeownerA"))
+    other_username = _unique("mergeownerB")
+    await _create_user(other_username)
+    other_token = await _login(client, other_username)
+    target = await _create_entity(_unique("Acme Corporation"), owner.id)
+    source = await _create_entity(_unique("Acme Corp"), owner.id)
+
+    response = await client.post(
+        f"/entities/{target.id}/merge",
+        headers={"Authorization": f"Bearer {other_token}"},
+        json={"source_entity_id": str(source.id)},
+    )
+    assert response.status_code == 403

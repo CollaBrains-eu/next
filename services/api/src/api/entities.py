@@ -37,12 +37,14 @@ async def extract_entities_from_document(
     document = await db.get(Document, document_id)
     if document is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    if document.owner_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to extract from this document")
     if document.status != "ready" or not document.ocr_text:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail=f"Document is not ready yet (status: {document.status})"
         )
 
-    return await extract_entities(db, document_id=document.id, text=document.ocr_text, user_id=current_user.id)
+    return await extract_entities(db, document_id=document.id, text=document.ocr_text, user_id=document.owner_id)
 
 
 @router.get("/entities", response_model=list[EntityOut])
@@ -56,6 +58,8 @@ async def list_entities(
     current_user: User = Depends(get_effective_user),
 ) -> list[Entity]:
     query = select(Entity).order_by(Entity.name).limit(limit).offset(offset)
+    if current_user.role != "admin":
+        query = query.where(Entity.owner_id == current_user.id)
     if q:
         query = query.where(Entity.name.ilike(f"%{q}%"))
     if entity_type:
@@ -71,7 +75,10 @@ async def count_pending_review_entities(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_effective_user),
 ) -> dict[str, int]:
-    result = await db.execute(select(func.count()).select_from(Entity).where(Entity.status == "pending_review"))
+    query = select(func.count()).select_from(Entity).where(Entity.status == "pending_review")
+    if current_user.role != "admin":
+        query = query.where(Entity.owner_id == current_user.id)
+    result = await db.execute(query)
     return {"count": result.scalar_one()}
 
 
@@ -100,7 +107,11 @@ async def create_entity(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid entity type")
 
     existing = await db.execute(
-        select(Entity).where(func.lower(Entity.name) == name.lower(), Entity.entity_type == payload.entity_type)
+        select(Entity).where(
+            func.lower(Entity.name) == name.lower(),
+            Entity.entity_type == payload.entity_type,
+            Entity.owner_id == current_user.id,
+        )
     )
     entity = existing.scalar_one_or_none()
     if entity is not None:
@@ -110,7 +121,7 @@ async def create_entity(
             await db.refresh(entity)
         return entity
 
-    entity = Entity(name=name, entity_type=payload.entity_type, status="confirmed")
+    entity = Entity(name=name, entity_type=payload.entity_type, status="confirmed", owner_id=current_user.id)
     db.add(entity)
     await db.commit()
     await db.refresh(entity)
@@ -122,10 +133,12 @@ class BulkReviewItem(BaseModel):
     action: str  # "approve" | "reject"
 
 
-async def _transition_entity(db: AsyncSession, entity_id: UUID, new_status: str) -> Entity:
+async def _transition_entity(db: AsyncSession, entity_id: UUID, new_status: str, current_user: User) -> Entity:
     entity = await db.get(Entity, entity_id)
     if entity is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Entity not found")
+    if entity.owner_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to review this entity")
     if entity.status != "pending_review":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -143,7 +156,7 @@ async def approve_entity(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_effective_user),
 ) -> Entity:
-    return await _transition_entity(db, entity_id, "confirmed")
+    return await _transition_entity(db, entity_id, "confirmed", current_user)
 
 
 @router.post("/entities/{entity_id}/reject", response_model=EntityOut)
@@ -152,7 +165,7 @@ async def reject_entity(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_effective_user),
 ) -> Entity:
-    return await _transition_entity(db, entity_id, "rejected")
+    return await _transition_entity(db, entity_id, "rejected", current_user)
 
 
 @router.post("/entities/bulk-review", response_model=list[EntityOut])
@@ -164,7 +177,7 @@ async def bulk_review_entities(
     results: list[Entity] = []
     for item in items:
         new_status = "confirmed" if item.action == "approve" else "rejected"
-        results.append(await _transition_entity(db, item.entity_id, new_status))
+        results.append(await _transition_entity(db, item.entity_id, new_status, current_user))
     return results
 
 
@@ -199,6 +212,8 @@ async def get_entity_graph(
     center = await db.get(Entity, entity_id)
     if center is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Entity not found")
+    if center.owner_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to view this entity")
 
     edges_result = await db.execute(
         select(EntityRelationship).where(
@@ -216,7 +231,9 @@ async def get_entity_graph(
     neighbors: list[Entity] = []
     if neighbor_ids:
         neighbors_result = await db.execute(
-            select(Entity).where(Entity.id.in_(neighbor_ids), Entity.status == "confirmed")
+            select(Entity).where(
+                Entity.id.in_(neighbor_ids), Entity.status == "confirmed", Entity.owner_id == center.owner_id
+            )
         )
         neighbors = list(neighbors_result.scalars().all())
     confirmed_neighbor_ids = {n.id for n in neighbors}
@@ -305,6 +322,13 @@ async def merge_entity(
 ) -> Entity:
     if target_id == request.source_entity_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot merge an entity into itself")
+    if current_user.role != "admin":
+        target = await db.get(Entity, target_id)
+        source = await db.get(Entity, request.source_entity_id)
+        if (target is not None and target.owner_id != current_user.id) or (
+            source is not None and source.owner_id != current_user.id
+        ):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to merge these entities")
     try:
         return await merge_entities(
             db, target_id=target_id, source_id=request.source_entity_id, merged_by=current_user.id

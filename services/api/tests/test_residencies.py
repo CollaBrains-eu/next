@@ -405,7 +405,7 @@ async def test_list_residencies_survives_a_residency_with_no_address_detail_row(
     user = await _user(username)
 
     async with async_session() as db:
-        address_entity = Entity(name=_unique_street(), entity_type="address", status="confirmed")
+        address_entity = Entity(name=_unique_street(), entity_type="address", status="confirmed", owner_id=user.id)
         db.add(address_entity)
         await db.flush()
         db.add(Residency(user_id=user.id, address_entity_id=address_entity.id, status="confirmed"))

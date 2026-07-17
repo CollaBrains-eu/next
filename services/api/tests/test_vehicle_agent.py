@@ -1,7 +1,7 @@
 import random
 import string
 from unittest.mock import patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from sqlalchemy import select
 
@@ -21,13 +21,24 @@ def _random_kenteken() -> str:
     return f"{letters(2)}-{digits(2)}-{letters(2)}"
 
 
-async def _create_document() -> Document:
+async def _create_user() -> User:
     async with async_session() as db:
         user = User(username=f"vehicletestuser-{uuid4().hex[:8]}", display_name="Vehicle Test User", role="member")
         db.add(user)
-        await db.flush()
+        await db.commit()
+        await db.refresh(user)
+        return user
+
+
+async def _create_document(owner_id: UUID | None = None) -> Document:
+    async with async_session() as db:
+        if owner_id is None:
+            user = User(username=f"vehicletestuser-{uuid4().hex[:8]}", display_name="Vehicle Test User", role="member")
+            db.add(user)
+            await db.flush()
+            owner_id = user.id
         document = Document(
-            owner_id=user.id, title="t", filename="t.pdf", mime_type="application/pdf",
+            owner_id=owner_id, title="t", filename="t.pdf", mime_type="application/pdf",
             status="ready", ocr_text="some text",
         )
         db.add(document)
@@ -37,8 +48,9 @@ async def _create_document() -> Document:
 
 
 async def test_vehicle_row_round_trips_via_entity_fk():
+    user = await _create_user()
     async with async_session() as db:
-        entity = Entity(name="AB-12-CD", entity_type="vehicle")
+        entity = Entity(name="AB-12-CD", entity_type="vehicle", owner_id=user.id)
         db.add(entity)
         await db.flush()
         vehicle = Vehicle(entity_id=entity.id, kenteken="AB12CD")
@@ -99,7 +111,7 @@ async def test_detect_and_link_vehicles_creates_entity_and_enriches_from_rdw():
     with patch("api.vehicle_agent.fetch_vehicle_data", return_value=FAKE_RDW_DATA):
         async with async_session() as db:
             vehicles = await detect_and_link_vehicles(
-                db, document_id=document.id, text="Kenteken TE-01-ST is geregistreerd."
+                db, document_id=document.id, text="Kenteken TE-01-ST is geregistreerd.", owner_id=document.owner_id
             )
     assert len(vehicles) == 1
     assert vehicles[0].kenteken == "TE01ST"
@@ -113,22 +125,23 @@ async def test_detect_and_link_vehicles_links_kenteken_and_vin_from_same_documen
         async with async_session() as db:
             vehicles = await detect_and_link_vehicles(
                 db, document_id=document.id,
-                text="Kenteken TE-02-ST, VIN 1HGCM82633A004352.",
+                text="Kenteken TE-02-ST, VIN 1HGCM82633A004352.", owner_id=document.owner_id,
             )
     assert len(vehicles) == 1
     assert vehicles[0].kenteken == "TE02ST"
     assert vehicles[0].vin == "1HGCM82633A004352"
 
 
-async def test_detect_and_link_vehicles_shares_one_entity_across_two_documents():
-    doc_a = await _create_document()
-    doc_b = await _create_document()
+async def test_detect_and_link_vehicles_shares_one_entity_across_two_documents_of_same_owner():
+    owner = await _create_user()
+    doc_a = await _create_document(owner_id=owner.id)
+    doc_b = await _create_document(owner_id=owner.id)
     kenteken = _random_kenteken()
     with patch("api.vehicle_agent.fetch_vehicle_data", return_value=FAKE_RDW_DATA):
         async with async_session() as db:
-            first = await detect_and_link_vehicles(db, document_id=doc_a.id, text=f"Kenteken {kenteken}.")
+            first = await detect_and_link_vehicles(db, document_id=doc_a.id, text=f"Kenteken {kenteken}.", owner_id=owner.id)
         async with async_session() as db:
-            second = await detect_and_link_vehicles(db, document_id=doc_b.id, text=f"Kenteken {kenteken}.")
+            second = await detect_and_link_vehicles(db, document_id=doc_b.id, text=f"Kenteken {kenteken}.", owner_id=owner.id)
 
     assert first[0].id == second[0].id
     async with async_session() as db:
@@ -138,20 +151,36 @@ async def test_detect_and_link_vehicles_shares_one_entity_across_two_documents()
         assert len(mentions.scalars().all()) == 2
 
 
+async def test_detect_and_link_vehicles_creates_separate_rows_for_different_owners():
+    kenteken = _random_kenteken()
+    doc_a = await _create_document()
+    doc_b = await _create_document()
+    with patch("api.vehicle_agent.fetch_vehicle_data", return_value=FAKE_RDW_DATA):
+        async with async_session() as db:
+            first = await detect_and_link_vehicles(db, document_id=doc_a.id, text=f"Kenteken {kenteken}.", owner_id=doc_a.owner_id)
+        async with async_session() as db:
+            second = await detect_and_link_vehicles(db, document_id=doc_b.id, text=f"Kenteken {kenteken}.", owner_id=doc_b.owner_id)
+
+    assert first[0].id != second[0].id  # same plate, different accounts -- not shared
+
+
 async def test_detect_and_link_vehicles_never_raises_on_rdw_failure():
     document = await _create_document()
     with patch("api.vehicle_agent.fetch_vehicle_data", side_effect=RdwLookupError("boom")):
         async with async_session() as db:
-            vehicles = await detect_and_link_vehicles(db, document_id=document.id, text="Kenteken TE-04-ST.")
+            vehicles = await detect_and_link_vehicles(
+                db, document_id=document.id, text="Kenteken TE-04-ST.", owner_id=document.owner_id
+            )
     assert len(vehicles) == 1
     assert vehicles[0].merk is None
     assert vehicles[0].fetched_at is None
 
 
 async def test_lookup_vehicle_force_refreshes_even_if_already_fetched():
+    user = await _create_user()
     with patch("api.vehicle_agent.fetch_vehicle_data", return_value=FAKE_RDW_DATA):
-        vehicle_first = await lookup_vehicle(kenteken="TE-ST05")
-        vehicle_second = await lookup_vehicle(kenteken="TE-ST05")
+        vehicle_first = await lookup_vehicle(kenteken="TE-ST05", owner_id=user.id)
+        vehicle_second = await lookup_vehicle(kenteken="TE-ST05", owner_id=user.id)
     assert vehicle_first.id == vehicle_second.id
     assert vehicle_second.fetched_at >= vehicle_first.fetched_at
 
@@ -161,7 +190,9 @@ async def test_detect_and_link_vehicles_skips_persisting_new_kenteken_rdw_confir
     kenteken = _random_kenteken()
     with patch("api.vehicle_agent.fetch_vehicle_data", return_value=None):
         async with async_session() as db:
-            vehicles = await detect_and_link_vehicles(db, document_id=document.id, text=f"Kenteken {kenteken}.")
+            vehicles = await detect_and_link_vehicles(
+                db, document_id=document.id, text=f"Kenteken {kenteken}.", owner_id=document.owner_id
+            )
     assert vehicles == []
 
     async with async_session() as db:
@@ -174,16 +205,19 @@ async def test_detect_and_link_vehicles_still_creates_unenriched_row_on_transien
     kenteken = _random_kenteken()
     with patch("api.vehicle_agent.fetch_vehicle_data", side_effect=RdwLookupError("boom")):
         async with async_session() as db:
-            vehicles = await detect_and_link_vehicles(db, document_id=document.id, text=f"Kenteken {kenteken}.")
+            vehicles = await detect_and_link_vehicles(
+                db, document_id=document.id, text=f"Kenteken {kenteken}.", owner_id=document.owner_id
+            )
     assert len(vehicles) == 1
     assert vehicles[0].merk is None
     assert vehicles[0].fetched_at is None
 
 
 async def test_lookup_vehicle_returns_none_for_new_kenteken_rdw_confirms_missing():
+    user = await _create_user()
     kenteken = _random_kenteken()
     with patch("api.vehicle_agent.fetch_vehicle_data", return_value=None):
-        vehicle = await lookup_vehicle(kenteken=kenteken)
+        vehicle = await lookup_vehicle(kenteken=kenteken, owner_id=user.id)
     assert vehicle is None
 
     async with async_session() as db:
@@ -194,13 +228,24 @@ async def test_lookup_vehicle_returns_none_for_new_kenteken_rdw_confirms_missing
 
 
 async def test_lookup_vehicle_keeps_already_known_vehicle_even_if_rdw_later_reports_missing():
+    user = await _create_user()
     kenteken = _random_kenteken()
     with patch("api.vehicle_agent.fetch_vehicle_data", return_value=FAKE_RDW_DATA):
-        first = await lookup_vehicle(kenteken=kenteken)
+        first = await lookup_vehicle(kenteken=kenteken, owner_id=user.id)
     assert first is not None
 
     with patch("api.vehicle_agent.fetch_vehicle_data", return_value=None):
-        second = await lookup_vehicle(kenteken=kenteken)
+        second = await lookup_vehicle(kenteken=kenteken, owner_id=user.id)
 
     assert second is not None
     assert second.id == first.id
+
+
+async def test_lookup_vehicle_creates_separate_rows_for_different_owners():
+    user_a = await _create_user()
+    user_b = await _create_user()
+    kenteken = _random_kenteken()
+    with patch("api.vehicle_agent.fetch_vehicle_data", return_value=FAKE_RDW_DATA):
+        vehicle_a = await lookup_vehicle(kenteken=kenteken, owner_id=user_a.id)
+        vehicle_b = await lookup_vehicle(kenteken=kenteken, owner_id=user_b.id)
+    assert vehicle_a.id != vehicle_b.id  # same plate, different accounts -- not shared

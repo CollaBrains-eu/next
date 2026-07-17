@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth import get_current_user
 from api.db import get_db
-from api.models import User, Vehicle
+from api.models import Entity, User, Vehicle
 from api.rdw_client import RdwLookupError
 from api.vehicle_agent import lookup_vehicle
 
@@ -44,7 +44,10 @@ async def list_vehicles_endpoint(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[Vehicle]:
-    result = await db.execute(select(Vehicle).order_by(Vehicle.created_at.desc()))
+    query = select(Vehicle).order_by(Vehicle.created_at.desc())
+    if current_user.role != "admin":
+        query = query.join(Entity, Entity.id == Vehicle.entity_id).where(Entity.owner_id == current_user.id)
+    result = await db.execute(query)
     return list(result.scalars().all())
 
 
@@ -58,7 +61,7 @@ async def lookup_vehicle_endpoint(
     current_user: User = Depends(get_current_user),
 ) -> Vehicle:
     try:
-        vehicle = await lookup_vehicle(kenteken=request.kenteken)
+        vehicle = await lookup_vehicle(kenteken=request.kenteken, owner_id=current_user.id)
     except RdwLookupError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     if vehicle is None:

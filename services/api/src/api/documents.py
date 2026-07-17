@@ -236,7 +236,9 @@ async def _handle_extract_vehicles(event: Event) -> None:
         return
     document_id = event.payload["document_id"]
     async with async_session() as db:
-        vehicles = await detect_and_link_vehicles(db, document_id=document_id, text=event.payload["text"])
+        vehicles = await detect_and_link_vehicles(
+            db, document_id=document_id, text=event.payload["text"], owner_id=event.payload["owner_id"]
+        )
     await publish(EventType.VEHICLES_DETECTED, {"document_id": document_id, "vehicle_count": len(vehicles)})
 
 
