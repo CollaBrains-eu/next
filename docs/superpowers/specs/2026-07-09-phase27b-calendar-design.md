@@ -1,5 +1,14 @@
 # Phase 27b — Calendar (Appointments) Design
 
+> **2026-07-17 update:** re-confirmed via a fresh brainstorming pass
+> (P3 of ADR 0063) — this spec was still accurate against current code
+> (UUID ids, bearer-token auth, Caddyfile gap all re-verified) and is
+> adopted as-is, plus one addition: an optional `vehicle_id` FK. The
+> artifact's own mock data ties an appointment to a vehicle
+> (`title:'RDW appointment — 2-KTD-80'`), so "case/entity-linkable"
+> means both, not just `case_id`. Recurrence and proactive
+> notifications were re-confirmed out of scope for v1.
+
 **Goal:** A `/calendar` page — month grid + agenda pane, backed by a new
 `Appointment` model — with full create/edit/delete in the UI and a
 per-event `.ics` export, matching the design-language artifact's
@@ -64,6 +73,9 @@ class Appointment(Base):
     case_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("cases.id", ondelete="SET NULL"), nullable=True
     )
+    vehicle_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("vehicles.id", ondelete="SET NULL"), nullable=True
+    )
     created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 ```
@@ -71,14 +83,14 @@ class Appointment(Base):
 Migration: new revision, `down_revision = 'd1a4e7f9c2b6'` (27a's head).
 Creates the `appointments` table plus an index on `starts_at`.
 
-`case_id` exists on the model and is accepted by the API, but the v1 UI
-has no case picker — same "field exists, UI doesn't surface it yet"
-choice already made for `Task`/Kanban in 27a.
+`case_id` and `vehicle_id` exist on the model and are accepted by the
+API, but the v1 UI has no case/vehicle picker — same "field exists, UI
+doesn't surface it yet" choice already made for `Task`/Kanban in 27a.
 
 ## Backend API (`services/api/src/api/appointments.py`, new)
 
 - `POST /appointments` — create. Body: `title`, `starts_at` (required);
-  `ends_at`, `location`, `notes`, `case_id` (optional).
+  `ends_at`, `location`, `notes`, `case_id`, `vehicle_id` (optional).
 - `GET /appointments?from=<date>&to=<date>` — both required, inclusive
   range, ordered by `starts_at`. No pagination — a month's worth of
   appointments is small.

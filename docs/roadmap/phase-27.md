@@ -6,6 +6,10 @@
 > just the spec below. Written before code per the discipline
 > `docs/roadmap/README.md` asks for: goal, why now, open design questions,
 > and a smallest-safe-slice scope cut, before touching the database.
+>
+> **2026-07-17:** re-confirmed via ADR 0063's P3 backend-design pass;
+> spec unchanged except an added optional `vehicle_id` FK (open question
+> 7 below). Still not started.
 
 ## Goal
 
@@ -89,6 +93,12 @@ silently in that pass. The user asked to scope them next.
    → Plain link, no API key: `https://www.google.com/maps/search/?api=1&query=<url-encoded location>`.
    No geocoding, no embedded map widget. If `location` is empty, don't
    render the link.
+7. **Should Appointment link to a Vehicle too, not just a Case?**
+   → Yes, optional `vehicle_id` FK (nullable, `ON DELETE SET NULL`,
+   same shape as `case_id`). The artifact's own mock data ties an
+   appointment to a vehicle by kenteken (`title: 'RDW appointment —
+   2-KTD-80'`), so this isn't a hypothetical — same "field exists, UI
+   doesn't surface a picker yet" scope cut as `case_id`.
 
 ## 27a — Kanban board
 
@@ -173,6 +183,9 @@ class Appointment(Base):
     case_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("cases.id", ondelete="SET NULL"), nullable=True
     )
+    vehicle_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("vehicles.id", ondelete="SET NULL"), nullable=True
+    )
     created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 ```
@@ -186,7 +199,8 @@ New revision, chained after 27a's: adds `appointments` table + index on
 
 ### Backend (`services/api/src/api/appointments.py`, new)
 
-- `POST /appointments` — create.
+- `POST /appointments` — create. Body accepts `case_id`, `vehicle_id`
+  (both optional).
 - `GET /appointments?from=&to=` — list within an inclusive date range
   (both required; the frontend always asks for a visible month), ordered
   by `starts_at`. No user-scoping, same convention as `list_tasks`.
