@@ -4,6 +4,7 @@ export const NAV_ITEMS: { to: string; labelKey: string }[] = [
   { to: "/chat", labelKey: "nav.aiChat" },
   { to: "/legal", labelKey: "nav.legalDraft" },
   { to: "/tasks", labelKey: "nav.tasks" },
+  { to: "/calendar", labelKey: "nav.calendar" },
   { to: "/entities", labelKey: "nav.entities" },
   { to: "/cases", labelKey: "nav.cases" },
   { to: "/vehicles", labelKey: "nav.vehicles" },

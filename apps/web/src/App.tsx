@@ -17,6 +17,7 @@ import DocumentDetail from "./routes/DocumentDetail";
 import Chat from "./routes/Chat";
 import Legal from "./routes/Legal";
 import Tasks from "./routes/Tasks";
+import Calendar from "./routes/Calendar";
 import Entities from "./routes/Entities";
 import EntityReview from "./routes/EntityReview";
 import EntityGraph from "./routes/EntityGraph";
@@ -99,6 +100,14 @@ function AppShell() {
           element={
             <ProtectedRoute>
               <Tasks />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/calendar"
+          element={
+            <ProtectedRoute>
+              <Calendar />
             </ProtectedRoute>
           }
         />

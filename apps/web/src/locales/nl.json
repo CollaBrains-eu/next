@@ -5,6 +5,7 @@
     "aiChat": "AI-chat",
     "legalDraft": "Juridisch concept",
     "tasks": "Taken",
+    "calendar": "Kalender",
     "entities": "Entiteiten",
     "cases": "Zaken",
     "vehicles": "Voertuigen",
@@ -150,6 +151,16 @@
     "cadenceWeekly": "Wekelijks",
     "cadenceMonthly": "Maandelijks",
     "createError": "Kon taak niet aanmaken"
+  },
+  "calendar": {
+    "title": "Kalender",
+    "prevMonth": "Vorige maand",
+    "nextMonth": "Volgende maand",
+    "newAppointment": "+ Nieuwe afspraak",
+    "noAppointments": "Geen afspraken op deze dag.",
+    "openInMaps": "📍 Open in Maps",
+    "downloadIcs": "⬇ Download .ics",
+    "loadError": "Afspraken laden mislukt"
   },
   "vehicles": {
     "title": "Voertuigen",
