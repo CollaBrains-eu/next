@@ -1,4 +1,5 @@
 from unittest.mock import patch
+from uuid import UUID
 
 from api.ldap_auth import LdapIdentity
 
@@ -27,8 +28,11 @@ async def _upload_ready_document(client, headers, text: str) -> str:
     return upload.json()["id"]
 
 
+# Extraction fixtures use "organization" (an AUTO_EXTRACTED_ENTITY_TYPES member) even for
+# person-shaped names -- these tests exercise dedup/status-transition mechanics that are
+# type-agnostic, and only "organization"/"address" are auto-created (see entity_agent.py).
 FAKE_EXTRACTION = (
-    '{"entities": [{"name": "Sarah Miller", "type": "person"}, {"name": "Acme Corp", "type": "organization"}], '
+    '{"entities": [{"name": "Sarah Miller", "type": "organization"}, {"name": "Acme Corp", "type": "organization"}], '
     '"relationships": [{"source": "Sarah Miller", "target": "Acme Corp", "type": "represents"}]}'
 )
 
@@ -44,7 +48,7 @@ async def test_extract_entities_persists_entities_mentions_and_relationships(cli
     assert response.status_code == 200
     entities = response.json()
     assert {e["name"] for e in entities} == {"Sarah Miller", "Acme Corp"}
-    assert {e["entity_type"] for e in entities} == {"person", "organization"}
+    assert {e["entity_type"] for e in entities} == {"organization"}
 
 
 async def test_extract_entities_deduplicates_by_case_insensitive_name_and_type(client):
@@ -54,10 +58,10 @@ async def test_extract_entities_deduplicates_by_case_insensitive_name_and_type(c
     doc_b = await _upload_ready_document(client, headers, "wanda cole filed another motion.")
 
     fake_first = (
-        '{"entities": [{"name": "Wanda Cole", "type": "person"}, {"name": "Beacon Inc", "type": "organization"}], '
+        '{"entities": [{"name": "Wanda Cole", "type": "organization"}, {"name": "Beacon Inc", "type": "organization"}], '
         '"relationships": []}'
     )
-    fake_second = '{"entities": [{"name": "wanda cole", "type": "person"}], "relationships": []}'
+    fake_second = '{"entities": [{"name": "wanda cole", "type": "organization"}], "relationships": []}'
 
     with patch("api.entity_agent.chat_completion", return_value=fake_first):
         await client.post(f"/documents/{doc_a}/extract-entities", headers=headers)
@@ -78,7 +82,7 @@ async def test_extract_entities_skips_relationships_referencing_unknown_entities
     document_id = await _upload_ready_document(client, headers, "Some text.")
 
     fake = (
-        '{"entities": [{"name": "Bob Anders", "type": "person"}], '
+        '{"entities": [{"name": "Bob Anders", "type": "organization"}], '
         '"relationships": [{"source": "Bob Anders", "target": "Ghost Entity", "type": "knows"}]}'
     )
     with patch("api.entity_agent.chat_completion", return_value=fake):
@@ -101,13 +105,32 @@ async def test_extract_entities_handles_unparseable_output_gracefully(client):
     assert response.json() == []
 
 
+async def test_extract_entities_does_not_auto_create_person_or_location(client):
+    token = await _login(client, "entityuser16")
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "A person visits a place.")
+
+    fake = (
+        '{"entities": [{"name": "Random Person", "type": "person"}, '
+        '{"name": "Random Place", "type": "location"}], "relationships": []}'
+    )
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        response = await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json() == []  # person/location are no longer auto-created
+
+    listing = await client.get("/entities", headers=headers, params={"q": "Random", "status": "all"})
+    assert listing.json() == []  # nothing was persisted at all
+
+
 async def test_entity_graph_returns_one_hop_neighbors_and_edges(client):
     token = await _login(client, "entityuser5")
     headers = {"Authorization": f"Bearer {token}"}
     document_id = await _upload_ready_document(client, headers, "Priya Patel represents Zenith Ltd.")
 
     fake_extraction = (
-        '{"entities": [{"name": "Priya Patel", "type": "person"}, {"name": "Zenith Ltd", "type": "organization"}], '
+        '{"entities": [{"name": "Priya Patel", "type": "organization"}, {"name": "Zenith Ltd", "type": "organization"}], '
         '"relationships": [{"source": "Priya Patel", "target": "Zenith Ltd", "type": "represents"}]}'
     )
     with patch("api.entity_agent.chat_completion", return_value=fake_extraction):
@@ -144,7 +167,7 @@ async def test_new_entities_are_created_as_pending_review(client):
     document_id = await _upload_ready_document(client, headers, "Nadia Petrov works at Fenwick LLC.")
 
     fake = (
-        '{"entities": [{"name": "Nadia Petrov", "type": "person"}], "relationships": []}'
+        '{"entities": [{"name": "Nadia Petrov", "type": "organization"}], "relationships": []}'
     )
     with patch("api.entity_agent.chat_completion", return_value=fake):
         response = await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
@@ -159,7 +182,7 @@ async def test_extraction_reuses_confirmed_entity_without_creating_pending_row(c
     doc_a = await _upload_ready_document(client, headers, "Omar Reyes signed the lease.")
     doc_b = await _upload_ready_document(client, headers, "Omar Reyes called again today.")
 
-    fake = '{"entities": [{"name": "Omar Reyes", "type": "person"}], "relationships": []}'
+    fake = '{"entities": [{"name": "Omar Reyes", "type": "organization"}], "relationships": []}'
     with patch("api.entity_agent.chat_completion", return_value=fake):
         first = await client.post(f"/documents/{doc_a}/extract-entities", headers=headers)
     entity_id = first.json()[0]["id"]
@@ -189,7 +212,7 @@ async def test_extraction_attaches_new_mention_to_existing_pending_entity(client
     doc_a = await _upload_ready_document(client, headers, "Priya Nair filed a claim.")
     doc_b = await _upload_ready_document(client, headers, "Priya Nair called the adjuster.")
 
-    fake = '{"entities": [{"name": "Priya Nair", "type": "person"}], "relationships": []}'
+    fake = '{"entities": [{"name": "Priya Nair", "type": "organization"}], "relationships": []}'
     with patch("api.entity_agent.chat_completion", return_value=fake):
         first = await client.post(f"/documents/{doc_a}/extract-entities", headers=headers)
     with patch("api.entity_agent.chat_completion", return_value=fake):
@@ -205,7 +228,7 @@ async def test_extraction_suppresses_rejected_entity(client):
     headers = {"Authorization": f"Bearer {token}"}
     doc_a = await _upload_ready_document(client, headers, "088 227 77 00 is listed.")
 
-    fake = '{"entities": [{"name": "088 227 77 00", "type": "other"}], "relationships": []}'
+    fake = '{"entities": [{"name": "088 227 77 00", "type": "organization"}], "relationships": []}'
     with patch("api.entity_agent.chat_completion", return_value=fake):
         first = await client.post(f"/documents/{doc_a}/extract-entities", headers=headers)
     entity_id = first.json()[0]["id"]
@@ -231,7 +254,7 @@ async def test_list_entities_defaults_to_confirmed_only(client):
     headers = {"Authorization": f"Bearer {token}"}
     document_id = await _upload_ready_document(client, headers, "Karl Zimmer is a witness.")
 
-    fake = '{"entities": [{"name": "Karl Zimmer", "type": "person"}], "relationships": []}'
+    fake = '{"entities": [{"name": "Karl Zimmer", "type": "organization"}], "relationships": []}'
     with patch("api.entity_agent.chat_completion", return_value=fake):
         await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
 
@@ -249,7 +272,7 @@ async def test_approve_entity_transitions_pending_to_confirmed(client):
     token = await _login(client, "entityuser10")
     headers = {"Authorization": f"Bearer {token}"}
     document_id = await _upload_ready_document(client, headers, "Liu Wei is a party.")
-    fake = '{"entities": [{"name": "Liu Wei", "type": "person"}], "relationships": []}'
+    fake = '{"entities": [{"name": "Liu Wei", "type": "organization"}], "relationships": []}'
     with patch("api.entity_agent.chat_completion", return_value=fake):
         extracted = await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
     entity_id = extracted.json()[0]["id"]
@@ -266,7 +289,7 @@ async def test_reject_entity_transitions_pending_to_rejected(client):
     token = await _login(client, "entityuser11")
     headers = {"Authorization": f"Bearer {token}"}
     document_id = await _upload_ready_document(client, headers, "23.10.2025 appears here.")
-    fake = '{"entities": [{"name": "23.10.2025", "type": "other"}], "relationships": []}'
+    fake = '{"entities": [{"name": "23.10.2025", "type": "organization"}], "relationships": []}'
     with patch("api.entity_agent.chat_completion", return_value=fake):
         extracted = await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
     entity_id = extracted.json()[0]["id"]
@@ -287,7 +310,7 @@ async def test_approve_already_confirmed_entity_returns_409(client):
     token = await _login(client, "entityuser13")
     headers = {"Authorization": f"Bearer {token}"}
     document_id = await _upload_ready_document(client, headers, "Second approve attempt.")
-    fake = '{"entities": [{"name": "Rosa Diaz", "type": "person"}], "relationships": []}'
+    fake = '{"entities": [{"name": "Rosa Diaz", "type": "organization"}], "relationships": []}'
     with patch("api.entity_agent.chat_completion", return_value=fake):
         extracted = await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
     entity_id = extracted.json()[0]["id"]
@@ -302,7 +325,7 @@ async def test_bulk_review_approves_and_rejects_in_one_request(client):
     headers = {"Authorization": f"Bearer {token}"}
     document_id = await _upload_ready_document(client, headers, "Two entities appear.")
     fake = (
-        '{"entities": [{"name": "Tom Baker", "type": "person"}, {"name": "14 februari 2024", "type": "other"}], '
+        '{"entities": [{"name": "Tom Baker", "type": "organization"}, {"name": "14 februari 2024", "type": "organization"}], '
         '"relationships": []}'
     )
     with patch("api.entity_agent.chat_completion", return_value=fake):
@@ -329,7 +352,7 @@ async def test_entity_graph_excludes_non_confirmed_neighbors(client):
     document_id = await _upload_ready_document(client, headers, "Elena Kravitz represents Vantage Group.")
 
     fake = (
-        '{"entities": [{"name": "Elena Kravitz", "type": "person"}, {"name": "Vantage Group", "type": "organization"}], '
+        '{"entities": [{"name": "Elena Kravitz", "type": "organization"}, {"name": "Vantage Group", "type": "organization"}], '
         '"relationships": [{"source": "Elena Kravitz", "target": "Vantage Group", "type": "represents"}]}'
     )
     with patch("api.entity_agent.chat_completion", return_value=fake):
@@ -343,3 +366,87 @@ async def test_entity_graph_excludes_non_confirmed_neighbors(client):
     graph = await client.get(f"/entities/{center_id}/graph", headers=headers)
     assert graph.json()["nodes"] == []  # Vantage Group is still pending, so it's excluded
     assert graph.json()["edges"] == []  # the edge to a non-confirmed neighbor is excluded too
+
+
+async def test_create_entity_manually_starts_confirmed(client):
+    token = await _login(client, "entityuser17")
+    headers = {"Authorization": f"Bearer {token}"}
+    response = await client.post("/entities", headers=headers, json={"name": "Jane Cooper", "entity_type": "person"})
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["name"] == "Jane Cooper"
+    assert body["entity_type"] == "person"
+    assert body["status"] == "confirmed"
+
+    listing = await client.get("/entities", headers=headers, params={"q": "Jane Cooper"})
+    assert len(listing.json()) == 1  # visible in the default confirmed-only listing
+
+
+async def test_create_entity_rejects_empty_name(client):
+    token = await _login(client, "entityuser18")
+    headers = {"Authorization": f"Bearer {token}"}
+    response = await client.post("/entities", headers=headers, json={"name": "   ", "entity_type": "person"})
+    assert response.status_code == 400
+
+
+async def test_create_entity_rejects_invalid_type(client):
+    token = await _login(client, "entityuser19")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    vehicle_response = await client.post("/entities", headers=headers, json={"name": "Some Car", "entity_type": "vehicle"})
+    assert vehicle_response.status_code == 400
+
+    other_response = await client.post("/entities", headers=headers, json={"name": "Whatever", "entity_type": "other"})
+    assert other_response.status_code == 400
+
+
+async def test_create_entity_deduplicates_and_reconfirms_rejected(client):
+    token = await _login(client, "entityuser20")
+    headers = {"Authorization": f"Bearer {token}"}
+    first = await client.post("/entities", headers=headers, json={"name": "Dedup Person", "entity_type": "person"})
+    entity_id = first.json()["id"]
+
+    same = await client.post("/entities", headers=headers, json={"name": "dedup person", "entity_type": "person"})
+    assert same.status_code == 201
+    assert same.json()["id"] == entity_id  # case-insensitive dedup, not a duplicate row
+
+    from api.models import Entity
+    from api.db import async_session
+    async with async_session() as db:
+        entity = await db.get(Entity, UUID(entity_id))
+        entity.status = "rejected"
+        await db.commit()
+
+    recreated = await client.post("/entities", headers=headers, json={"name": "Dedup Person", "entity_type": "person"})
+    assert recreated.status_code == 201
+    assert recreated.json()["id"] == entity_id
+    assert recreated.json()["status"] == "confirmed"  # manual creation reconfirms, doesn't respect the prior rejection
+
+
+async def test_create_entity_rejects_missing_token(client):
+    response = await client.post("/entities", json={"name": "Nobody", "entity_type": "person"})
+    assert response.status_code == 401
+
+
+async def test_pending_review_count_reflects_newly_extracted_entities(client):
+    token = await _login(client, "entityuser21")
+    headers = {"Authorization": f"Bearer {token}"}
+    before = (await client.get("/entities/pending-review-count", headers=headers)).json()["count"]
+
+    doc_a = await _upload_ready_document(client, headers, "Globex Corp appears here.")
+    doc_b = await _upload_ready_document(client, headers, "Initech Inc appears here.")
+    fake_a = '{"entities": [{"name": "Globex Corp", "type": "organization"}], "relationships": []}'
+    fake_b = '{"entities": [{"name": "Initech Inc", "type": "organization"}], "relationships": []}'
+    with patch("api.entity_agent.chat_completion", return_value=fake_a):
+        await client.post(f"/documents/{doc_a}/extract-entities", headers=headers)
+    with patch("api.entity_agent.chat_completion", return_value=fake_b):
+        await client.post(f"/documents/{doc_b}/extract-entities", headers=headers)
+
+    after = (await client.get("/entities/pending-review-count", headers=headers)).json()["count"]
+    assert after == before + 2  # both newly extracted, still pending_review
+
+
+async def test_pending_review_count_rejects_missing_token(client):
+    response = await client.get("/entities/pending-review-count")
+    assert response.status_code == 401

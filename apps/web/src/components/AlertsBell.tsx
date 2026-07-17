@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Dropdown } from "./ui/Dropdown";
 import { Tooltip } from "./ui/Tooltip";
-import { listEntities } from "../lib/api";
+import { getPendingReviewEntityCount } from "../lib/api";
 
 export function AlertsBell() {
   const [pendingCount, setPendingCount] = useState(0);
@@ -11,8 +11,10 @@ export function AlertsBell() {
   const { t } = useTranslation();
 
   useEffect(() => {
-    listEntities(undefined, undefined, "pending_review")
-      .then((entities) => setPendingCount(entities.length))
+    // A real COUNT query, not listEntities(...).length -- that list endpoint caps at
+    // limit=50, which silently undercounted this badge once the review queue grew past it.
+    getPendingReviewEntityCount()
+      .then(({ count }) => setPendingCount(count))
       .catch(() => {
         // Alerts are a nice-to-have signal, not core navigation -- fail silently.
       });

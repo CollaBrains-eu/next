@@ -23,6 +23,14 @@ logger = logging.getLogger(__name__)
 
 VALID_ENTITY_TYPES = {"person", "organization", "location", "address", "other"}
 
+# Only these two types are trustworthy enough to auto-create from a bulk per-document LLM
+# scan without a human in the loop first -- organizations feed case-correspondent linking,
+# addresses feed the residency timeline below. Person/location/other entities were the
+# dominant source of low-quality "random entity" noise (see
+# docs/superpowers/specs/2026-07-09-entity-review-queue-design.md) and are now manual-only,
+# created via POST /entities in entities.py instead.
+AUTO_EXTRACTED_ENTITY_TYPES = {"organization", "address"}
+
 # Documents where an extracted address is very likely the user's own current
 # address, not a third party's (e.g. a landlord on a rental contract, or a
 # store on an invoice) -- residency detection only fires for these, contract
@@ -30,16 +38,17 @@ VALID_ENTITY_TYPES = {"person", "organization", "location", "address", "other"}
 RESIDENCE_CATEGORY_SLUGS = {"identity_document", "mortgage_housing", "rental_contract", "government"}
 CONTRACT_CATEGORY_SLUGS = {"rental_contract", "mortgage_housing", "employment_contract"}
 
-EXTRACTION_PROMPT = """Extract named entities and relationships between them from the \
-following document. Return ONLY a JSON object (no prose, no markdown fences) with this shape:
+EXTRACTION_PROMPT = """Extract organizations and specific addresses mentioned in the \
+following document. Do not extract people's names or generic locations -- only \
+organizations and addresses. Return ONLY a JSON object (no prose, no markdown fences) \
+with this shape:
 
-{{"entities": [{{"name": str, "type": "person"|"organization"|"location"|"address"|"other", \
+{{"entities": [{{"name": str, "type": "organization"|"address", \
 "street": str|null, "house_number": str|null, "postal_code": str|null, "city": str|null, \
 "country": str|null}}], "relationships": [{{"source": str, "target": str, "type": str}}]}}
 
 The "street"/"house_number"/"postal_code"/"city"/"country" fields only apply to \
-type "address" entities (a specific street address, not a city/region mentioned in passing \
--- those are "location"); omit or null them for every other type.
+type "address" entities; omit or null them for "organization".
 
 "source" and "target" must exactly match a "name" from the entities list. If there are no \
 entities, return {{"entities": [], "relationships": []}}.
@@ -195,6 +204,8 @@ async def extract_entities(db: AsyncSession, *, document_id: UUID, text: str, us
         if not isinstance(item, dict) or not item.get("name"):
             continue
         entity_type = item.get("type") if item.get("type") in VALID_ENTITY_TYPES else "other"
+        if entity_type not in AUTO_EXTRACTED_ENTITY_TYPES:
+            continue
         if entity_type == "address":
             entity = await _get_or_create_address_entity(db, item)
         else:

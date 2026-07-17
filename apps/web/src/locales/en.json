@@ -192,7 +192,7 @@
   },
   "entities": {
     "title": "Entities",
-    "description": "People, organizations, and locations extracted from your documents. Select one to explore its relationships.",
+    "description": "Organizations and addresses are suggested automatically from your documents; add people and locations yourself. Select an entity to explore its relationships.",
     "searchPlaceholder": "Search entities…",
     "typeAll": "All types",
     "typePerson": "Person",
@@ -205,7 +205,10 @@
     "statusRejected": "Rejected",
     "statusAll": "All",
     "reviewPending": "Review pending →",
-    "emptyMessage": "No entities found."
+    "emptyMessage": "No entities found.",
+    "newEntity": "New entity",
+    "namePlaceholder": "Entity name…",
+    "createError": "Failed to create entity"
   },
   "entityReview": {
     "backToEntities": "← Back to entities",
