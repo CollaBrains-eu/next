@@ -605,6 +605,32 @@ class Vehicle(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class Appointment(Base):
+    """A scheduled event with a specific time (unlike Task.due_date, which
+    is date-only) and an optional physical location, for the calendar/
+    agenda page and .ics export. Optionally linked to a Case and/or a
+    Vehicle -- e.g. an RDW APK inspection tied to a specific kenteken.
+    See docs/superpowers/specs/2026-07-09-phase27b-calendar-design.md.
+    """
+
+    __tablename__ = "appointments"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    location: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    case_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("cases.id", ondelete="SET NULL"), nullable=True
+    )
+    vehicle_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("vehicles.id", ondelete="SET NULL"), nullable=True
+    )
+    created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class BugReport(Base):
     """A user-submitted bug report, optionally AI-analyzed (Admin Dashboard, Phase 22).
 
