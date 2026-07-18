@@ -138,6 +138,28 @@ describe("Tasks", () => {
     expect(screen.getByTestId("stat-due-today-count")).toHaveTextContent("1");
   });
 
+  it("gives an overdue task's row a danger-colored left border", async () => {
+    vi.mocked(api.listTasks).mockResolvedValue([{ ...OPEN_TASKS[0], due_date: isoDate(-1) }]);
+    renderPage();
+    const row = (await screen.findByText("Review lease")).closest("[data-testid='task-row']");
+    expect(row).toHaveClass("border-l-danger");
+  });
+
+  it("gives a task with no due date a transparent left border", async () => {
+    vi.mocked(api.listTasks).mockResolvedValue([{ ...OPEN_TASKS[0], due_date: null }]);
+    renderPage();
+    const row = (await screen.findByText("Review lease")).closest("[data-testid='task-row']");
+    expect(row).toHaveClass("border-l-transparent");
+  });
+
+  it("gives a done task a transparent left border even with a past due date", async () => {
+    vi.mocked(api.listTasks).mockResolvedValue([{ ...OPEN_TASKS[0], due_date: isoDate(-1), status: "done" }]);
+    renderPage();
+    const row = (await screen.findByText("Review lease")).closest("[data-testid='task-row']");
+    expect(row).toHaveClass("border-l-transparent");
+  });
+
+
   it("opens the new-task form, disables recurrence chips until a due date is set, and submits", async () => {
     vi.mocked(api.createTask).mockResolvedValue({ ...OPEN_TASKS[0], id: "t2", title: "Chase invoice" });
     renderPage();

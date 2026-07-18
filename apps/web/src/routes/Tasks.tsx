@@ -233,7 +233,15 @@ export default function Tasks() {
               ? { variant: taskUrgency(task.due_date).variant, label: relativeDueLabel(task.due_date, t, formatDate) }
               : null;
             return (
-              <div key={task.id} className="flex items-start gap-3 px-4 py-3">
+              <div
+                key={task.id}
+                data-testid="task-row"
+                className={`flex items-start gap-3 border-l-2 px-4 py-3 ${
+                  task.due_date && task.status !== "done"
+                    ? { danger: "border-l-danger", warning: "border-l-warning", default: "border-l-transparent" }[taskUrgency(task.due_date).variant]
+                    : "border-l-transparent"
+                }`}
+              >
                 <input
                   type="checkbox"
                   checked={task.status === "done"}
