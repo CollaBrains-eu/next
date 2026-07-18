@@ -195,7 +195,9 @@
     "deleteModalBody": "This can't be undone.",
     "deleteConfirm": "Delete appointment",
     "createError": "Failed to save appointment",
-    "deleteError": "Failed to delete appointment"
+    "deleteError": "Failed to delete appointment",
+    "caseLabel": "Case",
+    "noCase": "No case"
   },
   "vehicles": {
     "title": "Vehicles",

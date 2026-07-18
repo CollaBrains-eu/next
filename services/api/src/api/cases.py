@@ -14,7 +14,7 @@ from uuid import UUID
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.models import Case, CaseMember, Decision, Document, GraphEdge, Task, Vehicle
+from api.models import Appointment, Case, CaseMember, Decision, Document, GraphEdge, Task, Vehicle
 
 
 async def create_case(db: AsyncSession, *, user_id: UUID, name: str, description: str | None = None) -> Case:
@@ -214,6 +214,11 @@ async def get_case_dashboard(db: AsyncSession, case_id: UUID) -> dict[str, Any] 
     documents_result = await db.execute(select(Document).where(Document.case_id == case_id))
     documents = list(documents_result.scalars().all())
 
+    appointments_result = await db.execute(
+        select(Appointment).where(Appointment.case_id == case_id).order_by(Appointment.starts_at)
+    )
+    appointments = list(appointments_result.scalars().all())
+
     edges_result = await db.execute(
         select(GraphEdge).where(
             GraphEdge.target_type == "case", GraphEdge.target_id == case_id,
@@ -240,4 +245,11 @@ async def get_case_dashboard(db: AsyncSession, case_id: UUID) -> dict[str, Any] 
         vehicles_result = await db.execute(select(Vehicle).where(Vehicle.id.in_(vehicle_ids)))
         vehicles = list(vehicles_result.scalars().all())
 
-    return {"case": case, "documents": documents, "tasks": tasks, "decisions": decisions, "vehicles": vehicles}
+    return {
+        "case": case,
+        "documents": documents,
+        "tasks": tasks,
+        "decisions": decisions,
+        "vehicles": vehicles,
+        "appointments": appointments,
+    }

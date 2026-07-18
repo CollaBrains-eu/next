@@ -12,7 +12,7 @@ from api.cases import (
     update_case,
 )
 from api.db import async_session
-from api.models import Case, Decision, Document, Entity, GraphEdge, Task, User, Vehicle
+from api.models import Appointment, Case, Decision, Document, Entity, GraphEdge, Task, User, Vehicle
 
 
 def _unique(base: str) -> str:
@@ -203,6 +203,39 @@ async def test_get_case_dashboard_returns_none_for_unknown_id():
     async with async_session() as db:
         dashboard = await get_case_dashboard(db, uuid4())
     assert dashboard is None
+
+
+async def test_get_case_dashboard_includes_linked_appointments():
+    from datetime import datetime, timezone
+
+    user = await _create_user(_unique("caseuser"))
+    async with async_session() as db:
+        case = await create_case(db, user_id=user.id, name="A case")
+        appointment = Appointment(
+            title="Site visit",
+            starts_at=datetime(2026, 3, 5, 14, 30, tzinfo=timezone.utc),
+            case_id=case.id,
+            created_by=user.id,
+        )
+        db.add(appointment)
+        await db.commit()
+        await db.refresh(appointment)
+
+    async with async_session() as db:
+        dashboard = await get_case_dashboard(db, case.id)
+
+    assert [a.id for a in dashboard["appointments"]] == [appointment.id]
+
+
+async def test_get_case_dashboard_appointments_empty_when_none_linked():
+    user = await _create_user(_unique("caseuser"))
+    async with async_session() as db:
+        case = await create_case(db, user_id=user.id, name="A case")
+
+    async with async_session() as db:
+        dashboard = await get_case_dashboard(db, case.id)
+
+    assert dashboard["appointments"] == []
 
 
 async def test_delete_case_removes_it_and_its_graph_edges():

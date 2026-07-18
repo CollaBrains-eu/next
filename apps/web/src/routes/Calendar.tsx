@@ -6,8 +6,10 @@ import {
   deleteAppointment,
   downloadAppointmentIcs,
   listAppointments,
+  listCases,
   updateAppointment,
   type AppointmentOut,
+  type CaseOut,
 } from "../lib/api";
 import { fromDatetimeLocalValue, getMonthGridDates, toDateKey, toDatetimeLocalValue } from "../lib/calendarGrid";
 import { Button } from "../components/ui/Button";
@@ -23,6 +25,13 @@ export default function Calendar() {
   const [appointments, setAppointments] = useState<AppointmentOut[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cases, setCases] = useState<CaseOut[]>([]);
+
+  useEffect(() => {
+    listCases()
+      .then(setCases)
+      .catch(() => undefined);
+  }, []);
 
   const gridDates = useMemo(() => getMonthGridDates(year, month), [year, month]);
   const todayKey = toDateKey(today);
@@ -73,6 +82,7 @@ export default function Calendar() {
   const [formStartsAt, setFormStartsAt] = useState("");
   const [formLocation, setFormLocation] = useState("");
   const [formNotes, setFormNotes] = useState("");
+  const [formCaseId, setFormCaseId] = useState("");
   const [saving, setSaving] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -83,6 +93,7 @@ export default function Calendar() {
     setFormStartsAt(`${selectedDateKey}T09:00`);
     setFormLocation("");
     setFormNotes("");
+    setFormCaseId("");
     setFormOpen(true);
   }
 
@@ -92,6 +103,7 @@ export default function Calendar() {
     setFormStartsAt(toDatetimeLocalValue(appointment.starts_at));
     setFormLocation(appointment.location ?? "");
     setFormNotes(appointment.notes ?? "");
+    setFormCaseId(appointment.case_id ?? "");
     setFormOpen(true);
   }
 
@@ -104,6 +116,7 @@ export default function Calendar() {
         starts_at: fromDatetimeLocalValue(formStartsAt),
         location: formLocation.trim() || undefined,
         notes: formNotes.trim() || undefined,
+        case_id: formCaseId || null,
       };
       if (editing) {
         await updateAppointment(editing.id, payload);
@@ -175,6 +188,11 @@ export default function Calendar() {
                   {appointment.title}
                 </button>
                 {appointment.notes && <p className="text-xs text-ink-2">{appointment.notes}</p>}
+                {appointment.case_id && (
+                  <p className="text-xs text-ink-3">
+                    {cases.find((c) => c.id === appointment.case_id)?.name}
+                  </p>
+                )}
                 <div className="mt-1 flex flex-wrap gap-2">
                   {appointment.location && (
                     <a
@@ -237,6 +255,24 @@ export default function Calendar() {
               onChange={(e) => setFormLocation(e.target.value)}
               className="rounded-lg border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
             />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-ink-2" htmlFor="appointment-case">
+              {t("calendar.caseLabel")}
+            </label>
+            <select
+              id="appointment-case"
+              value={formCaseId}
+              onChange={(e) => setFormCaseId(e.target.value)}
+              className="rounded-lg border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+            >
+              <option value="">{t("calendar.noCase")}</option>
+              {cases.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-ink-2" htmlFor="appointment-notes">

@@ -195,7 +195,9 @@
     "deleteModalBody": "Dies kann nicht rückgängig gemacht werden.",
     "deleteConfirm": "Termin löschen",
     "createError": "Termin konnte nicht gespeichert werden",
-    "deleteError": "Termin konnte nicht gelöscht werden"
+    "deleteError": "Termin konnte nicht gelöscht werden",
+    "caseLabel": "Fall",
+    "noCase": "Kein Fall"
   },
   "vehicles": {
     "title": "Fahrzeuge",

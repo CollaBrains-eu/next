@@ -28,6 +28,7 @@ const CASE: api.CaseDashboardOut = {
   tasks: [],
   decisions: [],
   vehicles: [],
+  appointments: [],
 };
 
 const VEHICLES: api.VehicleOut[] = [
@@ -70,7 +71,17 @@ describe("CaseDetail", () => {
   it("shows 'Nothing linked yet.' for each empty section", async () => {
     renderPage();
     await screen.findByRole("heading", { name: "Alpha matter" });
-    expect(screen.getAllByText("Nothing linked yet.")).toHaveLength(4);
+    expect(screen.getAllByText("Nothing linked yet.")).toHaveLength(5);
+  });
+
+  it("renders linked appointments with their formatted time", async () => {
+    vi.mocked(api.getCase).mockResolvedValue({
+      ...CASE,
+      appointments: [{ id: "a1", title: "Site visit", starts_at: "2026-03-05T14:30:00Z" }],
+    });
+    renderPage();
+    await screen.findByRole("heading", { name: "Alpha matter" });
+    expect(screen.getByText("Site visit")).toBeInTheDocument();
   });
 
   it("toggles status when the status badge is clicked", async () => {

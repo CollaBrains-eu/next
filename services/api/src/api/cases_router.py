@@ -81,11 +81,18 @@ class CaseVehicleOut(BaseModel):
     handelsbenaming: str | None
 
 
+class CaseAppointmentOut(BaseModel):
+    id: UUID
+    title: str
+    starts_at: datetime
+
+
 class CaseDashboardOut(CaseOut):
     documents: list[CaseDocumentOut]
     tasks: list[CaseTaskOut]
     decisions: list[CaseDecisionOut]
     vehicles: list[CaseVehicleOut]
+    appointments: list[CaseAppointmentOut]
 
 
 class DocumentCaseRequest(BaseModel):
@@ -194,6 +201,9 @@ async def get_case_endpoint(
         vehicles=[
             CaseVehicleOut(id=v.id, kenteken=v.kenteken, merk=v.merk, handelsbenaming=v.handelsbenaming)
             for v in result["vehicles"]
+        ],
+        appointments=[
+            CaseAppointmentOut(id=a.id, title=a.title, starts_at=a.starts_at) for a in result["appointments"]
         ],
     )
 

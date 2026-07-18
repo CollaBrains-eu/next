@@ -9,6 +9,7 @@ import { Combobox } from "../components/ui/Combobox";
 import { SkeletonLines } from "../components/ui/Skeleton";
 import { StatusPipeline } from "../components/ui/StatusPipeline";
 import { Tooltip } from "../components/ui/Tooltip";
+import { useDateFormat } from "../hooks/useDateFormat";
 import {
   ApiError,
   attachDocumentToCase,
@@ -32,6 +33,7 @@ type AttachSection = "documents" | "tasks" | "decisions" | "vehicles";
 
 export default function CaseDetail() {
   const { t } = useTranslation();
+  const { formatDateTime } = useDateFormat();
   const { id } = useParams<{ id: string }>();
   const [caseData, setCaseData] = useState<CaseDashboardOut | null>(null);
   const [loading, setLoading] = useState(true);
@@ -241,6 +243,24 @@ export default function CaseDetail() {
                     {v.merk} {v.handelsbenaming}
                   </span>
                 )}
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      <Card>
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-xs font-bold uppercase tracking-wide text-ink-2">{t("nav.calendar")}</span>
+        </div>
+        {caseData.appointments.length === 0 ? (
+          <p className="text-sm text-ink-3">{t("caseDetail.nothingLinked")}</p>
+        ) : (
+          <div className="flex flex-col divide-y divide-edge overflow-hidden rounded-xl border border-edge">
+            {caseData.appointments.map((a) => (
+              <div key={a.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm text-ink">
+                <span className="truncate">{a.title}</span>
+                <span className="shrink-0 text-xs text-ink-3">{formatDateTime(a.starts_at)}</span>
               </div>
             ))}
           </div>
