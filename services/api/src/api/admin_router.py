@@ -583,6 +583,8 @@ async def admin_set_user_phone(
     user = await db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if user.role == "service":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Service accounts cannot be modified")
 
     user.phone_number = validate_phone_number(body.phone_number) if body.phone_number else None
     try:

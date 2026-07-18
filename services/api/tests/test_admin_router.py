@@ -383,64 +383,6 @@ async def test_set_role_refuses_service_account(client):
     )
     assert response.status_code == 403
 
-async def test_set_role_requires_admin_role(client):
-    # a random uuid is fine here -- the 403 for a non-admin caller must fire
-    # before any user lookup happens
-    token = await _login(client, _unique("setrolemember"), is_admin=False)
-    response = await client.put(
-        f"/admin/users/{uuid4()}/role",
-        headers={"Authorization": f"Bearer {token}"},
-        json={"role": "admin"},
-    )
-    assert response.status_code == 403
-
-
-async def test_set_role_updates_member_to_admin(client):
-    username = _unique("promoteuser")
-    await _login(client, username, is_admin=False)
-    admin_token = await _login(client, _unique("promoteadmin"), is_admin=True)
-
-    users = (await client.get(
-        "/admin/users", headers={"Authorization": f"Bearer {admin_token}"}, params={"limit": 200}
-    )).json()
-    target = next(u for u in users if u["username"] == username)
-
-    response = await client.put(
-        f"/admin/users/{target['id']}/role",
-        headers={"Authorization": f"Bearer {admin_token}"},
-        json={"role": "admin"},
-    )
-    assert response.status_code == 200
-    assert response.json()["role"] == "admin"
-
-
-async def test_set_role_unknown_user_returns_404(client):
-    admin_token = await _login(client, _unique("rolenotfoundadmin"), is_admin=True)
-    response = await client.put(
-        f"/admin/users/{uuid4()}/role",
-        headers={"Authorization": f"Bearer {admin_token}"},
-        json={"role": "admin"},
-    )
-    assert response.status_code == 404
-
-
-async def test_set_role_refuses_service_account(client):
-    admin_token = await _login(client, _unique("rolesvcadmin"), is_admin=True)
-    # signal-bot is a fixed service account seeded elsewhere in this suite's
-    # shared dev DB; if it's ever absent this test is a no-op-safe skip.
-    users = (await client.get(
-        "/admin/users", headers={"Authorization": f"Bearer {admin_token}"}, params={"limit": 200}
-    )).json()
-    service_user = next((u for u in users if u["role"] == "service"), None)
-    if service_user is None:
-        return
-    response = await client.put(
-        f"/admin/users/{service_user['id']}/role",
-        headers={"Authorization": f"Bearer {admin_token}"},
-        json={"role": "member"},
-    )
-    assert response.status_code == 403
-
 async def test_reset_password_requires_admin_role(client):
     token = await _login(client, _unique("resetpwmember"), is_admin=False)
     response = await client.put(
@@ -476,6 +418,20 @@ async def test_reset_password_unknown_user_returns_404(client):
         f"/admin/users/{uuid4()}/password", headers={"Authorization": f"Bearer {admin_token}"}
     )
     assert response.status_code == 404
+
+
+async def test_reset_password_refuses_service_account(client):
+    admin_token = await _login(client, _unique("resetpwsvcadmin"), is_admin=True)
+    users = (await client.get(
+        "/admin/users", headers={"Authorization": f"Bearer {admin_token}"}, params={"limit": 200}
+    )).json()
+    service_user = next((u for u in users if u["role"] == "service"), None)
+    if service_user is None:
+        return
+    response = await client.put(
+        f"/admin/users/{service_user['id']}/password", headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    assert response.status_code == 403
 
 
 async def test_deactivate_requires_admin_role(client):
@@ -531,6 +487,20 @@ async def test_deactivate_unknown_user_returns_404(client):
     admin_token = await _login(client, _unique("deactivate404admin"), is_admin=True)
     response = await client.delete(f"/admin/users/{uuid4()}", headers={"Authorization": f"Bearer {admin_token}"})
     assert response.status_code == 404
+
+
+async def test_deactivate_refuses_service_account(client):
+    admin_token = await _login(client, _unique("deactivatesvcadmin"), is_admin=True)
+    users = (await client.get(
+        "/admin/users", headers={"Authorization": f"Bearer {admin_token}"}, params={"limit": 200}
+    )).json()
+    service_user = next((u for u in users if u["role"] == "service"), None)
+    if service_user is None:
+        return
+    response = await client.delete(
+        f"/admin/users/{service_user['id']}", headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    assert response.status_code == 403
 
 
 async def test_set_phone_requires_admin_role(client):
@@ -641,6 +611,22 @@ async def test_set_phone_unknown_user_returns_404(client):
         json={"phone_number": "+15551234567"},
     )
     assert response.status_code == 404
+
+
+async def test_set_phone_refuses_service_account(client):
+    admin_token = await _login(client, _unique("setphonesvcadmin"), is_admin=True)
+    users = (await client.get(
+        "/admin/users", headers={"Authorization": f"Bearer {admin_token}"}, params={"limit": 200}
+    )).json()
+    service_user = next((u for u in users if u["role"] == "service"), None)
+    if service_user is None:
+        return
+    response = await client.put(
+        f"/admin/users/{service_user['id']}/phone",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"phone_number": "+15551234567"},
+    )
+    assert response.status_code == 403
 
 
 async def test_deactivated_user_is_rejected_on_next_request(client):
