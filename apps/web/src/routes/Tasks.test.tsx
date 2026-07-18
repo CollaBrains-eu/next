@@ -54,7 +54,7 @@ describe("Tasks", () => {
   it("defaults to the open filter and re-queries when a different tab is clicked", async () => {
     renderPage();
     await screen.findByText("Review lease");
-    expect(api.listTasks).toHaveBeenLastCalledWith("open");
+    expect(api.listTasks).toHaveBeenCalledWith("open");
     fireEvent.click(screen.getByRole("button", { name: "done" }));
     await waitFor(() => expect(api.listTasks).toHaveBeenLastCalledWith("done"));
   });
@@ -119,6 +119,25 @@ describe("Tasks", () => {
     expect(await screen.findByText("↻ Weekly")).toBeInTheDocument();
   });
 
+  it("shows open/overdue/due-today counts in the stats strip, independent of the active filter tab", async () => {
+    vi.mocked(api.listTasks).mockImplementation((statusFilter?: string) => {
+      if (statusFilter === "open") return Promise.resolve([OPEN_TASKS[0]]);
+      // unfiltered call (for the stats strip) sees the full mixed set
+      return Promise.resolve([
+        { ...OPEN_TASKS[0], id: "t1", status: "open", due_date: isoDate(-1) }, // overdue
+        { ...OPEN_TASKS[0], id: "t2", status: "open", due_date: isoDate(0) }, // due today
+        { ...OPEN_TASKS[0], id: "t3", status: "in_progress", due_date: isoDate(10) }, // open, not urgent
+        { ...OPEN_TASKS[0], id: "t4", status: "done", due_date: isoDate(-5) }, // done, excluded
+      ]);
+    });
+    renderPage();
+    await screen.findByText("Review lease");
+    // wait for the allTasks fetch to resolve and re-render before asserting counts
+    await waitFor(() => expect(screen.getByTestId("stat-open-count")).toHaveTextContent("3"));
+    expect(screen.getByTestId("stat-overdue-count")).toHaveTextContent("1");
+    expect(screen.getByTestId("stat-due-today-count")).toHaveTextContent("1");
+  });
+
   it("opens the new-task form, disables recurrence chips until a due date is set, and submits", async () => {
     vi.mocked(api.createTask).mockResolvedValue({ ...OPEN_TASKS[0], id: "t2", title: "Chase invoice" });
     renderPage();
@@ -143,7 +162,7 @@ describe("Tasks", () => {
     );
     // form closes and the list re-fetches after a successful create
     await waitFor(() => expect(screen.queryByLabelText("What needs to happen?")).not.toBeInTheDocument());
-    expect(api.listTasks).toHaveBeenCalledTimes(2);
+    expect(api.listTasks).toHaveBeenCalledTimes(3);
   });
 
   it("does not submit the new-task form with a blank title", async () => {

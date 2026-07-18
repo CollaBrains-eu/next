@@ -153,7 +153,10 @@
     "cadenceDaily": "Daily",
     "cadenceWeekly": "Weekly",
     "cadenceMonthly": "Monthly",
-    "createError": "Failed to create task"
+    "createError": "Failed to create task",
+    "statsOpenLabel": "Open",
+    "statsOverdueLabel": "Overdue",
+    "statsDueTodayLabel": "Due today"
   },
   "calendar": {
     "title": "Calendar",

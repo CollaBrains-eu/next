@@ -30,6 +30,7 @@ export default function Tasks() {
   const [tasks, setTasks] = useState<TaskOut[]>([]);
   const [filter, setFilter] = useState<Filter>("open");
   const [view, setView] = useState<View>("list");
+  const [allTasks, setAllTasks] = useState<TaskOut[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,6 +64,11 @@ export default function Tasks() {
   useEffect(() => {
     refresh(view, filter);
   }, [view, filter, refresh]);
+
+  useEffect(() => {
+    listTasks().then(setAllTasks).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function toggleDone(task: TaskOut) {
     const nextStatus = task.status === "done" ? "open" : "done";
@@ -108,6 +114,10 @@ export default function Tasks() {
     }
   }
 
+  const openTasks = allTasks.filter((task) => task.status !== "done");
+  const overdueCount = openTasks.filter((task) => task.due_date && taskUrgency(task.due_date).variant === "danger").length;
+  const dueTodayCount = openTasks.filter((task) => task.due_date && taskUrgency(task.due_date).variant === "warning").length;
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -135,6 +145,21 @@ export default function Tasks() {
             </Button>
           )}
         </div>
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <Card className="flex flex-col gap-0.5 px-4 py-2.5">
+          <span className="text-xs text-ink-3">{t("tasks.statsOpenLabel")}</span>
+          <span data-testid="stat-open-count" className="text-lg font-semibold text-ink">{openTasks.length}</span>
+        </Card>
+        <Card className="flex flex-col gap-0.5 px-4 py-2.5">
+          <span className="text-xs text-ink-3">{t("tasks.statsOverdueLabel")}</span>
+          <span data-testid="stat-overdue-count" className={`text-lg font-semibold ${overdueCount > 0 ? "text-danger" : "text-ink"}`}>{overdueCount}</span>
+        </Card>
+        <Card className="flex flex-col gap-0.5 px-4 py-2.5">
+          <span className="text-xs text-ink-3">{t("tasks.statsDueTodayLabel")}</span>
+          <span data-testid="stat-due-today-count" className={`text-lg font-semibold ${dueTodayCount > 0 ? "text-warning" : "text-ink"}`}>{dueTodayCount}</span>
+        </Card>
       </div>
 
       {error && <p className="text-sm text-danger">{error}</p>}
