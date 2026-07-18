@@ -440,3 +440,39 @@ async def test_set_role_refuses_service_account(client):
         json={"role": "member"},
     )
     assert response.status_code == 403
+
+async def test_reset_password_requires_admin_role(client):
+    token = await _login(client, _unique("resetpwmember"), is_admin=False)
+    response = await client.put(
+        f"/admin/users/{uuid4()}/password", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 403
+
+
+async def test_reset_password_returns_new_temporary_password(client):
+    username = _unique("resetpwuser")
+    await _login(client, username, is_admin=False)
+    admin_token = await _login(client, _unique("resetpwadmin"), is_admin=True)
+
+    users = (await client.get(
+        "/admin/users", headers={"Authorization": f"Bearer {admin_token}"}, params={"limit": 200}
+    )).json()
+    target = next(u for u in users if u["username"] == username)
+
+    with patch("api.admin_router.ldap_set_password", return_value="a-new-temp-pw-999") as mock_reset:
+        response = await client.put(
+            f"/admin/users/{target['id']}/password", headers={"Authorization": f"Bearer {admin_token}"}
+        )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["username"] == username
+    assert body["temporary_password"] == "a-new-temp-pw-999"
+    mock_reset.assert_called_once_with(username=username)
+
+
+async def test_reset_password_unknown_user_returns_404(client):
+    admin_token = await _login(client, _unique("resetpw404admin"), is_admin=True)
+    response = await client.put(
+        f"/admin/users/{uuid4()}/password", headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    assert response.status_code == 404

@@ -49,6 +49,8 @@ from api.db import get_db
 from api.events import EventType, publish
 from api.ldap_auth import LdapAdminError
 from api.ldap_auth import create_user as ldap_create_user
+from api.ldap_auth import delete_user as ldap_delete_user
+from api.ldap_auth import set_password as ldap_set_password
 from api.models import BugReport, Document, PendingUserPhoneNumber, User
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -513,3 +515,26 @@ async def admin_set_user_role(
     await db.commit()
     await db.refresh(user)
     return user
+
+
+@router.put("/users/{user_id}/password", response_model=AdminUserCreated)
+async def admin_reset_user_password(
+    user_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> AdminUserCreated:
+    """Generate and return a new one-time temporary password for a user,
+    same UX as user creation."""
+    _require_admin(current_user)
+    user = await db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if user.role == "service":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Service accounts cannot be modified")
+
+    try:
+        new_password = ldap_set_password(username=user.username)
+    except LdapAdminError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+
+    return AdminUserCreated(username=user.username, temporary_password=new_password)
