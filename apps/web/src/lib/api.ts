@@ -216,8 +216,8 @@ export interface SearchResult {
   score: number;
 }
 
-export function search(query: string): Promise<SearchResult[]> {
-  return request<SearchResult[]>(`/search?q=${encodeURIComponent(query)}`);
+export function search(query: string, limit = 10): Promise<SearchResult[]> {
+  return request<SearchResult[]>(`/search?q=${encodeURIComponent(query)}&limit=${limit}`);
 }
 
 export interface Citation {

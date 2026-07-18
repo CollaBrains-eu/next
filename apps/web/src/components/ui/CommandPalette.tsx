@@ -1,20 +1,30 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useEscapeToClose } from "../../hooks/useEscapeToClose";
 
-interface CommandItem {
+export interface CommandItem {
   label: string;
   onSelect: () => void;
+  group?: "navigation" | "documents";
+  description?: string;
 }
 
 export function CommandPalette({
   open,
   onClose,
   items,
+  asyncItems,
+  asyncLoading,
+  onQueryChange,
 }: {
   open: boolean;
   onClose: () => void;
   items: CommandItem[];
+  asyncItems?: CommandItem[];
+  asyncLoading?: boolean;
+  onQueryChange?: (query: string) => void;
 }) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -29,7 +39,10 @@ export function CommandPalette({
 
   if (!open) return null;
 
-  const filtered = items.filter((item) => item.label.toLowerCase().includes(query.toLowerCase()));
+  const filteredNav = items.filter((item) => item.label.toLowerCase().includes(query.toLowerCase()));
+  const docs = asyncItems ?? [];
+  const filtered = [...filteredNav, ...docs];
+  const showSearching = asyncLoading && query.trim().length >= 2;
 
   function runSelection(item: CommandItem) {
     item.onSelect();
@@ -60,15 +73,21 @@ export function CommandPalette({
           onChange={(event) => {
             setQuery(event.target.value);
             setSelectedIndex(0);
+            onQueryChange?.(event.target.value);
           }}
           onKeyDown={handleKeyDown}
           placeholder="Search documents, cases, vehicles…"
           className="w-full border-b border-edge bg-transparent px-4 py-4 text-sm text-ink outline-none"
         />
         <div className="max-h-[60vh] overflow-y-auto">
-          {filtered.map((item, index) => (
+          {filteredNav.length > 0 && docs.length > 0 && (
+            <div className="px-4 pt-3 text-[11px] font-semibold uppercase tracking-wide text-ink-3">
+              {t("commandCenter.groupNavigation")}
+            </div>
+          )}
+          {filteredNav.map((item, index) => (
             <div
-              key={item.label}
+              key={`nav-${index}-${item.label}`}
               onClick={() => runSelection(item)}
               onMouseEnter={() => setSelectedIndex(index)}
               className={`cursor-pointer px-4 py-2.5 text-sm transition-colors duration-fast ${
@@ -78,6 +97,30 @@ export function CommandPalette({
               {item.label}
             </div>
           ))}
+          {docs.length > 0 && (
+            <div className="px-4 pt-3 text-[11px] font-semibold uppercase tracking-wide text-ink-3">
+              {t("commandCenter.groupDocuments")}
+            </div>
+          )}
+          {showSearching && (
+            <div className="px-4 py-2.5 text-sm text-ink-3">{t("commandCenter.searching")}</div>
+          )}
+          {docs.map((item, docIndex) => {
+            const index = filteredNav.length + docIndex;
+            return (
+              <div
+                key={`doc-${docIndex}-${item.label}`}
+                onClick={() => runSelection(item)}
+                onMouseEnter={() => setSelectedIndex(index)}
+                className={`cursor-pointer px-4 py-2.5 text-sm transition-colors duration-fast ${
+                  index === selectedIndex ? "bg-hover text-ink" : "text-ink-2"
+                }`}
+              >
+                <div>{item.label}</div>
+                {item.description && <div className="mt-0.5 truncate text-xs text-ink-3">{item.description}</div>}
+              </div>
+            );
+          })}
         </div>
       </div>
     </>
