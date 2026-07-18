@@ -17,27 +17,12 @@ import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { KanbanBoard } from "../components/ui/KanbanBoard";
 import { useDateFormat } from "../hooks/useDateFormat";
+import { taskUrgency, relativeDueLabel } from "../lib/taskUrgency";
 import { SkeletonLines } from "../components/ui/Skeleton";
 
 type Filter = "open" | "done" | "all";
 type View = "list" | "board";
 type Cadence = "once" | RecurrenceRule;
-
-function dueBadge(
-  dueDate: string,
-  t: (key: string, opts?: Record<string, unknown>) => string,
-  formatDate: (value: string) => string,
-) {
-  const today = new Date().toISOString().slice(0, 10);
-  if (dueDate < today) {
-    const days = Math.round((new Date(today).getTime() - new Date(dueDate).getTime()) / 86400000);
-    return { variant: "danger" as const, label: t("tasks.dueOverdue", { count: days }) };
-  }
-  if (dueDate === today) {
-    return { variant: "warning" as const, label: t("tasks.dueToday") };
-  }
-  return { variant: "default" as const, label: t("tasks.due", { date: formatDate(dueDate) }) };
-}
 
 export default function Tasks() {
   const { t } = useTranslation();
@@ -219,7 +204,9 @@ export default function Tasks() {
       ) : (
         <div className="flex flex-col divide-y divide-edge rounded-2xl border border-edge bg-surface">
           {tasks.map((task) => {
-            const badge = task.due_date ? dueBadge(task.due_date, t, formatDate) : null;
+            const badge = task.due_date
+              ? { variant: taskUrgency(task.due_date).variant, label: relativeDueLabel(task.due_date, t, formatDate) }
+              : null;
             return (
               <div key={task.id} className="flex items-start gap-3 px-4 py-3">
                 <input

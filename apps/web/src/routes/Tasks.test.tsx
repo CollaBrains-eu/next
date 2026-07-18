@@ -100,6 +100,19 @@ describe("Tasks", () => {
     expect(await screen.findByText("Due today")).toBeInTheDocument();
   });
 
+  it("shows 'Due tomorrow' for a task due the next day", async () => {
+    vi.mocked(api.listTasks).mockResolvedValue([{ ...OPEN_TASKS[0], due_date: isoDate(1) }]);
+    renderPage();
+    expect(await screen.findByText("Due tomorrow")).toBeInTheDocument();
+  });
+
+  it("shows 'Due in N days' for a task due within a week", async () => {
+    vi.mocked(api.listTasks).mockResolvedValue([{ ...OPEN_TASKS[0], due_date: isoDate(4) }]);
+    renderPage();
+    expect(await screen.findByText("Due in 4 days")).toBeInTheDocument();
+  });
+
+
   it("shows a recurrence marker next to a recurring task's title", async () => {
     vi.mocked(api.listTasks).mockResolvedValue([{ ...OPEN_TASKS[0], recurrence_rule: "weekly" }]);
     renderPage();
