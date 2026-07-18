@@ -538,3 +538,29 @@ async def admin_reset_user_password(
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
     return AdminUserCreated(username=user.username, temporary_password=new_password)
+
+@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def admin_deactivate_user(
+    user_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """Deactivate a user: removes their LDAP entry (so they can never log
+    in again) and flips is_active so get_current_user rejects any
+    still-unexpired JWT immediately. Does not touch their Postgres row or
+    any content they created."""
+    _require_admin(current_user)
+    user = await db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if user.role == "service":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Service accounts cannot be modified")
+
+    try:
+        ldap_delete_user(username=user.username)
+    except LdapAdminError as exc:
+        if "does not exist" not in str(exc).lower():
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+
+    user.is_active = False
+    await db.commit()

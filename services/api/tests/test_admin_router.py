@@ -476,3 +476,58 @@ async def test_reset_password_unknown_user_returns_404(client):
         f"/admin/users/{uuid4()}/password", headers={"Authorization": f"Bearer {admin_token}"}
     )
     assert response.status_code == 404
+
+
+async def test_deactivate_requires_admin_role(client):
+    token = await _login(client, _unique("deactivatemember"), is_admin=False)
+    response = await client.delete(f"/admin/users/{uuid4()}", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 403
+
+
+async def test_deactivate_sets_is_active_false(client):
+    username = _unique("deactivateuser")
+    await _login(client, username, is_admin=False)
+    admin_token = await _login(client, _unique("deactivateadmin"), is_admin=True)
+
+    users = (await client.get(
+        "/admin/users", headers={"Authorization": f"Bearer {admin_token}"}, params={"limit": 200}
+    )).json()
+    target = next(u for u in users if u["username"] == username)
+
+    with patch("api.admin_router.ldap_delete_user") as mock_delete:
+        response = await client.delete(
+            f"/admin/users/{target['id']}", headers={"Authorization": f"Bearer {admin_token}"}
+        )
+    assert response.status_code == 204
+    mock_delete.assert_called_once_with(username=username)
+
+    users_after = (await client.get(
+        "/admin/users", headers={"Authorization": f"Bearer {admin_token}"}, params={"limit": 200}
+    )).json()
+    assert next(u for u in users_after if u["id"] == target["id"])["is_active"] is False
+
+
+async def test_deactivate_is_idempotent_when_ldap_entry_already_gone(client):
+    username = _unique("doubledeactivateuser")
+    await _login(client, username, is_admin=False)
+    admin_token = await _login(client, _unique("doubledeactivateadmin"), is_admin=True)
+
+    users = (await client.get(
+        "/admin/users", headers={"Authorization": f"Bearer {admin_token}"}, params={"limit": 200}
+    )).json()
+    target = next(u for u in users if u["username"] == username)
+
+    with patch(
+        "api.admin_router.ldap_delete_user",
+        side_effect=LdapAdminError(f"user {username!r} does not exist"),
+    ):
+        response = await client.delete(
+            f"/admin/users/{target['id']}", headers={"Authorization": f"Bearer {admin_token}"}
+        )
+    assert response.status_code == 204
+
+
+async def test_deactivate_unknown_user_returns_404(client):
+    admin_token = await _login(client, _unique("deactivate404admin"), is_admin=True)
+    response = await client.delete(f"/admin/users/{uuid4()}", headers={"Authorization": f"Bearer {admin_token}"})
+    assert response.status_code == 404
