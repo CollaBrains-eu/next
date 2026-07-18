@@ -76,6 +76,33 @@ describe("Dashboard", () => {
     expect(api.listTasks).toHaveBeenCalledWith("open");
   });
 
+  it("shows an overdue badge next to a task with a past due date", async () => {
+    vi.mocked(api.listTasks).mockResolvedValue([
+      { id: "t1", document_id: null, title: "Review lease", description: null, due_date: "2020-01-01", assignee: null, status: "open", position: 0, source: "manual", created_at: "2026-01-01T00:00:00Z" },
+    ]);
+    renderPage();
+    expect(await screen.findByText("Review lease")).toBeInTheDocument();
+    expect(screen.getByText(/Overdue by/)).toBeInTheDocument();
+  });
+
+  it("shows a formatted-date badge next to a task with a far-future due date", async () => {
+    vi.mocked(api.listTasks).mockResolvedValue([
+      { id: "t1", document_id: null, title: "Review lease", description: null, due_date: "2099-06-15", assignee: null, status: "open", position: 0, source: "manual", created_at: "2026-01-01T00:00:00Z" },
+    ]);
+    renderPage();
+    expect(await screen.findByText("Review lease")).toBeInTheDocument();
+    expect(screen.getByText("Due 15/06/2099")).toBeInTheDocument();
+  });
+
+  it("shows no badge next to a task with no due date", async () => {
+    vi.mocked(api.listTasks).mockResolvedValue([
+      { id: "t1", document_id: null, title: "Review lease", description: null, due_date: null, assignee: null, status: "open", position: 0, source: "manual", created_at: "2026-01-01T00:00:00Z" },
+    ]);
+    renderPage();
+    expect(await screen.findByText("Review lease")).toBeInTheDocument();
+    expect(screen.queryByText(/Due|Overdue/)).not.toBeInTheDocument();
+  });
+
   it("shows the pending entity review count linking to the review queue", async () => {
     vi.mocked(api.listEntities).mockResolvedValue([
       { id: "e1", name: "Acme BV", entity_type: "organization", status: "pending_review", created_at: "2026-01-01T00:00:00Z" },

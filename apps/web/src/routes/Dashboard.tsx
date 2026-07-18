@@ -14,6 +14,8 @@ import {
   type EntityOut,
   type ServiceHealthOut,
 } from "../lib/api";
+import { useDateFormat } from "../hooks/useDateFormat";
+import { taskUrgency } from "../lib/taskUrgency";
 import Card from "../components/Card";
 import { DashboardWidgetCard } from "../components/DashboardWidgetCard";
 import { Badge } from "../components/ui/Badge";
@@ -33,6 +35,7 @@ export function getGreetingKey(hour: number): "dashboard.greetingMorning" | "das
 
 export default function Dashboard() {
   const { t } = useTranslation();
+  const { formatDate } = useDateFormat();
   const { user } = useAuth();
 
   const [documents, setDocuments] = useState<DocumentOut[]>([]);
@@ -150,8 +153,17 @@ export default function Dashboard() {
         >
           <ul className="flex flex-col gap-2">
             {recentTasks.map((task) => (
-              <li key={task.id} className="text-sm text-ink">
-                {task.title}
+              <li key={task.id} className="flex items-center justify-between gap-2 text-sm">
+                <span className="text-ink">{task.title}</span>
+                {task.due_date && (
+                  <Badge variant={taskUrgency(task.due_date).variant}>
+                    {taskUrgency(task.due_date).variant === "danger"
+                      ? t("tasks.dueOverdue", { count: taskUrgency(task.due_date).overdueDays })
+                      : taskUrgency(task.due_date).variant === "warning"
+                        ? t("tasks.dueToday")
+                        : t("tasks.due", { date: formatDate(task.due_date) })}
+                  </Badge>
+                )}
               </li>
             ))}
           </ul>
