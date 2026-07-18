@@ -116,7 +116,7 @@ describe("Dashboard", () => {
 
   it("shows recent cases", async () => {
     vi.mocked(api.listCases).mockResolvedValue([
-      { id: "c1", name: "Smith matter", description: null, status: "open", created_at: "2026-01-01T00:00:00Z" },
+      { id: "c1", name: "Smith matter", description: null, status: "open", created_at: "2026-01-01T00:00:00Z", document_count: 0, member_count: 0 },
     ]);
     renderPage();
     expect(await screen.findByText("Smith matter")).toBeInTheDocument();
@@ -173,7 +173,7 @@ describe("Dashboard", () => {
       { id: "t2", document_id: null, title: "Future task", description: null, due_date: "2099-01-01", assignee: null, status: "open", position: 1, source: "manual", created_at: "2026-01-01T00:00:00Z", recurrence_rule: null },
     ]);
     vi.mocked(api.listCases).mockResolvedValue([
-      { id: "c1", name: "Case one", description: null, status: "open", created_at: "2026-01-01T00:00:00Z" },
+      { id: "c1", name: "Case one", description: null, status: "open", created_at: "2026-01-01T00:00:00Z", document_count: 0, member_count: 0 },
     ]);
     renderPage();
 

@@ -1,14 +1,18 @@
 from uuid import uuid4
 
 from api.cases import (
+    add_case_member,
     attach_document_to_case,
     create_case,
     delete_case,
+    get_case_counts,
     get_case_dashboard,
     link_decision_to_case,
     link_task_to_case,
     link_vehicle_to_case,
     list_cases,
+    list_cases_with_counts,
+    respond_to_case_invitation,
     update_case,
 )
 from api.db import async_session
@@ -203,6 +207,59 @@ async def test_get_case_dashboard_returns_none_for_unknown_id():
     async with async_session() as db:
         dashboard = await get_case_dashboard(db, uuid4())
     assert dashboard is None
+
+
+async def test_list_cases_with_counts_reports_document_and_accepted_member_counts():
+    owner = await _create_user(_unique("caseuser"))
+    member = await _create_user(_unique("caseuser"))
+    pending_invitee = await _create_user(_unique("caseuser"))
+    document_a = await _create_document(owner.id)
+    document_b = await _create_document(owner.id)
+
+    async with async_session() as db:
+        case = await create_case(db, user_id=owner.id, name="A case")
+        await attach_document_to_case(db, document_id=document_a.id, case_id=case.id)
+        await attach_document_to_case(db, document_id=document_b.id, case_id=case.id)
+        await add_case_member(db, case_id=case.id, user_id=member.id)
+        await respond_to_case_invitation(db, case_id=case.id, user_id=member.id, accept=True)
+        await add_case_member(db, case_id=case.id, user_id=pending_invitee.id)
+
+    async with async_session() as db:
+        rows = await list_cases_with_counts(db, user_id=owner.id)
+
+    matching = [row for row in rows if row[0].id == case.id]
+    assert len(matching) == 1
+    _, document_count, member_count = matching[0]
+    assert document_count == 2
+    assert member_count == 1  # only the accepted member, not the pending invitee
+
+
+async def test_list_cases_with_counts_zero_for_case_with_nothing_linked():
+    owner = await _create_user(_unique("caseuser"))
+    async with async_session() as db:
+        case = await create_case(db, user_id=owner.id, name="Empty case")
+
+    async with async_session() as db:
+        rows = await list_cases_with_counts(db, user_id=owner.id)
+
+    matching = [row for row in rows if row[0].id == case.id]
+    _, document_count, member_count = matching[0]
+    assert document_count == 0
+    assert member_count == 0
+
+
+async def test_get_case_counts_matches_list_cases_with_counts():
+    owner = await _create_user(_unique("caseuser"))
+    document = await _create_document(owner.id)
+    async with async_session() as db:
+        case = await create_case(db, user_id=owner.id, name="A case")
+        await attach_document_to_case(db, document_id=document.id, case_id=case.id)
+
+    async with async_session() as db:
+        document_count, member_count = await get_case_counts(db, case_id=case.id)
+
+    assert document_count == 1
+    assert member_count == 0
 
 
 async def test_delete_case_removes_it_and_its_graph_edges():
