@@ -358,7 +358,12 @@
     "phoneUpdateError": "Kon telefoonnummer niet bijwerken",
     "resetPassword": "Wachtwoord resetten",
     "passwordReset": "Wachtwoord gereset voor {{username}}.",
-    "resetPasswordError": "Kon wachtwoord niet resetten"
+    "resetPasswordError": "Kon wachtwoord niet resetten",
+    "deactivate": "Deactiveren",
+    "deactivateConfirmTitle": "Gebruiker deactiveren?",
+    "deactivateConfirmBody": "{{displayName}} deactiveren? Deze persoon wordt direct uitgelogd en kan niet meer inloggen. Diens documenten en zaken blijven bewaard.",
+    "deactivateError": "Kon gebruiker niet deactiveren",
+    "deactivatedBadge": "Gedeactiveerd"
   },
   "settings": {
     "title": "Instellingen",

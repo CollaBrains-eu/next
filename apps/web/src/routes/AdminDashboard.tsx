@@ -19,6 +19,7 @@ import {
   setUserRole,
   setUserPhone,
   resetUserPassword,
+  deactivateUser,
   type AdminStatsOut,
   type AdminUserOut,
   type AiUsageRowOut,
@@ -249,6 +250,8 @@ function UsersTab() {
   const [phoneInput, setPhoneInput] = useState("");
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [phoneSaving, setPhoneSaving] = useState(false);
+  const [deactivateTarget, setDeactivateTarget] = useState<AdminUserOut | null>(null);
+  const [deactivating, setDeactivating] = useState(false);
   const [hasMore, setHasMore] = useState(true);
 
   async function loadUsers(offset: number) {
@@ -332,6 +335,21 @@ function UsersTab() {
     }
   }
 
+  async function handleDeactivate() {
+    if (!deactivateTarget) return;
+    setDeactivating(true);
+    setRowError(null);
+    try {
+      await deactivateUser(deactivateTarget.id);
+      setUsers((prev) => prev.map((u) => (u.id === deactivateTarget.id ? { ...u, is_active: false } : u)));
+      setDeactivateTarget(null);
+    } catch (err) {
+      setRowError(err instanceof ApiError ? err.message : t("admin.deactivateError"));
+    } finally {
+      setDeactivating(false);
+    }
+  }
+
   const columns: Column<AdminUserOut>[] = [
     { key: "username", header: t("admin.usernameLabel"), render: (row) => row.username },
     { key: "display_name", header: t("admin.displayNameLabel"), render: (row) => row.display_name },
@@ -339,7 +357,12 @@ function UsersTab() {
     {
       key: "role",
       header: t("admin.roleColumn"),
-      render: (row) => <Badge variant={row.role === "admin" ? "warning" : "default"}>{row.role}</Badge>,
+      render: (row) => (
+        <div className="flex items-center gap-1.5">
+          <Badge variant={row.role === "admin" ? "warning" : "default"}>{row.role}</Badge>
+          {!row.is_active && <Badge variant="danger">{t("admin.deactivatedBadge")}</Badge>}
+        </div>
+      ),
     },
     { key: "phone_number", header: t("admin.phoneColumn"), render: (row) => row.phone_number ?? "" },
     {
@@ -351,7 +374,7 @@ function UsersTab() {
       key: "actions",
       header: "",
       render: (row) => {
-        if (row.role === "service") return null;
+        if (row.role === "service" || !row.is_active) return null;
         const options: DropdownOption[] = [
           {
             label: row.role === "admin" ? t("admin.makeMember") : t("admin.makeAdmin"),
@@ -368,6 +391,11 @@ function UsersTab() {
           {
             label: t("admin.resetPassword"),
             onSelect: () => handleResetPassword(row),
+          },
+          {
+            label: t("admin.deactivate"),
+            danger: true,
+            onSelect: () => setDeactivateTarget(row),
           },
         ];
         return (
@@ -460,6 +488,26 @@ function UsersTab() {
             </Button>
             <Button type="button" size="sm" disabled={phoneSaving} onClick={handleSavePhone}>
               {t("admin.save")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={deactivateTarget !== null}
+        onClose={() => setDeactivateTarget(null)}
+        title={t("admin.deactivateConfirmTitle")}
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-ink">
+            {deactivateTarget && t("admin.deactivateConfirmBody", { displayName: deactivateTarget.display_name })}
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setDeactivateTarget(null)}>
+              {t("common.cancel")}
+            </Button>
+            <Button type="button" variant="danger" size="sm" disabled={deactivating} onClick={handleDeactivate}>
+              {t("admin.deactivate")}
             </Button>
           </div>
         </div>

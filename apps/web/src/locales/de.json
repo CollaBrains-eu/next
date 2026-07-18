@@ -318,7 +318,12 @@
     "phoneUpdateError": "Telefonnummer konnte nicht aktualisiert werden",
     "resetPassword": "Passwort zurücksetzen",
     "passwordReset": "Passwort zurückgesetzt für {{username}}.",
-    "resetPasswordError": "Passwort konnte nicht zurückgesetzt werden"
+    "resetPasswordError": "Passwort konnte nicht zurückgesetzt werden",
+    "deactivate": "Deaktivieren",
+    "deactivateConfirmTitle": "Benutzer deaktivieren?",
+    "deactivateConfirmBody": "{{displayName}} deaktivieren? Diese Person wird sofort abgemeldet und kann sich nicht mehr anmelden. Ihre Dokumente und Fälle bleiben erhalten.",
+    "deactivateError": "Benutzer konnte nicht deaktiviert werden",
+    "deactivatedBadge": "Deaktiviert"
   },
   "auth": {
     "title": "Anmelden",

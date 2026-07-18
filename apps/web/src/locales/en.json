@@ -358,7 +358,12 @@
     "phoneUpdateError": "Failed to update phone number",
     "resetPassword": "Reset password",
     "passwordReset": "Password reset for {{username}}.",
-    "resetPasswordError": "Failed to reset password"
+    "resetPasswordError": "Failed to reset password",
+    "deactivate": "Deactivate",
+    "deactivateConfirmTitle": "Deactivate user?",
+    "deactivateConfirmBody": "Deactivate {{displayName}}? They will be signed out immediately and can no longer log in. Their documents and cases are kept.",
+    "deactivateError": "Failed to deactivate user",
+    "deactivatedBadge": "Deactivated"
   },
   "settings": {
     "title": "Settings",

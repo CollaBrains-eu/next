@@ -317,4 +317,74 @@ describe("AdminDashboard Users tab", () => {
     expect(await screen.findByText("LDAP unreachable")).toBeInTheDocument();
   });
 
+  it("deactivates a user via the row action menu after confirming", async () => {
+    vi.mocked(api.getAdminStats).mockResolvedValue({
+      total_users: 0, total_documents: 0, documents_by_status: {}, ai_calls_last_24h: 0,
+    });
+    vi.mocked(api.listAdminUsers).mockResolvedValue([
+      {
+        id: "u1", username: "bob", display_name: "Bob", email: "bob@collabrains.eu",
+        role: "member", phone_number: null, created_at: "2026-01-01T00:00:00Z", last_login_at: null,
+        is_active: true,
+      },
+    ]);
+    vi.mocked(api.deactivateUser).mockResolvedValue(undefined);
+    render(<AdminDashboard />);
+    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+
+    await screen.findByText("bob");
+    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Deactivate" }));
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText("Deactivate Bob? They will be signed out immediately and can no longer log in. Their documents and cases are kept.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Deactivate" }));
+
+    await waitFor(() => expect(api.deactivateUser).toHaveBeenCalledWith("u1"));
+    expect(await screen.findByText("Deactivated")).toBeInTheDocument();
+  });
+
+  it("does not deactivate when the confirm dialog is cancelled", async () => {
+    vi.mocked(api.deactivateUser).mockClear();
+    vi.mocked(api.getAdminStats).mockResolvedValue({
+      total_users: 0, total_documents: 0, documents_by_status: {}, ai_calls_last_24h: 0,
+    });
+    vi.mocked(api.listAdminUsers).mockResolvedValue([
+      {
+        id: "u1", username: "bob", display_name: "Bob", email: "bob@collabrains.eu",
+        role: "member", phone_number: null, created_at: "2026-01-01T00:00:00Z", last_login_at: null,
+        is_active: true,
+      },
+    ]);
+    render(<AdminDashboard />);
+    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+
+    await screen.findByText("bob");
+    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Deactivate" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(api.deactivateUser).not.toHaveBeenCalled();
+  });
+
+  it("hides the action menu for service accounts", async () => {
+    vi.mocked(api.getAdminStats).mockResolvedValue({
+      total_users: 0, total_documents: 0, documents_by_status: {}, ai_calls_last_24h: 0,
+    });
+    vi.mocked(api.listAdminUsers).mockResolvedValue([
+      {
+        id: "u1", username: "signal-bot", display_name: "CollaBrains Signal Bot", email: null,
+        role: "service", phone_number: null, created_at: "2026-01-01T00:00:00Z", last_login_at: null,
+        is_active: true,
+      },
+    ]);
+    render(<AdminDashboard />);
+    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+
+    await screen.findByText("signal-bot");
+    expect(screen.queryByRole("button", { name: "Actions" })).not.toBeInTheDocument();
+  });
+
 });
