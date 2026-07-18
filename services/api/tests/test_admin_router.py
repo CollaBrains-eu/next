@@ -641,3 +641,28 @@ async def test_set_phone_unknown_user_returns_404(client):
         json={"phone_number": "+15551234567"},
     )
     assert response.status_code == 404
+
+
+async def test_deactivated_user_is_rejected_on_next_request(client):
+    username = _unique("rejectedafterdeactivate")
+    token = await _login(client, username, is_admin=False)
+    admin_token = await _login(client, _unique("rejectdeactivateadmin"), is_admin=True)
+
+    users = (await client.get(
+        "/admin/users", headers={"Authorization": f"Bearer {admin_token}"}, params={"limit": 200}
+    )).json()
+    target = next(u for u in users if u["username"] == username)
+
+    # sanity check: the token works before deactivation
+    before = await client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert before.status_code == 200
+
+    with patch("api.admin_router.ldap_delete_user"):
+        deactivate_response = await client.delete(
+            f"/admin/users/{target['id']}", headers={"Authorization": f"Bearer {admin_token}"}
+        )
+    assert deactivate_response.status_code == 204
+
+    # the SAME still-unexpired token must now be rejected
+    after = await client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert after.status_code == 401
