@@ -390,6 +390,7 @@ export interface CaseDashboardOut extends CaseOut {
   tasks: { id: string; title: string; status: string }[];
   decisions: { id: string; summary: string }[];
   vehicles: { id: string; kenteken: string | null; merk: string | null; handelsbenaming: string | null }[];
+  appointments: { id: string; title: string; starts_at: string }[];
 }
 
 export interface DecisionListItemOut {
@@ -488,6 +489,7 @@ export interface AppointmentInput {
   ends_at?: string;
   location?: string;
   notes?: string;
+  case_id?: string | null;
 }
 
 export function listAppointments(from: string, to: string): Promise<AppointmentOut[]> {

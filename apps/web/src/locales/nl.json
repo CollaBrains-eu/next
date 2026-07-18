@@ -195,7 +195,9 @@
     "deleteModalBody": "Dit kan niet ongedaan worden gemaakt.",
     "deleteConfirm": "Afspraak verwijderen",
     "createError": "Opslaan van afspraak mislukt",
-    "deleteError": "Verwijderen van afspraak mislukt"
+    "deleteError": "Verwijderen van afspraak mislukt",
+    "caseLabel": "Dossier",
+    "noCase": "Geen dossier"
   },
   "vehicles": {
     "title": "Voertuigen",
