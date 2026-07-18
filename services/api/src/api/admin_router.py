@@ -145,6 +145,7 @@ class AdminUserOut(BaseModel):
     phone_number: str | None
     created_at: datetime
     last_login_at: datetime | None
+    is_active: bool
 
     class Config:
         from_attributes = True

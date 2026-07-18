@@ -311,3 +311,16 @@ async def test_admin_list_users_respects_limit(client):
     )
     assert response.status_code == 200
     assert len(response.json()) == 2
+
+
+async def test_admin_list_users_returns_is_active_true_for_new_users(client):
+    username = _unique("activedefaultuser")
+    await _login(client, username, is_admin=False)
+
+    admin_token = await _login(client, _unique("activedefaultadmin"), is_admin=True)
+    response = await client.get(
+        "/admin/users", headers={"Authorization": f"Bearer {admin_token}"}, params={"limit": 200}
+    )
+    assert response.status_code == 200
+    row = next(r for r in response.json() if r["username"] == username)
+    assert row["is_active"] is True
