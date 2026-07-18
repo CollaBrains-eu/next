@@ -564,3 +564,35 @@ async def admin_deactivate_user(
 
     user.is_active = False
     await db.commit()
+
+
+class AdminUserPhoneUpdate(BaseModel):
+    phone_number: str | None
+
+
+@router.put("/users/{user_id}/phone", response_model=AdminUserOut)
+async def admin_set_user_phone(
+    user_id: UUID,
+    body: AdminUserPhoneUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Admin override of the self-service /auth/me/phone endpoint --
+    same validation and uniqueness rule, applied to a different user."""
+    _require_admin(current_user)
+    user = await db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    user.phone_number = validate_phone_number(body.phone_number) if body.phone_number else None
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This phone number is already linked to another account",
+        )
+
+    await db.refresh(user)
+    return user

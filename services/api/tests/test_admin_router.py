@@ -531,3 +531,113 @@ async def test_deactivate_unknown_user_returns_404(client):
     admin_token = await _login(client, _unique("deactivate404admin"), is_admin=True)
     response = await client.delete(f"/admin/users/{uuid4()}", headers={"Authorization": f"Bearer {admin_token}"})
     assert response.status_code == 404
+
+
+async def test_set_phone_requires_admin_role(client):
+    token = await _login(client, _unique("setphonemember"), is_admin=False)
+    response = await client.put(
+        f"/admin/users/{uuid4()}/phone",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"phone_number": "+15551234567"},
+    )
+    assert response.status_code == 403
+
+
+async def test_set_phone_updates_number(client):
+    username = _unique("setphoneuser")
+    await _login(client, username, is_admin=False)
+    admin_token = await _login(client, _unique("setphoneadmin"), is_admin=True)
+
+    users = (await client.get(
+        "/admin/users", headers={"Authorization": f"Bearer {admin_token}"}, params={"limit": 200}
+    )).json()
+    target = next(u for u in users if u["username"] == username)
+
+    response = await client.put(
+        f"/admin/users/{target['id']}/phone",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"phone_number": "+15559998888"},
+    )
+    assert response.status_code == 200
+    assert response.json()["phone_number"] == "+15559998888"
+
+
+async def test_set_phone_clears_number_with_null(client):
+    username = _unique("clearphoneuser")
+    await _login(client, username, is_admin=False)
+    admin_token = await _login(client, _unique("clearphoneadmin"), is_admin=True)
+
+    users = (await client.get(
+        "/admin/users", headers={"Authorization": f"Bearer {admin_token}"}, params={"limit": 200}
+    )).json()
+    target = next(u for u in users if u["username"] == username)
+
+    await client.put(
+        f"/admin/users/{target['id']}/phone",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"phone_number": "+15550001111"},
+    )
+    response = await client.put(
+        f"/admin/users/{target['id']}/phone",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"phone_number": None},
+    )
+    assert response.status_code == 200
+    assert response.json()["phone_number"] is None
+
+
+async def test_set_phone_invalid_format_returns_400(client):
+    username = _unique("badphoneadminsetuser")
+    await _login(client, username, is_admin=False)
+    admin_token = await _login(client, _unique("badphoneadminset"), is_admin=True)
+
+    users = (await client.get(
+        "/admin/users", headers={"Authorization": f"Bearer {admin_token}"}, params={"limit": 200}
+    )).json()
+    target = next(u for u in users if u["username"] == username)
+
+    response = await client.put(
+        f"/admin/users/{target['id']}/phone",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"phone_number": "0491511234567"},
+    )
+    assert response.status_code == 400
+
+
+async def test_set_phone_duplicate_returns_409(client):
+    admin_token = await _login(client, _unique("dupphonesetadmin"), is_admin=True)
+
+    username1 = _unique("dupphonesetuser1")
+    await _login(client, username1, is_admin=False)
+    username2 = _unique("dupphonesetuser2")
+    await _login(client, username2, is_admin=False)
+
+    users = (await client.get(
+        "/admin/users", headers={"Authorization": f"Bearer {admin_token}"}, params={"limit": 200}
+    )).json()
+    target1 = next(u for u in users if u["username"] == username1)
+    target2 = next(u for u in users if u["username"] == username2)
+
+    first = await client.put(
+        f"/admin/users/{target1['id']}/phone",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"phone_number": "+15557778888"},
+    )
+    assert first.status_code == 200
+
+    second = await client.put(
+        f"/admin/users/{target2['id']}/phone",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"phone_number": "+15557778888"},
+    )
+    assert second.status_code == 409
+
+
+async def test_set_phone_unknown_user_returns_404(client):
+    admin_token = await _login(client, _unique("setphone404admin"), is_admin=True)
+    response = await client.put(
+        f"/admin/users/{uuid4()}/phone",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"phone_number": "+15551234567"},
+    )
+    assert response.status_code == 404
