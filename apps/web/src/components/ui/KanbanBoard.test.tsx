@@ -15,6 +15,7 @@ function task(overrides: Partial<TaskOut>): TaskOut {
     position: 0,
     source: "manual",
     created_at: "2026-07-01T00:00:00Z",
+    recurrence_rule: null,
     ...overrides,
   };
 }
