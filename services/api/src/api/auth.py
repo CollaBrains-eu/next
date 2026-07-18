@@ -154,7 +154,7 @@ async def get_effective_user(
 
     result = await db.execute(select(User).where(User.phone_number == on_behalf_of_phone))
     linked_user = result.scalar_one_or_none()
-    if linked_user is None:
+    if linked_user is None or not linked_user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This phone number is not linked to a CollaBrains account",

@@ -185,6 +185,38 @@ async def test_chat_on_behalf_of_header_rejects_unlinked_phone_number(client):
     assert response.status_code == 403
 
 
+async def test_chat_on_behalf_of_header_rejects_deactivated_linked_user(client):
+    """A deactivated user's linked phone number must not resolve via the
+    signal-bot on-behalf-of channel either -- deactivation has to close
+    every attribution path, not just the JWT one (see auth.py's
+    get_current_user for the equivalent JWT-path check)."""
+    from uuid import uuid4
+
+    hex_suffix = uuid4().hex[:8]
+    digit_suffix = str(uuid4().int)[:8]
+    username = f"deactivatedlinkeduser-{hex_suffix}"
+    phone_number = f"+1555{digit_suffix}"
+    await _link_phone(client, username, phone_number)
+    service_token = await _create_service_account_token(f"test-signal-bot-{hex_suffix}")
+
+    from api.db import async_session
+    from api.models import User
+    from sqlalchemy import select
+
+    async with async_session() as db:
+        result = await db.execute(select(User).where(User.username == username))
+        user = result.scalar_one()
+        user.is_active = False
+        await db.commit()
+
+    response = await client.post(
+        "/chat",
+        headers={"Authorization": f"Bearer {service_token}", "X-On-Behalf-Of-Phone": phone_number},
+        json={"message": "hi"},
+    )
+    assert response.status_code == 403
+
+
 async def test_chat_ignores_on_behalf_of_header_from_non_service_caller(client):
     """A regular authenticated user cannot impersonate anyone via the header (ADR 0006)."""
     await _link_phone(client, "linkeduser2", "+15559990002")
