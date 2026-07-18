@@ -34,7 +34,7 @@ export function getGreetingKey(hour: number): "dashboard.greetingMorning" | "das
 }
 
 export default function Dashboard() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { formatDate } = useDateFormat();
   const { user } = useAuth();
 
@@ -94,12 +94,95 @@ export default function Dashboard() {
   const recentTasks = tasks.slice(0, 5);
   const recentCases = [...cases].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 5);
   const now = new Date();
+  const overdueCount = tasks.filter((task) => task.due_date && taskUrgency(task.due_date).variant === "danger").length;
+  const hasAttention = overdueCount > 0 || pendingEntities.length > 0;
+  const dateLabel = new Intl.DateTimeFormat(i18n.language, { weekday: "long", day: "numeric", month: "long" }).format(now);
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold text-ink">
-        {t(getGreetingKey(now.getHours()), { name: user?.display_name ?? "" })}
-      </h1>
+      <div className="rounded-2xl bg-gradient-to-br from-accent to-accent-hover p-5 text-white shadow-raised">
+        <div className="text-xs font-semibold uppercase tracking-wide text-white/70">{dateLabel}</div>
+        <h1 className="mt-1 text-2xl font-semibold">
+          {t(getGreetingKey(now.getHours()), { name: user?.display_name ?? "" })}
+        </h1>
+        <p className="mt-1 text-sm text-white/80">
+          {hasAttention ? t("dashboard.heroSubtitleAttention") : t("dashboard.heroSubtitleOk")}
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Link
+          to="/documents"
+          className="rounded-2xl border border-edge bg-surface p-4 shadow-raised transition-colors duration-fast hover:border-accent"
+        >
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-accent">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M6 2.5h5.5L15 6v10a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-12a1 1 0 0 1 1-1Z"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+          <div className="mt-3 text-2xl font-bold text-ink">{documentsLoading ? "\u2013" : documents.length}</div>
+          <div className="text-xs text-ink-2">{t("dashboard.statDocuments")}</div>
+        </Link>
+        <Link
+          to="/tasks"
+          className="rounded-2xl border border-edge bg-surface p-4 shadow-raised transition-colors duration-fast hover:border-accent"
+        >
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-success-soft text-success">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="3" y="3" width="14" height="14" rx="3" stroke="currentColor" strokeWidth="1.5" />
+              <path
+                d="M6.5 10.2 9 12.5l4.5-5.5"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+          <div className="mt-3 text-2xl font-bold text-ink">{tasksLoading ? "\u2013" : tasks.length}</div>
+          <div className="text-xs text-ink-2">{t("dashboard.statActions")}</div>
+        </Link>
+        <Link
+          to="/tasks"
+          className="rounded-2xl border border-edge bg-surface p-4 shadow-raised transition-colors duration-fast hover:border-accent"
+        >
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-danger-soft text-danger">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M10 2.5 18 16.5H2L10 2.5Z"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinejoin="round"
+              />
+              <path d="M10 8v3.5M10 14v.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </span>
+          <div className="mt-3 text-2xl font-bold text-ink">{tasksLoading ? "\u2013" : overdueCount}</div>
+          <div className="text-xs text-ink-2">{t("dashboard.statOverdue")}</div>
+        </Link>
+        <Link
+          to="/cases"
+          className="rounded-2xl border border-edge bg-surface p-4 shadow-raised transition-colors duration-fast hover:border-accent"
+        >
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-warning-soft text-warning">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M2.5 6a1 1 0 0 1 1-1h3.5l1.5 1.5H16a1 1 0 0 1 1 1V15a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V6Z"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+          <div className="mt-3 text-2xl font-bold text-ink">{casesLoading ? "\u2013" : cases.length}</div>
+          <div className="text-xs text-ink-2">{t("dashboard.statCases")}</div>
+        </Link>
+      </div>
 
       <Card>
         <h2 className="mb-3 text-sm font-semibold text-ink">{t("dashboard.quickActionsTitle")}</h2>

@@ -13,6 +13,14 @@
     "settings": "Instellingen",
     "admin": "Beheer"
   },
+  "mobileNav": {
+    "navLabel": "Hoofdnavigatie",
+    "home": "Home",
+    "docs": "Docs",
+    "dossiers": "Dossiers",
+    "acties": "Acties",
+    "upload": "Document uploaden"
+  },
   "dashboard": {
     "expandWidget": "{{title}} uitklappen",
     "collapseWidget": "{{title}} inklappen",
@@ -41,7 +49,13 @@
     "systemStatusTitle": "Systeemstatus",
     "systemStatusEmpty": "Alle systemen operationeel.",
     "viewAll": "Alles bekijken →",
-    "myTasksOverdue": "Te laat"
+    "myTasksOverdue": "Te laat",
+    "heroSubtitleOk": "Alles is op orde — goed werk",
+    "heroSubtitleAttention": "Er wacht wat op je aandacht",
+    "statDocuments": "Documenten",
+    "statActions": "Actiepunten",
+    "statOverdue": "Verlopen",
+    "statCases": "Dossiers"
   },
   "alerts": {
     "title": "Meldingen",
@@ -61,7 +75,8 @@
     "create": "Aanmaken",
     "send": "Verzenden",
     "thinking": "Aan het denken…",
-    "addFilter": "+ Filter toevoegen"
+    "addFilter": "+ Filter toevoegen",
+    "profile": "Mijn profiel"
   },
   "documents": {
     "title": "Documenten",

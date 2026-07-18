@@ -13,6 +13,14 @@
     "settings": "Settings",
     "admin": "Admin"
   },
+  "mobileNav": {
+    "navLabel": "Primary navigation",
+    "home": "Home",
+    "docs": "Docs",
+    "dossiers": "Dossiers",
+    "acties": "Acties",
+    "upload": "Upload a document"
+  },
   "dashboard": {
     "expandWidget": "Expand {{title}}",
     "collapseWidget": "Collapse {{title}}",
@@ -41,7 +49,13 @@
     "systemStatusTitle": "System status",
     "systemStatusEmpty": "All systems nominal.",
     "viewAll": "View all →",
-    "myTasksOverdue": "Overdue"
+    "myTasksOverdue": "Overdue",
+    "heroSubtitleOk": "Everything's in order — nice work",
+    "heroSubtitleAttention": "A few things need your attention",
+    "statDocuments": "Documents",
+    "statActions": "Actions",
+    "statOverdue": "Overdue",
+    "statCases": "Cases"
   },
   "alerts": {
     "title": "Alerts",
@@ -61,7 +75,8 @@
     "create": "Create",
     "send": "Send",
     "thinking": "Thinking…",
-    "addFilter": "+ Add filter"
+    "addFilter": "+ Add filter",
+    "profile": "My profile"
   },
   "documents": {
     "title": "Documents",

@@ -13,6 +13,14 @@
     "settings": "Einstellungen",
     "admin": "Verwaltung"
   },
+  "mobileNav": {
+    "navLabel": "Hauptnavigation",
+    "home": "Start",
+    "docs": "Docs",
+    "dossiers": "Akten",
+    "acties": "Aufgaben",
+    "upload": "Dokument hochladen"
+  },
   "dashboard": {
     "expandWidget": "{{title}} erweitern",
     "collapseWidget": "{{title}} einklappen",
@@ -41,7 +49,13 @@
     "systemStatusTitle": "Systemstatus",
     "systemStatusEmpty": "Alle Systeme funktionsfähig.",
     "viewAll": "Alle anzeigen →",
-    "myTasksOverdue": "Überfällig"
+    "myTasksOverdue": "Überfällig",
+    "heroSubtitleOk": "Alles in Ordnung — gute Arbeit",
+    "heroSubtitleAttention": "Ein paar Dinge brauchen deine Aufmerksamkeit",
+    "statDocuments": "Dokumente",
+    "statActions": "Aufgaben",
+    "statOverdue": "Überfällig",
+    "statCases": "Fälle"
   },
   "alerts": {
     "title": "Benachrichtigungen",
@@ -61,7 +75,8 @@
     "create": "Erstellen",
     "send": "Senden",
     "thinking": "Denkt nach…",
-    "addFilter": "+ Filter hinzufügen"
+    "addFilter": "+ Filter hinzufügen",
+    "profile": "Mein Profil"
   },
   "documents": {
     "title": "Dokumente",

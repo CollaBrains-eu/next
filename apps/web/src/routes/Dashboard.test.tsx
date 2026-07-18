@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Dashboard, { getGreetingKey } from "./Dashboard";
 import * as api from "../lib/api";
@@ -99,8 +99,9 @@ describe("Dashboard", () => {
       { id: "t1", document_id: null, title: "Review lease", description: null, due_date: null, assignee: null, status: "open", position: 0, source: "manual", created_at: "2026-01-01T00:00:00Z", recurrence_rule: null },
     ]);
     renderPage();
-    expect(await screen.findByText("Review lease")).toBeInTheDocument();
-    expect(screen.queryByText(/Due|Overdue/)).not.toBeInTheDocument();
+    const taskRow = (await screen.findByText("Review lease")).closest("li");
+    expect(taskRow).not.toBeNull();
+    expect(within(taskRow as HTMLElement).queryByText(/Due|Overdue/)).not.toBeInTheDocument();
   });
 
   it("shows the pending entity review count linking to the review queue", async () => {
@@ -160,6 +161,34 @@ describe("Dashboard", () => {
     renderPage();
     expect(await screen.findByText("Review lease")).toBeInTheDocument();
     expect(screen.queryByTestId("my-tasks-overdue-indicator")).not.toBeInTheDocument();
+  });
+
+  it("shows stat cards with counts for documents, open tasks, overdue tasks, and cases", async () => {
+    vi.mocked(api.listDocuments).mockResolvedValue([
+      { id: "d1", title: "A", filename: "a.pdf", mime_type: "application/pdf", status: "ready", error: null, created_at: "2026-01-01T00:00:00Z", processed_at: null, category_id: null },
+      { id: "d2", title: "B", filename: "b.pdf", mime_type: "application/pdf", status: "ready", error: null, created_at: "2026-01-02T00:00:00Z", processed_at: null, category_id: null },
+    ]);
+    vi.mocked(api.listTasks).mockResolvedValue([
+      { id: "t1", document_id: null, title: "Overdue task", description: null, due_date: "2020-01-01", assignee: null, status: "open", position: 0, source: "manual", created_at: "2026-01-01T00:00:00Z", recurrence_rule: null },
+      { id: "t2", document_id: null, title: "Future task", description: null, due_date: "2099-01-01", assignee: null, status: "open", position: 1, source: "manual", created_at: "2026-01-01T00:00:00Z", recurrence_rule: null },
+    ]);
+    vi.mocked(api.listCases).mockResolvedValue([
+      { id: "c1", name: "Case one", description: null, status: "open", created_at: "2026-01-01T00:00:00Z" },
+    ]);
+    renderPage();
+
+    expect(await screen.findByText("Documents")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /2\s*Documents/ })).toHaveAttribute("href", "/documents");
+    expect(screen.getAllByRole("link", { name: /Actions|Overdue/ }).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByRole("link", { name: /2\s*Actions/ })).toHaveAttribute("href", "/tasks");
+    expect(screen.getByRole("link", { name: /1\s*Overdue/ })).toHaveAttribute("href", "/tasks");
+    expect(screen.getByRole("link", { name: /1\s*Cases/ })).toHaveAttribute("href", "/cases");
+  });
+
+  it("shows an en dash placeholder in stat cards while their data is still loading", () => {
+    vi.mocked(api.listDocuments).mockReturnValue(new Promise(() => {}));
+    renderPage();
+    expect(screen.getByRole("link", { name: /\u2013\s*Documents/ })).toBeInTheDocument();
   });
 });
 
