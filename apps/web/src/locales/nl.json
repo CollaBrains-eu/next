@@ -347,7 +347,11 @@
     "roleColumn": "Rol",
     "phoneColumn": "Telefoon",
     "createdAtColumn": "Aangemaakt",
-    "loadMore": "Meer laden"
+    "loadMore": "Meer laden",
+    "rowActions": "Acties",
+    "makeAdmin": "Beheerder maken",
+    "makeMember": "Lid maken",
+    "roleUpdateError": "Kon rol niet bijwerken"
   },
   "settings": {
     "title": "Instellingen",

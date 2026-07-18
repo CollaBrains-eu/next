@@ -307,7 +307,11 @@
     "roleColumn": "Rolle",
     "phoneColumn": "Telefon",
     "createdAtColumn": "Erstellt",
-    "loadMore": "Mehr laden"
+    "loadMore": "Mehr laden",
+    "rowActions": "Aktionen",
+    "makeAdmin": "Zum Administrator machen",
+    "makeMember": "Zum Mitglied machen",
+    "roleUpdateError": "Rolle konnte nicht aktualisiert werden"
   },
   "auth": {
     "title": "Anmelden",

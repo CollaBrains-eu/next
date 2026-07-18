@@ -7,6 +7,7 @@ import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
 import { Checkbox, TextField } from "../components/ui/form";
 import { DataTable, type Column } from "../components/ui/DataTable";
+import { Dropdown, type DropdownOption } from "../components/ui/Dropdown";
 import { useDateFormat } from "../hooks/useDateFormat";
 import { SkeletonLines } from "../components/ui/Skeleton";
 import {
@@ -14,6 +15,7 @@ import {
   analyzeBugReport,
   createAdminUser,
   listAdminUsers,
+  setUserRole,
   type AdminStatsOut,
   type AdminUserCreatedOut,
   type AdminUserOut,
@@ -240,6 +242,7 @@ function UsersTab() {
   const [users, setUsers] = useState<AdminUserOut[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
   const [usersError, setUsersError] = useState<string | null>(null);
+  const [rowError, setRowError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
 
   async function loadUsers(offset: number) {
@@ -288,6 +291,16 @@ function UsersTab() {
     }
   }
 
+  async function handleRoleChange(user: AdminUserOut, role: "member" | "admin") {
+    setRowError(null);
+    try {
+      const updated = await setUserRole(user.id, role);
+      setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+    } catch (err) {
+      setRowError(err instanceof ApiError ? err.message : t("admin.roleUpdateError"));
+    }
+  }
+
   const columns: Column<AdminUserOut>[] = [
     { key: "username", header: t("admin.usernameLabel"), render: (row) => row.username },
     { key: "display_name", header: t("admin.displayNameLabel"), render: (row) => row.display_name },
@@ -302,6 +315,29 @@ function UsersTab() {
       key: "created_at",
       header: t("admin.createdAtColumn"),
       render: (row) => formatDate(row.created_at),
+    },
+    {
+      key: "actions",
+      header: "",
+      render: (row) => {
+        if (row.role === "service") return null;
+        const options: DropdownOption[] = [
+          {
+            label: row.role === "admin" ? t("admin.makeMember") : t("admin.makeAdmin"),
+            onSelect: () => handleRoleChange(row, row.role === "admin" ? "member" : "admin"),
+          },
+        ];
+        return (
+          <Dropdown
+            trigger={
+              <span className="rounded-lg px-2 py-1 text-xs text-ink-3 hover:bg-hover hover:text-ink">
+                {t("admin.rowActions")}
+              </span>
+            }
+            options={options}
+          />
+        );
+      },
     },
   ];
 
@@ -382,6 +418,7 @@ function UsersTab() {
         <SkeletonLines />
       ) : (
         <>
+          {rowError && <p className="text-sm text-danger">{rowError}</p>}
           <DataTable columns={columns} rows={users} rowKey={(row) => row.id} pageSize={Math.max(users.length, 1)} />
           {hasMore && (
             <div>

@@ -12,6 +12,10 @@ vi.mock("../lib/api", async () => {
     getAdminHealth: vi.fn(),
     listBugReports: vi.fn(),
     createAdminUser: vi.fn(),
+    setUserRole: vi.fn(),
+    resetUserPassword: vi.fn(),
+    deactivateUser: vi.fn(),
+    setUserPhone: vi.fn(),
     listAdminUsers: vi.fn(),
   };
 });
@@ -160,4 +164,53 @@ describe("AdminDashboard Users tab", () => {
     expect(await screen.findByText("user50")).toBeInTheDocument();
     await waitFor(() => expect(api.listAdminUsers).toHaveBeenCalledWith(50, 50));
   });
+
+  it("changes a member's role to admin via the row action menu", async () => {
+    vi.mocked(api.getAdminStats).mockResolvedValue({
+      total_users: 0, total_documents: 0, documents_by_status: {}, ai_calls_last_24h: 0,
+    });
+    vi.mocked(api.listAdminUsers).mockResolvedValue([
+      {
+        id: "u1", username: "bob", display_name: "Bob", email: "bob@collabrains.eu",
+        role: "member", phone_number: null, created_at: "2026-01-01T00:00:00Z", last_login_at: null,
+        is_active: true,
+      },
+    ]);
+    vi.mocked(api.setUserRole).mockResolvedValue({
+      id: "u1", username: "bob", display_name: "Bob", email: "bob@collabrains.eu",
+      role: "admin", phone_number: null, created_at: "2026-01-01T00:00:00Z", last_login_at: null,
+      is_active: true,
+    });
+    render(<AdminDashboard />);
+    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+
+    await screen.findByText("bob");
+    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Make admin" }));
+
+    await waitFor(() => expect(api.setUserRole).toHaveBeenCalledWith("u1", "admin"));
+  });
+
+  it("shows an inline error when role change fails", async () => {
+    vi.mocked(api.getAdminStats).mockResolvedValue({
+      total_users: 0, total_documents: 0, documents_by_status: {}, ai_calls_last_24h: 0,
+    });
+    vi.mocked(api.listAdminUsers).mockResolvedValue([
+      {
+        id: "u1", username: "bob", display_name: "Bob", email: "bob@collabrains.eu",
+        role: "member", phone_number: null, created_at: "2026-01-01T00:00:00Z", last_login_at: null,
+        is_active: true,
+      },
+    ]);
+    vi.mocked(api.setUserRole).mockRejectedValue(new api.ApiError(500, "boom"));
+    render(<AdminDashboard />);
+    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+
+    await screen.findByText("bob");
+    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Make admin" }));
+
+    expect(await screen.findByText("boom")).toBeInTheDocument();
+  });
+
 });

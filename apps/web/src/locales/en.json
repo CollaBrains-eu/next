@@ -347,7 +347,11 @@
     "roleColumn": "Role",
     "phoneColumn": "Phone",
     "createdAtColumn": "Created",
-    "loadMore": "Load more"
+    "loadMore": "Load more",
+    "rowActions": "Actions",
+    "makeAdmin": "Make admin",
+    "makeMember": "Make member",
+    "roleUpdateError": "Failed to update role"
   },
   "settings": {
     "title": "Settings",
