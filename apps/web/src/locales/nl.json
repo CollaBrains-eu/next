@@ -355,7 +355,10 @@
     "setPhone": "Telefoon instellen",
     "phoneModalTitle": "Telefoonnummer instellen",
     "save": "Opslaan",
-    "phoneUpdateError": "Kon telefoonnummer niet bijwerken"
+    "phoneUpdateError": "Kon telefoonnummer niet bijwerken",
+    "resetPassword": "Wachtwoord resetten",
+    "passwordReset": "Wachtwoord gereset voor {{username}}.",
+    "resetPasswordError": "Kon wachtwoord niet resetten"
   },
   "settings": {
     "title": "Instellingen",

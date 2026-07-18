@@ -315,7 +315,10 @@
     "setPhone": "Telefon festlegen",
     "phoneModalTitle": "Telefonnummer festlegen",
     "save": "Speichern",
-    "phoneUpdateError": "Telefonnummer konnte nicht aktualisiert werden"
+    "phoneUpdateError": "Telefonnummer konnte nicht aktualisiert werden",
+    "resetPassword": "Passwort zurücksetzen",
+    "passwordReset": "Passwort zurückgesetzt für {{username}}.",
+    "resetPasswordError": "Passwort konnte nicht zurückgesetzt werden"
   },
   "auth": {
     "title": "Anmelden",

@@ -268,4 +268,53 @@ describe("AdminDashboard Users tab", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
+
+  it("resets a user's password via the row action menu and shows it once", async () => {
+    vi.mocked(api.getAdminStats).mockResolvedValue({
+      total_users: 0, total_documents: 0, documents_by_status: {}, ai_calls_last_24h: 0,
+    });
+    vi.mocked(api.listAdminUsers).mockResolvedValue([
+      {
+        id: "u1", username: "bob", display_name: "Bob", email: "bob@collabrains.eu",
+        role: "member", phone_number: null, created_at: "2026-01-01T00:00:00Z", last_login_at: null,
+        is_active: true,
+      },
+    ]);
+    vi.mocked(api.resetUserPassword).mockResolvedValue({
+      username: "bob", temporary_password: "reset-pw-456",
+    });
+    render(<AdminDashboard />);
+    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+
+    await screen.findByText("bob");
+    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Reset password" }));
+
+    await waitFor(() => expect(api.resetUserPassword).toHaveBeenCalledWith("u1"));
+    expect(await screen.findByTestId("temp-password")).toHaveTextContent("reset-pw-456");
+    expect(screen.getByText("Password reset for bob.")).toBeInTheDocument();
+  });
+
+  it("shows an inline error when password reset fails", async () => {
+    vi.mocked(api.getAdminStats).mockResolvedValue({
+      total_users: 0, total_documents: 0, documents_by_status: {}, ai_calls_last_24h: 0,
+    });
+    vi.mocked(api.listAdminUsers).mockResolvedValue([
+      {
+        id: "u1", username: "bob", display_name: "Bob", email: "bob@collabrains.eu",
+        role: "member", phone_number: null, created_at: "2026-01-01T00:00:00Z", last_login_at: null,
+        is_active: true,
+      },
+    ]);
+    vi.mocked(api.resetUserPassword).mockRejectedValue(new api.ApiError(502, "LDAP unreachable"));
+    render(<AdminDashboard />);
+    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+
+    await screen.findByText("bob");
+    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Reset password" }));
+
+    expect(await screen.findByText("LDAP unreachable")).toBeInTheDocument();
+  });
+
 });

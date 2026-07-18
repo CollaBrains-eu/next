@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import Card from "../components/Card";
+import { TempPasswordCard } from "../components/TempPasswordCard";
 import EmptyState from "../components/EmptyState";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
@@ -17,8 +18,8 @@ import {
   listAdminUsers,
   setUserRole,
   setUserPhone,
+  resetUserPassword,
   type AdminStatsOut,
-  type AdminUserCreatedOut,
   type AdminUserOut,
   type AiUsageRowOut,
   type BugReportOut,
@@ -238,7 +239,7 @@ function UsersTab() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [created, setCreated] = useState<AdminUserCreatedOut | null>(null);
+  const [tempPassword, setTempPassword] = useState<{ message: string; password: string } | null>(null);
 
   const [users, setUsers] = useState<AdminUserOut[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
@@ -287,7 +288,7 @@ function UsersTab() {
       });
       setFormOpen(false);
       resetForm();
-      setCreated(result);
+      setTempPassword({ message: t("admin.userCreated", { username: result.username }), password: result.temporary_password });
       loadUsers(0);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("admin.createUserError"));
@@ -318,6 +319,16 @@ function UsersTab() {
       setPhoneError(err instanceof ApiError ? err.message : t("admin.phoneUpdateError"));
     } finally {
       setPhoneSaving(false);
+    }
+  }
+
+  async function handleResetPassword(user: AdminUserOut) {
+    setRowError(null);
+    try {
+      const result = await resetUserPassword(user.id);
+      setTempPassword({ message: t("admin.passwordReset", { username: result.username }), password: result.temporary_password });
+    } catch (err) {
+      setRowError(err instanceof ApiError ? err.message : t("admin.resetPasswordError"));
     }
   }
 
@@ -354,6 +365,10 @@ function UsersTab() {
               setPhoneError(null);
             },
           },
+          {
+            label: t("admin.resetPassword"),
+            onSelect: () => handleResetPassword(row),
+          },
         ];
         return (
           <Dropdown
@@ -383,21 +398,12 @@ function UsersTab() {
         </Button>
       </div>
 
-      {created && (
-        <Card className="flex flex-col gap-2 border-accent">
-          <p className="text-sm font-medium text-ink">
-            {t("admin.userCreated", { username: created.username })}
-          </p>
-          <p className="text-xs text-ink-3">{t("admin.tempPasswordHint")}</p>
-          <code className="rounded-lg bg-accent-soft px-3 py-2 text-sm text-ink" data-testid="temp-password">
-            {created.temporary_password}
-          </code>
-          <div>
-            <Button size="sm" variant="ghost" onClick={() => setCreated(null)}>
-              {t("admin.dismiss")}
-            </Button>
-          </div>
-        </Card>
+      {tempPassword && (
+        <TempPasswordCard
+          message={tempPassword.message}
+          password={tempPassword.password}
+          onDismiss={() => setTempPassword(null)}
+        />
       )}
 
       <Modal open={formOpen} onClose={() => setFormOpen(false)} title={t("admin.addUserModalTitle")}>

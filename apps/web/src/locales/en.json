@@ -355,7 +355,10 @@
     "setPhone": "Set phone",
     "phoneModalTitle": "Set phone number",
     "save": "Save",
-    "phoneUpdateError": "Failed to update phone number"
+    "phoneUpdateError": "Failed to update phone number",
+    "resetPassword": "Reset password",
+    "passwordReset": "Password reset for {{username}}.",
+    "resetPasswordError": "Failed to reset password"
   },
   "settings": {
     "title": "Settings",
