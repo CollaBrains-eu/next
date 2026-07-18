@@ -10,6 +10,7 @@ vi.mock("../lib/api", async () => {
     getAdminStats: vi.fn(),
     getAdminAiUsage: vi.fn(),
     getAdminHealth: vi.fn(),
+    getAdminFeedback: vi.fn(),
     listBugReports: vi.fn(),
     createAdminUser: vi.fn(),
     setUserRole: vi.fn(),
@@ -482,4 +483,57 @@ describe("AdminDashboard Users tab", () => {
     expect(screen.queryByRole("button", { name: "Actions" })).not.toBeInTheDocument();
   });
 
+});
+
+describe("AdminDashboard Feedback tab", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(api.getAdminStats).mockResolvedValue({
+      total_users: 0, total_documents: 0, documents_by_status: {}, ai_calls_last_24h: 0,
+    });
+  });
+
+  function goToFeedbackTab() {
+    render(<AdminDashboard />);
+    fireEvent.click(screen.getByRole("button", { name: "Feedback" }));
+  }
+
+  it("lists feedback rows with question, answer, rating, and confidence", async () => {
+    vi.mocked(api.getAdminFeedback).mockResolvedValue([
+      {
+        id: "f1", user_id: "u1", endpoint: "chat", question: "Is the contract still valid?",
+        answer: "Yes, until 2027.", rating: "down", reflection_confidence: 85,
+        reflection_sufficient_evidence: true, created_at: "2026-01-01T00:00:00Z",
+      },
+    ]);
+    goToFeedbackTab();
+
+    expect(await screen.findByText("Is the contract still valid?")).toBeInTheDocument();
+    expect(screen.getByText("Yes, until 2027.")).toBeInTheDocument();
+    expect(screen.getByText("Confidence: 85")).toBeInTheDocument();
+  });
+
+  it("shows an empty state when there is no feedback", async () => {
+    vi.mocked(api.getAdminFeedback).mockResolvedValue([]);
+    goToFeedbackTab();
+    expect(await screen.findByText("No feedback yet.")).toBeInTheDocument();
+  });
+
+  it("refetches with the selected rating filter", async () => {
+    vi.mocked(api.getAdminFeedback).mockResolvedValue([]);
+    goToFeedbackTab();
+    await waitFor(() => expect(api.getAdminFeedback).toHaveBeenCalledWith({ rating: undefined, minConfidence: undefined }));
+
+    fireEvent.change(screen.getByLabelText("Rating"), { target: { value: "down" } });
+    await waitFor(() => expect(api.getAdminFeedback).toHaveBeenCalledWith({ rating: "down", minConfidence: undefined }));
+  });
+
+  it("refetches with the min-confidence filter", async () => {
+    vi.mocked(api.getAdminFeedback).mockResolvedValue([]);
+    goToFeedbackTab();
+    await waitFor(() => expect(api.getAdminFeedback).toHaveBeenCalled());
+
+    fireEvent.change(screen.getByLabelText("Min. confidence"), { target: { value: "70" } });
+    await waitFor(() => expect(api.getAdminFeedback).toHaveBeenCalledWith({ rating: undefined, minConfidence: 70 }));
+  });
 });

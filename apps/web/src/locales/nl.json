@@ -323,7 +323,12 @@
   "chat": {
     "hint": "Stel een vraag over uw documenten. Antwoorden zijn uitsluitend gebaseerd op opgehaalde inhoud en verwijzen naar bronnen.",
     "inputPlaceholder": "Stel een vraag…",
-    "loadError": "Chatverzoek mislukt"
+    "loadError": "Chatverzoek mislukt",
+    "lowConfidence": "Lage betrouwbaarheid",
+    "thumbsUp": "Goed antwoord",
+    "thumbsDown": "Slecht antwoord",
+    "feedbackThanks": "Bedankt voor je feedback",
+    "feedbackError": "Feedback versturen is mislukt. Probeer het opnieuw."
   },
   "legal": {
     "description": "Concepten zijn uitsluitend gebaseerd op de documenten die u selecteert (of alle documenten als er geen zijn geselecteerd) en vervangen nooit de beoordeling door een advocaat.",
@@ -387,6 +392,15 @@
     "tabHealth": "Status",
     "tabBugs": "Bugmeldingen",
     "tabUsers": "Gebruikers",
+    "tabFeedback": "Feedback",
+    "feedbackLoadError": "Kon feedback niet laden",
+    "feedbackRatingLabel": "Beoordeling",
+    "feedbackRatingAll": "Alle",
+    "feedbackRatingUp": "Positief",
+    "feedbackRatingDown": "Negatief",
+    "feedbackMinConfidenceLabel": "Min. betrouwbaarheid",
+    "feedbackConfidence": "Betrouwbaarheid: {{value}}",
+    "noFeedback": "Nog geen feedback.",
     "statsLoadError": "Kon statistieken niet laden",
     "statUsers": "Gebruikers",
     "statDocuments": "Documenten",

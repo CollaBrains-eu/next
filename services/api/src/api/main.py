@@ -14,6 +14,7 @@ from api.decisions import router as decisions_router
 from api.documents import router as documents_router, search_router
 from api.entities import router as entities_router
 from api.facts_router import router as facts_router
+from api.feedback_router import router as feedback_router
 from api.learning_router import router as learning_router
 from api.legal import router as legal_router
 from api.manager_router import router as manager_router
@@ -47,6 +48,7 @@ app.include_router(categories_router)
 app.include_router(documents_router)
 app.include_router(search_router)
 app.include_router(chat_router)
+app.include_router(feedback_router)
 app.include_router(legal_router)
 app.include_router(tasks_router)
 app.include_router(entities_router)

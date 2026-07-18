@@ -1,13 +1,18 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { ApiError, chat, type ChatTurn, type Citation } from "../lib/api";
+import { ApiError, chat, submitFeedback, type ChatTurn, type Citation } from "../lib/api";
 import { Button } from "../components/ui/Button";
 import { ChatLog, type ChatTurnDisplay } from "../components/ui/ChatLog";
 import { useLoadingBar } from "../lib/loadingBar";
+import { useToast } from "../lib/toast";
 
 interface DisplayTurn extends ChatTurn {
   citations?: Citation[];
+  question?: string;
+  confidence?: number | null;
+  sufficientEvidence?: boolean | null;
+  feedbackGiven?: "up" | "down" | null;
 }
 
 export default function Chat() {
@@ -17,6 +22,7 @@ export default function Chat() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { start, done } = useLoadingBar();
+  const { showToast } = useToast();
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -32,7 +38,18 @@ export default function Chat() {
 
     try {
       const response = await chat(message, history);
-      setTurns((prev) => [...prev, { role: "assistant", content: response.answer, citations: response.citations }]);
+      setTurns((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: response.answer,
+          citations: response.citations,
+          question: message,
+          confidence: response.confidence,
+          sufficientEvidence: response.sufficient_evidence,
+          feedbackGiven: null,
+        },
+      ]);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("chat.loadError"));
     } finally {
@@ -41,7 +58,28 @@ export default function Chat() {
     }
   }
 
-  const displayTurns: ChatTurnDisplay[] = turns.map((turn) => ({
+  async function handleFeedback(index: number, rating: "up" | "down") {
+    const turn = turns[index];
+    if (!turn || turn.feedbackGiven) return;
+    setError(null);
+    setTurns((prev) => prev.map((t, i) => (i === index ? { ...t, feedbackGiven: rating } : t)));
+    try {
+      await submitFeedback({
+        endpoint: "chat",
+        question: turn.question ?? "",
+        answer: turn.content,
+        rating,
+        reflection_confidence: turn.confidence ?? null,
+        reflection_sufficient_evidence: turn.sufficientEvidence ?? null,
+      });
+      showToast(t("chat.feedbackThanks"));
+    } catch {
+      setTurns((prev) => prev.map((t, i) => (i === index ? { ...t, feedbackGiven: null } : t)));
+      setError(t("chat.feedbackError"));
+    }
+  }
+
+  const displayTurns: ChatTurnDisplay[] = turns.map((turn, index) => ({
     role: turn.role,
     content: turn.content,
     footer: turn.citations && turn.citations.length > 0 && (
@@ -53,6 +91,9 @@ export default function Chat() {
         ))}
       </div>
     ),
+    confidence: turn.confidence,
+    feedbackGiven: turn.feedbackGiven,
+    onFeedback: turn.role === "assistant" ? (rating: "up" | "down") => handleFeedback(index, rating) : undefined,
   }));
 
   return (
@@ -60,7 +101,15 @@ export default function Chat() {
       <h1 className="text-2xl font-semibold text-ink">{t("nav.aiChat")}</h1>
 
       <div className="flex flex-col gap-3">
-        <ChatLog turns={displayTurns} sending={sending} hint={t("chat.hint")} thinkingLabel={t("common.thinking")} />
+        <ChatLog
+          turns={displayTurns}
+          sending={sending}
+          hint={t("chat.hint")}
+          thinkingLabel={t("common.thinking")}
+          lowConfidenceLabel={t("chat.lowConfidence")}
+          thumbsUpLabel={t("chat.thumbsUp")}
+          thumbsDownLabel={t("chat.thumbsDown")}
+        />
         {error && <p className="text-sm text-danger">{error}</p>}
       </div>
 

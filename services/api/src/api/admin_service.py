@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.ai_gateway import chat_completion
 from api.config import settings
 from api.db import async_session
-from api.models import AiCallLog, BugReport, Document, User
+from api.models import AiCallLog, AnswerFeedback, BugReport, Document, User
 
 ANALYSIS_PROMPT = (
     "You are triaging a bug report for an AI workspace platform. Given the report below, "
@@ -54,6 +54,18 @@ class ServiceHealth(BaseModel):
     name: str
     status: Literal["up", "down"]
     detail: str | None = None
+
+
+class AnswerFeedbackRow(BaseModel):
+    id: UUID
+    user_id: UUID
+    endpoint: str
+    question: str
+    answer: str
+    rating: Literal["up", "down"]
+    reflection_confidence: int | None
+    reflection_sufficient_evidence: bool | None
+    created_at: datetime
 
 
 async def get_admin_stats(db: AsyncSession) -> AdminStats:
@@ -100,6 +112,37 @@ async def get_ai_usage_report(
             total_completion_tokens=completion_tokens,
         )
         for key, call_count, prompt_tokens, completion_tokens in result.all()
+    ]
+
+
+async def list_answer_feedback(
+    db: AsyncSession, *, rating: Literal["up", "down"] | None = None, min_confidence: int | None = None,
+    limit: int = 100,
+) -> list[AnswerFeedbackRow]:
+    """Recent AnswerFeedback rows, filterable by rating and reflection
+    confidence -- `rating=down&min_confidence=70` is the actual
+    hallucination-hunting query this table exists to make possible: an
+    answer the model was confident about but the user rejected."""
+    query = select(AnswerFeedback).order_by(AnswerFeedback.created_at.desc()).limit(limit)
+    if rating is not None:
+        query = query.where(AnswerFeedback.rating == rating)
+    if min_confidence is not None:
+        query = query.where(AnswerFeedback.reflection_confidence >= min_confidence)
+
+    result = await db.execute(query)
+    return [
+        AnswerFeedbackRow(
+            id=row.id,
+            user_id=row.user_id,
+            endpoint=row.endpoint,
+            question=row.question,
+            answer=row.answer,
+            rating=row.rating,
+            reflection_confidence=row.reflection_confidence,
+            reflection_sufficient_evidence=row.reflection_sufficient_evidence,
+            created_at=row.created_at,
+        )
+        for row in result.scalars().all()
     ]
 
 

@@ -49,6 +49,56 @@ async def test_admin_health_requires_admin_role(client):
     assert response.status_code == 403
 
 
+async def test_admin_feedback_requires_admin_role(client):
+    token = await _login(client, _unique("adminfeedbackmember"), is_admin=False)
+    response = await client.get("/admin/feedback", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 403
+
+
+async def test_admin_feedback_filters_by_rating_and_min_confidence(client):
+    submitter_token = await _login(client, _unique("adminfeedbacksubmitter"), is_admin=False)
+    submitter_headers = {"Authorization": f"Bearer {submitter_token}"}
+
+    rows = [
+        {"question": "q-up-high", "rating": "up", "reflection_confidence": 90},
+        {"question": "q-down-high", "rating": "down", "reflection_confidence": 90},
+        {"question": "q-down-low", "rating": "down", "reflection_confidence": 20},
+    ]
+    for row in rows:
+        response = await client.post(
+            "/feedback",
+            headers=submitter_headers,
+            json={
+                "endpoint": "chat",
+                "question": row["question"],
+                "answer": "some answer",
+                "rating": row["rating"],
+                "reflection_confidence": row["reflection_confidence"],
+                "reflection_sufficient_evidence": True,
+            },
+        )
+        assert response.status_code == 201
+
+    admin_token = await _login(client, _unique("adminfeedbackadmin"), is_admin=True)
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+
+    down_only = await client.get("/admin/feedback", headers=admin_headers, params={"rating": "down"})
+    assert down_only.status_code == 200
+    down_questions = {row["question"] for row in down_only.json()}
+    assert "q-down-high" in down_questions
+    assert "q-down-low" in down_questions
+    assert "q-up-high" not in down_questions
+
+    hallucination_candidates = await client.get(
+        "/admin/feedback", headers=admin_headers, params={"rating": "down", "min_confidence": 70}
+    )
+    assert hallucination_candidates.status_code == 200
+    candidate_questions = {row["question"] for row in hallucination_candidates.json()}
+    assert "q-down-high" in candidate_questions
+    assert "q-down-low" not in candidate_questions
+    assert "q-up-high" not in candidate_questions
+
+
 async def test_admin_health_returns_200_with_all_known_services(client):
     # The down-service case (a service unreachable) is covered at the service
     # layer in test_admin_service.py::test_get_service_health_reports_down_on_connection_error --
