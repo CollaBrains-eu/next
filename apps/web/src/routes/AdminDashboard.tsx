@@ -252,6 +252,7 @@ function UsersTab() {
   const [phoneSaving, setPhoneSaving] = useState(false);
   const [deactivateTarget, setDeactivateTarget] = useState<AdminUserOut | null>(null);
   const [deactivating, setDeactivating] = useState(false);
+  const [deactivateError, setDeactivateError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
 
   async function loadUsers(offset: number) {
@@ -338,13 +339,13 @@ function UsersTab() {
   async function handleDeactivate() {
     if (!deactivateTarget) return;
     setDeactivating(true);
-    setRowError(null);
+    setDeactivateError(null);
     try {
       await deactivateUser(deactivateTarget.id);
       setUsers((prev) => prev.map((u) => (u.id === deactivateTarget.id ? { ...u, is_active: false } : u)));
       setDeactivateTarget(null);
     } catch (err) {
-      setRowError(err instanceof ApiError ? err.message : t("admin.deactivateError"));
+      setDeactivateError(err instanceof ApiError ? err.message : t("admin.deactivateError"));
     } finally {
       setDeactivating(false);
     }
@@ -495,15 +496,27 @@ function UsersTab() {
 
       <Modal
         open={deactivateTarget !== null}
-        onClose={() => setDeactivateTarget(null)}
+        onClose={() => {
+          setDeactivateTarget(null);
+          setDeactivateError(null);
+        }}
         title={t("admin.deactivateConfirmTitle")}
       >
         <div className="flex flex-col gap-3">
+          {deactivateError && <p className="text-sm text-danger">{deactivateError}</p>}
           <p className="text-sm text-ink">
             {deactivateTarget && t("admin.deactivateConfirmBody", { displayName: deactivateTarget.display_name })}
           </p>
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={() => setDeactivateTarget(null)}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setDeactivateTarget(null);
+                setDeactivateError(null);
+              }}
+            >
               {t("common.cancel")}
             </Button>
             <Button type="button" variant="danger" size="sm" disabled={deactivating} onClick={handleDeactivate}>
@@ -520,7 +533,13 @@ function UsersTab() {
       ) : (
         <>
           {rowError && <p className="text-sm text-danger">{rowError}</p>}
-          <DataTable columns={columns} rows={users} rowKey={(row) => row.id} pageSize={Math.max(users.length, 1)} />
+          <DataTable
+            columns={columns}
+            rows={users}
+            rowKey={(row) => row.id}
+            pageSize={Math.max(users.length, 1)}
+            rowClassName={(row) => (row.is_active ? "" : "opacity-50")}
+          />
           {hasMore && (
             <div>
               <Button size="sm" variant="secondary" onClick={() => loadUsers(users.length)}>

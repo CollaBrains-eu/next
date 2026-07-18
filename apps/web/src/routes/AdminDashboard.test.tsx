@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import AdminDashboard from "./AdminDashboard";
 import * as api from "../lib/api";
@@ -30,6 +30,10 @@ function goToUsersTab() {
 }
 
 describe("AdminDashboard Users tab", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("opens the add-user form when 'Add user' is clicked", () => {
     goToUsersTab();
     fireEvent.click(screen.getByRole("button", { name: "+ Add user" }));
@@ -345,8 +349,31 @@ describe("AdminDashboard Users tab", () => {
     expect(await screen.findByText("Deactivated")).toBeInTheDocument();
   });
 
+  it("shows an inline error inside the dialog when deactivation fails", async () => {
+    vi.mocked(api.getAdminStats).mockResolvedValue({
+      total_users: 0, total_documents: 0, documents_by_status: {}, ai_calls_last_24h: 0,
+    });
+    vi.mocked(api.listAdminUsers).mockResolvedValue([
+      {
+        id: "u1", username: "bob", display_name: "Bob", email: "bob@collabrains.eu",
+        role: "member", phone_number: null, created_at: "2026-01-01T00:00:00Z", last_login_at: null,
+        is_active: true,
+      },
+    ]);
+    vi.mocked(api.deactivateUser).mockRejectedValue(new api.ApiError(502, "LDAP unreachable"));
+    render(<AdminDashboard />);
+    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+
+    await screen.findByText("bob");
+    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Deactivate" }));
+    fireEvent.click(screen.getByRole("button", { name: "Deactivate" }));
+
+    expect(await screen.findByText("LDAP unreachable")).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
   it("does not deactivate when the confirm dialog is cancelled", async () => {
-    vi.mocked(api.deactivateUser).mockClear();
     vi.mocked(api.getAdminStats).mockResolvedValue({
       total_users: 0, total_documents: 0, documents_by_status: {}, ai_calls_last_24h: 0,
     });

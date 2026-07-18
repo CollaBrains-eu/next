@@ -14,11 +14,13 @@ export function DataTable<T>({
   rows,
   pageSize = 10,
   rowKey,
+  rowClassName,
 }: {
   columns: Column<T>[];
   rows: T[];
   pageSize?: number;
   rowKey: (row: T) => string;
+  rowClassName?: (row: T) => string;
 }) {
   const [sort, setSort] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
   const [page, setPage] = useState(1);
@@ -71,7 +73,10 @@ export function DataTable<T>({
           </thead>
           <tbody>
             {pageRows.map((row) => (
-              <tr key={rowKey(row)} className="transition-colors duration-fast hover:bg-hover">
+              <tr
+                key={rowKey(row)}
+                className={"transition-colors duration-fast hover:bg-hover " + (rowClassName?.(row) ?? "")}
+              >
                 {columns.map((column) => (
                   <td key={column.key} className="border-b border-edge px-4 py-2.5 tabular-nums last:border-b-0">
                     {column.render(row)}
