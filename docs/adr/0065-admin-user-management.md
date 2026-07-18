@@ -62,6 +62,14 @@ the only authentication path in this stack.
   existing JWT hasn't technically expired yet" — deactivation takes
   effect on the user's *very next request*, confirmed live (see
   Verification).
+- `get_effective_user` (`auth.py`, ADR 0006) — the signal-bot
+  on-behalf-of-phone attribution path — also rejects a linked user whose
+  `is_active` is `False`, closing the same gap on the Signal channel
+  as `get_current_user` closes for the JWT path. Found during this
+  feature's own code review (not part of the original plan/spec, since
+  it lives in pre-existing ADR-0006 code the plan never touched) and
+  fixed the same day rather than deferred, since deactivation is
+  meaningless if one of its two attribution paths still works.
 
 **Frontend** (`apps/web/src/routes/AdminDashboard.tsx`):
 - Each non-service row gets a `Dropdown`-based row-action menu: role
