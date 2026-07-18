@@ -31,3 +31,9 @@ vite.config.d.ts
 # Signal registration data (identity/session keys — never commit)
 infra/signal-cli/
 .expo/
+
+# Local DB dump backups must never live in the repo tree (real backups go
+# in /opt/collabrains-backups/, outside git) — same risk class as the
+# JWT_SECRET-in-public-repo incident (ADR 0052/0053).
+backups/
+*.dump
