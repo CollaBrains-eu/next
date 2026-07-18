@@ -122,6 +122,7 @@ describe("AdminDashboard Users tab", () => {
       {
         id: "u1", username: "alice", display_name: "Alice", email: "alice@collabrains.eu",
         role: "member", phone_number: "+15551230001", created_at: "2026-01-01T00:00:00Z", last_login_at: null,
+        is_active: true,
       },
     ]);
     render(<AdminDashboard />);
@@ -139,6 +140,7 @@ describe("AdminDashboard Users tab", () => {
     const fullPage = Array.from({ length: 50 }, (_, i) => ({
       id: `u${i}`, username: `user${i}`, display_name: `User ${i}`, email: null,
       role: "member", phone_number: null, created_at: "2026-01-01T00:00:00Z", last_login_at: null,
+      is_active: true,
     }));
     vi.mocked(api.listAdminUsers)
       .mockResolvedValueOnce(fullPage)
@@ -146,6 +148,7 @@ describe("AdminDashboard Users tab", () => {
         {
           id: "u50", username: "user50", display_name: "User 50", email: null,
           role: "member", phone_number: null, created_at: "2026-01-01T00:00:00Z", last_login_at: null,
+          is_active: true,
         },
       ]);
     render(<AdminDashboard />);

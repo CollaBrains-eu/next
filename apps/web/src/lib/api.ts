@@ -643,6 +643,7 @@ export interface AdminUserOut {
   phone_number: string | null;
   created_at: string;
   last_login_at: string | null;
+  is_active: boolean;
 }
 
 export function listAdminUsers(limit?: number, offset?: number): Promise<AdminUserOut[]> {
@@ -651,6 +652,28 @@ export function listAdminUsers(limit?: number, offset?: number): Promise<AdminUs
   if (offset !== undefined) params.set("offset", String(offset));
   const query = params.toString();
   return request<AdminUserOut[]>(`/admin/users${query ? `?${query}` : ""}`);
+}
+
+export function setUserRole(userId: string, role: "member" | "admin"): Promise<AdminUserOut> {
+  return request<AdminUserOut>(`/admin/users/${userId}/role`, {
+    method: "PUT",
+    body: JSON.stringify({ role }),
+  });
+}
+
+export function resetUserPassword(userId: string): Promise<AdminUserCreatedOut> {
+  return request<AdminUserCreatedOut>(`/admin/users/${userId}/password`, { method: "PUT" });
+}
+
+export function deactivateUser(userId: string): Promise<void> {
+  return request<void>(`/admin/users/${userId}`, { method: "DELETE" });
+}
+
+export function setUserPhone(userId: string, phoneNumber: string | null): Promise<AdminUserOut> {
+  return request<AdminUserOut>(`/admin/users/${userId}/phone`, {
+    method: "PUT",
+    body: JSON.stringify({ phone_number: phoneNumber }),
+  });
 }
 
 export interface AddressOut {
