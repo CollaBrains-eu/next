@@ -101,7 +101,9 @@
     "uploading": "Bezig met uploaden…",
     "uploadError": "Uploaden mislukt",
     "statusFilterLabel": "Status",
-    "categoryFilterLabel": "Categorie"
+    "categoryFilterLabel": "Categorie",
+    "exportCsv": "Exporteer CSV",
+    "exportError": "CSV exporteren is mislukt. Probeer het opnieuw."
   },
   "categories": {
     "finance": "Financiën",
@@ -138,7 +140,9 @@
     "emptyMessage": "Nog geen zaken",
     "loadError": "Kon zaken niet laden",
     "createError": "Kon zaak niet aanmaken",
-    "emptyMessageSub": "Zaken die je aanmaakt of die met je worden gedeeld, verschijnen hier."
+    "emptyMessageSub": "Zaken die je aanmaakt of die met je worden gedeeld, verschijnen hier.",
+    "exportCsv": "Exporteer CSV",
+    "exportError": "CSV exporteren is mislukt. Probeer het opnieuw."
   },
   "tasks": {
     "title": "Taken",

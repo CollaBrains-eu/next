@@ -24,6 +24,8 @@ attachment uploads (ADR 0007) work the same way `/chat` does.
 plain function, not inlined in the endpoint, so the Planning Engine
 (Phase 8c, ADR 0019) can call the same code the HTTP endpoint does.
 """
+import csv
+import io
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -323,6 +325,42 @@ async def list_documents(
         query = query.where(Document.owner_id == current_user.id)
     result = await db.execute(query)
     return list(result.scalars().all())
+
+
+@router.get("/export.csv")
+async def export_documents_csv(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_effective_user),
+) -> Response:
+    query = select(Document).order_by(Document.created_at.desc())
+    if current_user.role != "admin":
+        query = query.where(Document.owner_id == current_user.id)
+    result = await db.execute(query)
+    documents = result.scalars().all()
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["id", "title", "filename", "status", "doc_type", "correspondent", "tags", "created_at", "processed_at"])
+    for document in documents:
+        writer.writerow(
+            [
+                str(document.id),
+                document.title,
+                document.filename,
+                document.status,
+                document.doc_type or "",
+                document.correspondent or "",
+                ", ".join(document.tags or []),
+                document.created_at.isoformat(),
+                document.processed_at.isoformat() if document.processed_at else "",
+            ]
+        )
+
+    return Response(
+        content=buffer.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="documents.csv"'},
+    )
 
 
 @router.get("/{document_id}", response_model=DocumentDetailOut)

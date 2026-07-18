@@ -318,3 +318,25 @@ async def test_link_vehicle_rejects_non_owner_vehicle(client):
         f"/cases/{case_id}/vehicles/{vehicle.id}", headers={"Authorization": f"Bearer {intruder_token}"}
     )
     assert response.status_code == 403
+
+
+async def test_export_cases_csv_only_includes_the_callers_own(client):
+    token_a = await _login(client, "casecsvuser1")
+    token_b = await _login(client, "casecsvuser2")
+
+    await client.post("/cases", headers={"Authorization": f"Bearer {token_a}"}, json={"name": "A's case"})
+    await client.post("/cases", headers={"Authorization": f"Bearer {token_b}"}, json={"name": "B's case"})
+
+    response = await client.get("/cases/export.csv", headers={"Authorization": f"Bearer {token_a}"})
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/csv")
+    body = response.text
+    assert body.splitlines()[0] == "id,name,description,status,created_at"
+    assert "A's case" in body
+    assert "B's case" not in body
+
+
+async def test_export_cases_csv_requires_auth(client):
+    response = await client.get("/cases/export.csv")
+    assert response.status_code == 401

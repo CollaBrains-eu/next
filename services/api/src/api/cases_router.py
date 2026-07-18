@@ -8,7 +8,10 @@ from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+import csv
+import io
+
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -145,6 +148,29 @@ async def list_my_invitations_endpoint(
     to parse "invitations" as a case_id UUID and 422 instead of matching
     this route."""
     return await list_pending_invitations(db, user_id=current_user.id)
+
+
+@router.get("/cases/export.csv")
+async def export_cases_csv(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Response:
+    """Registered before /cases/{case_id} -- same reasoning as
+    /cases/invitations above: otherwise FastAPI would try to parse
+    "export.csv" as a case_id UUID and 422 instead of matching this route."""
+    cases = await list_cases(db, user_id=current_user.id)
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["id", "name", "description", "status", "created_at"])
+    for case in cases:
+        writer.writerow([str(case.id), case.name, case.description or "", case.status, case.created_at.isoformat()])
+
+    return Response(
+        content=buffer.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="cases.csv"'},
+    )
 
 
 @router.get("/cases/{case_id}", response_model=CaseDashboardOut)

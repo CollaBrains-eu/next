@@ -101,7 +101,9 @@
     "uploading": "Uploading…",
     "uploadError": "Upload failed",
     "statusFilterLabel": "Status",
-    "categoryFilterLabel": "Category"
+    "categoryFilterLabel": "Category",
+    "exportCsv": "Export CSV",
+    "exportError": "Couldn't export the CSV. Please try again."
   },
   "categories": {
     "finance": "Finance",
@@ -138,7 +140,9 @@
     "emptyMessage": "No cases yet",
     "loadError": "Failed to load cases",
     "createError": "Failed to create case",
-    "emptyMessageSub": "Cases you create or that get shared with you will show up here."
+    "emptyMessageSub": "Cases you create or that get shared with you will show up here.",
+    "exportCsv": "Export CSV",
+    "exportError": "Couldn't export the CSV. Please try again."
   },
   "tasks": {
     "title": "Tasks",

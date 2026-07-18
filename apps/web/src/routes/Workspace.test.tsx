@@ -13,6 +13,7 @@ vi.mock("../lib/api", async () => {
     listCategories: vi.fn(),
     search: vi.fn(),
     deleteDocument: vi.fn(),
+    downloadDocumentsCsv: vi.fn(),
   };
 });
 
@@ -138,5 +139,21 @@ describe("Workspace (Documents list)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
     await waitFor(() => expect(api.deleteDocument).toHaveBeenCalledTimes(2));
     expect(await screen.findByText(/deleted/i)).toBeInTheDocument();
+  });
+
+  it("clicking Export CSV downloads the documents CSV", async () => {
+    vi.mocked(api.downloadDocumentsCsv).mockResolvedValue(undefined);
+    renderPage();
+    await screen.findByText("document-0.pdf");
+    fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
+    await waitFor(() => expect(api.downloadDocumentsCsv).toHaveBeenCalledTimes(1));
+  });
+
+  it("shows a toast if the CSV export fails", async () => {
+    vi.mocked(api.downloadDocumentsCsv).mockRejectedValue(new Error("network error"));
+    renderPage();
+    await screen.findByText("document-0.pdf");
+    fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
+    expect(await screen.findByText(/export/i)).toBeInTheDocument();
   });
 });

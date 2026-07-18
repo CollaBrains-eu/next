@@ -6,7 +6,7 @@ import EmptyState from "../components/EmptyState";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 import { SkeletonLines } from "../components/ui/Skeleton";
-import { ApiError, createCase, listCases, type CaseOut } from "../lib/api";
+import { ApiError, createCase, downloadCasesCsv, listCases, type CaseOut } from "../lib/api";
 import { useDateFormat } from "../hooks/useDateFormat";
 
 export default function Cases() {
@@ -19,6 +19,7 @@ export default function Cases() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   function refresh() {
     setLoading(true);
@@ -50,6 +51,17 @@ export default function Cases() {
     }
   }
 
+  async function handleExportCsv() {
+    setExporting(true);
+    try {
+      await downloadCasesCsv();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("cases.exportError"));
+    } finally {
+      setExporting(false);
+    }
+  }
+
   const newCaseButton = !creating && (
     <Button onClick={() => setCreating(true)}>{t("cases.newCase")}</Button>
   );
@@ -58,7 +70,14 @@ export default function Cases() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-ink">{t("cases.title")}</h1>
-        {cases.length > 0 && newCaseButton}
+        <div className="flex items-center gap-2">
+          {cases.length > 0 && (
+            <Button variant="secondary" onClick={handleExportCsv} disabled={exporting}>
+              {t("cases.exportCsv")}
+            </Button>
+          )}
+          {cases.length > 0 && newCaseButton}
+        </div>
       </div>
 
       {creating && (

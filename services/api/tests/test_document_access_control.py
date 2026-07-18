@@ -245,3 +245,38 @@ async def test_get_document_file_404_when_paperless_id_missing(client):
         f"/documents/{document_id}/file", headers={"Authorization": f"Bearer {owner_token}"}
     )
     assert response.status_code == 404
+
+
+async def test_export_documents_csv_excludes_other_users_documents(client):
+    owner_token = await _login(client, "csvowner1")
+    owner_id = await _user_id("csvowner1")
+    await _create_document(owner_id, "Owner's doc", "content")
+
+    other_token = await _login(client, "csvother1")
+    response = await client.get("/documents/export.csv", headers={"Authorization": f"Bearer {other_token}"})
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/csv")
+    body = response.text
+    assert body.splitlines()[0] == "id,title,filename,status,doc_type,correspondent,tags,created_at,processed_at"
+    assert "Owner's doc" not in body
+
+    own_response = await client.get("/documents/export.csv", headers={"Authorization": f"Bearer {owner_token}"})
+    assert "Owner's doc" in own_response.text
+
+
+async def test_export_documents_csv_admin_sees_all_documents(client):
+    await _login(client, "csvowner2")
+    owner_id = await _user_id("csvowner2")
+    await _create_document(owner_id, "Someone's doc", "content")
+
+    admin_token = await _login(client, "csvadmin1", is_admin=True)
+    response = await client.get("/documents/export.csv", headers={"Authorization": f"Bearer {admin_token}"})
+
+    assert response.status_code == 200
+    assert "Someone's doc" in response.text
+
+
+async def test_export_documents_csv_requires_auth(client):
+    response = await client.get("/documents/export.csv")
+    assert response.status_code == 401

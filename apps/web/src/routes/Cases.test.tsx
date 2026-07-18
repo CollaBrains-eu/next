@@ -10,6 +10,7 @@ vi.mock("../lib/api", async () => {
     ...actual,
     listCases: vi.fn(),
     createCase: vi.fn(),
+    downloadCasesCsv: vi.fn(),
   };
 });
 
@@ -67,5 +68,21 @@ describe("Cases", () => {
     vi.mocked(api.listCases).mockRejectedValue(new api.ApiError(500, "Boom"));
     renderPage();
     expect(await screen.findByText("Boom")).toBeInTheDocument();
+  });
+
+  it("clicking Export CSV downloads the cases CSV", async () => {
+    vi.mocked(api.downloadCasesCsv).mockResolvedValue(undefined);
+    renderPage();
+    await screen.findByText("Alpha matter");
+    fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
+    await waitFor(() => expect(api.downloadCasesCsv).toHaveBeenCalledTimes(1));
+  });
+
+  it("shows an error banner if the CSV export fails", async () => {
+    vi.mocked(api.downloadCasesCsv).mockRejectedValue(new api.ApiError(500, "Export broke"));
+    renderPage();
+    await screen.findByText("Alpha matter");
+    fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
+    expect(await screen.findByText("Export broke")).toBeInTheDocument();
   });
 });

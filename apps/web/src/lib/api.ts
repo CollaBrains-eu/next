@@ -557,6 +557,31 @@ export async function previewDocumentFile(id: string): Promise<void> {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
+async function downloadCsv(path: string, filename: string): Promise<void> {
+  const headers = new Headers();
+  const token = getToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const response = await fetch(`${API_URL}${path}`, { headers });
+  if (!response.ok) throw new ApiError(response.status, response.statusText);
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+export function downloadDocumentsCsv(): Promise<void> {
+  return downloadCsv("/documents/export.csv", "documents.csv");
+}
+
+export function downloadCasesCsv(): Promise<void> {
+  return downloadCsv("/cases/export.csv", "cases.csv");
+}
+
 export interface AskResponse {
   answer: string;
   tools_called: string[];

@@ -6,6 +6,8 @@ import {
   listCategories,
   search as searchApi,
   deleteDocument,
+  downloadDocumentsCsv,
+  ApiError,
   type DocumentOut,
   type CategoryOut,
   type SearchResult,
@@ -49,6 +51,7 @@ export default function Workspace() {
   const [categoryFilters, setCategoryFilters] = useState<string[]>([]);
   const { isSelected, toggle, clear, selectedCount, selectedKeys } = useBulkSelection<DocumentOut>((doc) => doc.id);
   const { showToast } = useToast();
+  const [exporting, setExporting] = useState(false);
   const CATEGORY_FILTER_OPTIONS = categories.map((c) => ({ id: c.id, label: t(`categories.${c.slug}`) }));
 
   const refresh = useCallback((showLoading = false) => {
@@ -88,6 +91,17 @@ export default function Workspace() {
     clear();
     refresh();
     showToast(t("documents.deletedToast", { count: ids.length }));
+  }
+
+  async function handleExportCsv() {
+    setExporting(true);
+    try {
+      await downloadDocumentsCsv();
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : t("documents.exportError"));
+    } finally {
+      setExporting(false);
+    }
   }
 
   const activeFilters = useMemo(() => new Set(statusFilters), [statusFilters]);
@@ -145,7 +159,12 @@ export default function Workspace() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-ink">{t("documents.title")}</h1>
-        <UploadDialog onUploaded={refresh} />
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" onClick={handleExportCsv} disabled={exporting}>
+            {t("documents.exportCsv")}
+          </Button>
+          <UploadDialog onUploaded={refresh} />
+        </div>
       </div>
 
       <form onSubmit={handleSearch} className="flex items-end gap-2">

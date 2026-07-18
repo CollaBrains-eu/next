@@ -101,7 +101,9 @@
     "uploading": "Wird hochgeladen…",
     "uploadError": "Hochladen fehlgeschlagen",
     "statusFilterLabel": "Status",
-    "categoryFilterLabel": "Kategorie"
+    "categoryFilterLabel": "Kategorie",
+    "exportCsv": "CSV exportieren",
+    "exportError": "CSV-Export fehlgeschlagen. Bitte erneut versuchen."
   },
   "categories": {
     "finance": "Finanzen",
@@ -138,7 +140,9 @@
     "emptyMessage": "Noch keine Fälle",
     "loadError": "Fälle konnten nicht geladen werden",
     "createError": "Fall konnte nicht erstellt werden",
-    "emptyMessageSub": "Fälle, die du erstellst oder die mit dir geteilt werden, erscheinen hier."
+    "emptyMessageSub": "Fälle, die du erstellst oder die mit dir geteilt werden, erscheinen hier.",
+    "exportCsv": "CSV exportieren",
+    "exportError": "CSV-Export fehlgeschlagen. Bitte erneut versuchen."
   },
   "tasks": {
     "title": "Aufgaben",
