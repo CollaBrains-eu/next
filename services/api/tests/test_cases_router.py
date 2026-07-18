@@ -35,6 +35,7 @@ async def test_create_and_get_case(client):
     assert body["decisions"] == []
     assert body["document_count"] == 0
     assert body["member_count"] == 0
+    assert body["appointments"] == []
 
 
 async def test_list_cases_includes_document_and_member_counts(client):
@@ -57,6 +58,22 @@ async def test_list_cases_includes_document_and_member_counts(client):
     matching = [c for c in list_response.json() if c["id"] == case_id][0]
     assert matching["document_count"] == 1
     assert matching["member_count"] == 1
+
+
+async def test_case_dashboard_includes_appointments_linked_via_case_id(client):
+    token = await _login(client, "caserouteruser27")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    create_response = await client.post("/cases", headers=headers, json={"name": "A case"})
+    case_id = create_response.json()["id"]
+
+    appointment_response = await client.post(
+        "/appointments", headers=headers, json={"title": "Deposition", "starts_at": "2026-08-01T13:00:00Z", "case_id": case_id}
+    )
+    appointment_id = appointment_response.json()["id"]
+
+    dashboard = await client.get(f"/cases/{case_id}", headers=headers)
+    assert [a["id"] for a in dashboard.json()["appointments"]] == [appointment_id]
 
 
 async def test_list_cases_only_shows_the_callers_own(client):

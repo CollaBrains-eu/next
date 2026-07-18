@@ -12,6 +12,9 @@ vi.mock("../lib/api", async () => {
     createCase: vi.fn(),
     downloadCasesCsv: vi.fn(),
     updateCaseStatus: vi.fn(),
+    listMyCaseInvitations: vi.fn(),
+    acceptCaseInvitation: vi.fn(),
+    declineCaseInvitation: vi.fn(),
   };
 });
 
@@ -25,6 +28,11 @@ const CASES: api.CaseOut[] = [
     created_at: "2026-01-02T00:00:00Z", document_count: 0, member_count: 0,
   },
 ];
+
+const INVITATION: api.CaseMemberOut = {
+  id: "m1", case_id: "c3", case_name: "Gamma matter", user_id: "u1",
+  username: "me", user_display_name: "Me", role: "member", status: "pending", created_at: "2026-01-01T00:00:00Z",
+};
 
 function renderPage() {
   return render(
@@ -43,6 +51,7 @@ describe("Cases", () => {
       ...CASES.find((c) => c.id === id)!,
       status,
     }));
+    vi.mocked(api.listMyCaseInvitations).mockResolvedValue([]);
   });
 
   it("renders case cards with name and status badge", async () => {
@@ -142,5 +151,33 @@ describe("Cases", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close selected" }));
     await waitFor(() => expect(screen.queryByText("1 selected")).not.toBeInTheDocument());
     expect(api.updateCaseStatus).not.toHaveBeenCalled();
+  });
+
+  it("shows a pending-invitations banner and accepts an invitation", async () => {
+    vi.mocked(api.listMyCaseInvitations).mockResolvedValue([INVITATION]);
+    vi.mocked(api.acceptCaseInvitation).mockResolvedValue({ ...INVITATION, status: "accepted" });
+    renderPage();
+    expect(await screen.findByText("Gamma matter")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Accept" }));
+    await waitFor(() => expect(api.acceptCaseInvitation).toHaveBeenCalledWith("c3", "u1"));
+    await waitFor(() => expect(screen.queryByText("Gamma matter")).not.toBeInTheDocument());
+  });
+
+  it("declines an invitation and removes it from the banner", async () => {
+    vi.mocked(api.listMyCaseInvitations).mockResolvedValue([INVITATION]);
+    vi.mocked(api.declineCaseInvitation).mockResolvedValue({ ...INVITATION, status: "declined" });
+    renderPage();
+    expect(await screen.findByText("Gamma matter")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Decline" }));
+    await waitFor(() => expect(api.declineCaseInvitation).toHaveBeenCalledWith("c3", "u1"));
+    await waitFor(() => expect(screen.queryByText("Gamma matter")).not.toBeInTheDocument());
+  });
+
+  it("does not show the pending-invitations banner when there are none", async () => {
+    renderPage();
+    await screen.findByText("Alpha matter");
+    expect(screen.queryByText("Pending invitations")).not.toBeInTheDocument();
   });
 });

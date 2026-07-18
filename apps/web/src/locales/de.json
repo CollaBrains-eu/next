@@ -61,7 +61,9 @@
     "title": "Benachrichtigungen",
     "empty": "Alles erledigt",
     "pendingReviews_one": "{{count}} Entität wartet auf Prüfung",
-    "pendingReviews_other": "{{count}} Entitäten warten auf Prüfung"
+    "pendingReviews_other": "{{count}} Entitäten warten auf Prüfung",
+    "pendingCaseInvitations_one": "{{count}} ausstehende Falleinladung",
+    "pendingCaseInvitations_other": "{{count}} ausstehende Falleinladungen"
   },
   "common": {
     "openMenu": "Menü öffnen",
@@ -76,7 +78,8 @@
     "send": "Senden",
     "thinking": "Denkt nach…",
     "addFilter": "+ Filter hinzufügen",
-    "profile": "Mein Profil"
+    "profile": "Mein Profil",
+    "remove": "Entfernen"
   },
   "documents": {
     "title": "Dokumente",
@@ -158,7 +161,11 @@
     "bulkClose": "Auswahl schließen",
     "bulkReopen": "Auswahl wieder öffnen",
     "cardMeta": "{{docs}} Dokumente · {{members}} Mitglieder",
-    "updateError": "Fälle konnten nicht aktualisiert werden"
+    "updateError": "Fälle konnten nicht aktualisiert werden",
+    "pendingInvitationsTitle": "Ausstehende Einladungen",
+    "acceptInvitation": "Annehmen",
+    "declineInvitation": "Ablehnen",
+    "invitationError": "Antwort auf diese Einladung fehlgeschlagen"
   },
   "tasks": {
     "title": "Aufgaben",
@@ -211,7 +218,9 @@
     "deleteModalBody": "Dies kann nicht rückgängig gemacht werden.",
     "deleteConfirm": "Termin löschen",
     "createError": "Termin konnte nicht gespeichert werden",
-    "deleteError": "Termin konnte nicht gelöscht werden"
+    "deleteError": "Termin konnte nicht gelöscht werden",
+    "caseLabel": "Fall",
+    "noCase": "Kein Fall"
   },
   "vehicles": {
     "title": "Fahrzeuge",
@@ -254,7 +263,20 @@
     "attachConfirm": "Verknüpfen",
     "selectPlaceholder": "Auswählen…",
     "nothingLinked": "Noch nichts verknüpft.",
-    "decisions": "Entscheidungen"
+    "decisions": "Entscheidungen",
+    "members": "Mitglieder",
+    "invitePhonePlaceholder": "Telefonnummer, z.B. +491511234567",
+    "lookupAction": "Suchen",
+    "userNotFound": "Kein Benutzer mit dieser Telefonnummer gefunden.",
+    "roleMember": "Mitglied",
+    "roleWorker": "Mitarbeiter",
+    "inviteAction": "Einladen",
+    "lookupError": "Suche nach dieser Telefonnummer fehlgeschlagen",
+    "inviteError": "Einladen dieses Benutzers fehlgeschlagen",
+    "noMembers": "Noch keine Mitglieder.",
+    "pendingInvites": "Ausstehende Einladungen",
+    "revokeInvite": "Widerrufen",
+    "removeMemberError": "Entfernen dieses Mitglieds fehlgeschlagen"
   },
   "entities": {
     "title": "Entitäten",

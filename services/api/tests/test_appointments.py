@@ -30,6 +30,23 @@ async def test_create_appointment(client):
     assert body["vehicle_id"] is None
 
 
+async def test_create_appointment_with_case_id_persists_it(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    case_response = await client.post("/cases", headers=headers, json={"name": "Smith v. Jones"})
+    case_id = case_response.json()["id"]
+
+    response = await client.post(
+        "/appointments",
+        headers=headers,
+        json={"title": "Site visit", "starts_at": "2026-07-20T10:00:00Z", "case_id": case_id},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["case_id"] == case_id
+
+
 async def test_list_appointments_filters_by_date_range(client):
     # Uses September 2026 (not shared with any other test in this file) so
     # leftover rows from other tests' July 2026 appointments can't leak in --

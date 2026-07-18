@@ -15,6 +15,10 @@ vi.mock("../lib/api", async () => {
     listDecisions: vi.fn(),
     listVehicles: vi.fn(),
     linkVehicleToCase: vi.fn(),
+    listCaseMembers: vi.fn(),
+    inviteCaseMember: vi.fn(),
+    removeCaseMember: vi.fn(),
+    lookupUserByPhone: vi.fn(),
   };
 });
 
@@ -30,6 +34,8 @@ const CASE: api.CaseDashboardOut = {
   tasks: [],
   decisions: [],
   vehicles: [],
+  appointments: [],
+  is_owner: true,
 };
 
 const VEHICLES: api.VehicleOut[] = [
@@ -61,6 +67,7 @@ describe("CaseDetail", () => {
     vi.mocked(api.listVehicles).mockResolvedValue(VEHICLES);
     vi.mocked(api.updateCaseStatus).mockResolvedValue({ ...CASE, status: "closed" });
     vi.mocked(api.linkVehicleToCase).mockResolvedValue(undefined);
+    vi.mocked(api.listCaseMembers).mockResolvedValue([]);
   });
 
   it("renders the case name and status badge", async () => {
@@ -72,7 +79,17 @@ describe("CaseDetail", () => {
   it("shows 'Nothing linked yet.' for each empty section", async () => {
     renderPage();
     await screen.findByRole("heading", { name: "Alpha matter" });
-    expect(screen.getAllByText("Nothing linked yet.")).toHaveLength(4);
+    expect(screen.getAllByText("Nothing linked yet.")).toHaveLength(5);
+  });
+
+  it("renders linked appointments with their formatted time", async () => {
+    vi.mocked(api.getCase).mockResolvedValue({
+      ...CASE,
+      appointments: [{ id: "a1", title: "Site visit", starts_at: "2026-03-05T14:30:00Z" }],
+    });
+    renderPage();
+    await screen.findByRole("heading", { name: "Alpha matter" });
+    expect(screen.getByText("Site visit")).toBeInTheDocument();
   });
 
   it("toggles status when the status badge is clicked", async () => {
@@ -92,5 +109,58 @@ describe("CaseDetail", () => {
     fireEvent.click(within(vehiclesSection).getByRole("button", { name: "AB-12-CD" }));
     fireEvent.click(within(vehiclesSection).getByRole("button", { name: "Attach" }));
     await waitFor(() => expect(api.linkVehicleToCase).toHaveBeenCalledWith("c1", "v1"));
+  });
+
+  it("shows invite controls only when is_owner is true", async () => {
+    vi.mocked(api.getCase).mockResolvedValue({ ...CASE, is_owner: false });
+    renderPage();
+    await screen.findByRole("heading", { name: "Alpha matter" });
+    expect(screen.queryByPlaceholderText("Phone number, e.g. +491511234567")).not.toBeInTheDocument();
+  });
+
+  it("looks up a user by phone, then invites them", async () => {
+    vi.mocked(api.lookupUserByPhone).mockResolvedValue({ id: "u2", username: "bob", display_name: "Bob Smith" });
+    vi.mocked(api.inviteCaseMember).mockResolvedValue({
+      id: "m1", case_id: "c1", case_name: "Alpha matter", user_id: "u2",
+      username: "bob", user_display_name: "Bob Smith", role: "member", status: "pending", created_at: "2026-01-01T00:00:00Z",
+    });
+    renderPage();
+    await screen.findByRole("heading", { name: "Alpha matter" });
+
+    fireEvent.change(screen.getByPlaceholderText("Phone number, e.g. +491511234567"), { target: { value: "+15559990101" } });
+    fireEvent.click(screen.getByRole("button", { name: "Look up" }));
+
+    expect(await screen.findByText("Bob Smith")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Invite" }));
+
+    await waitFor(() => expect(api.inviteCaseMember).toHaveBeenCalledWith("c1", "u2", "member"));
+  });
+
+  it("shows an inline error when the phone lookup finds nobody, and does not invite", async () => {
+    vi.mocked(api.lookupUserByPhone).mockResolvedValue(null);
+    renderPage();
+    await screen.findByRole("heading", { name: "Alpha matter" });
+
+    fireEvent.change(screen.getByPlaceholderText("Phone number, e.g. +491511234567"), { target: { value: "+15559990199" } });
+    fireEvent.click(screen.getByRole("button", { name: "Look up" }));
+
+    expect(await screen.findByText("No user found with that phone number.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Invite" })).not.toBeInTheDocument();
+    expect(api.inviteCaseMember).not.toHaveBeenCalled();
+  });
+
+  it("removes an accepted member and refreshes the list", async () => {
+    vi.mocked(api.listCaseMembers).mockResolvedValue([
+      {
+        id: "m1", case_id: "c1", case_name: "Alpha matter", user_id: "u2",
+        username: "bob", user_display_name: "Bob Smith", role: "member", status: "accepted", created_at: "2026-01-01T00:00:00Z",
+      },
+    ]);
+    vi.mocked(api.removeCaseMember).mockResolvedValue(undefined);
+    renderPage();
+    await screen.findByText("Bob Smith");
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+    await waitFor(() => expect(api.removeCaseMember).toHaveBeenCalledWith("c1", "u2"));
   });
 });

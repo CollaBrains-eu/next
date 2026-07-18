@@ -9,19 +9,25 @@ import { Combobox } from "../components/ui/Combobox";
 import { SkeletonLines } from "../components/ui/Skeleton";
 import { StatusPipeline } from "../components/ui/StatusPipeline";
 import { Tooltip } from "../components/ui/Tooltip";
+import { useDateFormat } from "../hooks/useDateFormat";
 import {
   ApiError,
   attachDocumentToCase,
   getCase,
+  inviteCaseMember,
   linkDecisionToCase,
   linkTaskToCase,
   linkVehicleToCase,
+  listCaseMembers,
   listDecisions,
   listDocuments,
   listTasks,
   listVehicles,
+  lookupUserByPhone,
+  removeCaseMember,
   updateCaseStatus,
   type CaseDashboardOut,
+  type CaseMemberOut,
   type DecisionListItemOut,
   type DocumentOut,
   type TaskOut,
@@ -32,6 +38,7 @@ type AttachSection = "documents" | "tasks" | "decisions" | "vehicles";
 
 export default function CaseDetail() {
   const { t } = useTranslation();
+  const { formatDateTime } = useDateFormat();
   const { id } = useParams<{ id: string }>();
   const [caseData, setCaseData] = useState<CaseDashboardOut | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,6 +49,12 @@ export default function CaseDetail() {
   const [allTasks, setAllTasks] = useState<TaskOut[]>([]);
   const [allDecisions, setAllDecisions] = useState<DecisionListItemOut[]>([]);
   const [allVehicles, setAllVehicles] = useState<VehicleOut[]>([]);
+  const [members, setMembers] = useState<CaseMemberOut[]>([]);
+  const [invitePhone, setInvitePhone] = useState("");
+  const [inviteLookup, setInviteLookup] = useState<{ id: string; username: string; display_name: string } | null | "not-found">(null);
+  const [inviteRole, setInviteRole] = useState<"worker" | "member">("member");
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
 
   function refresh() {
     if (!id) return;
@@ -52,8 +65,14 @@ export default function CaseDetail() {
       .finally(() => setLoading(false));
   }
 
+  function refreshMembers() {
+    if (!id) return;
+    listCaseMembers(id).then(setMembers).catch(() => undefined);
+  }
+
   useEffect(() => {
     refresh();
+    refreshMembers();
     listDocuments().then(setAllDocuments).catch(() => undefined);
     listTasks().then(setAllTasks).catch(() => undefined);
     listDecisions().then(setAllDecisions).catch(() => undefined);
@@ -83,6 +102,47 @@ export default function CaseDetail() {
       refresh();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("caseDetail.attachError"));
+    }
+  }
+
+  async function handleLookupPhone() {
+    if (!invitePhone.trim()) return;
+    setInviteError(null);
+    setInviteLoading(true);
+    try {
+      const found = await lookupUserByPhone(invitePhone.trim());
+      setInviteLookup(found ?? "not-found");
+    } catch (err) {
+      setInviteError(err instanceof ApiError ? err.message : t("caseDetail.lookupError"));
+    } finally {
+      setInviteLoading(false);
+    }
+  }
+
+  async function handleInvite() {
+    if (!caseData || !inviteLookup || inviteLookup === "not-found") return;
+    setInviteLoading(true);
+    setInviteError(null);
+    try {
+      await inviteCaseMember(caseData.id, inviteLookup.id, inviteRole);
+      setInvitePhone("");
+      setInviteLookup(null);
+      setInviteRole("member");
+      refreshMembers();
+    } catch (err) {
+      setInviteError(err instanceof ApiError ? err.message : t("caseDetail.inviteError"));
+    } finally {
+      setInviteLoading(false);
+    }
+  }
+
+  async function handleRemoveMember(userId: string) {
+    if (!caseData) return;
+    try {
+      await removeCaseMember(caseData.id, userId);
+      refreshMembers();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("caseDetail.removeMemberError"));
     }
   }
 
@@ -243,6 +303,109 @@ export default function CaseDetail() {
                 )}
               </div>
             ))}
+          </div>
+        )}
+      </Card>
+
+      <Card>
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-xs font-bold uppercase tracking-wide text-ink-2">{t("nav.calendar")}</span>
+        </div>
+        {caseData.appointments.length === 0 ? (
+          <p className="text-sm text-ink-3">{t("caseDetail.nothingLinked")}</p>
+        ) : (
+          <div className="flex flex-col divide-y divide-edge overflow-hidden rounded-xl border border-edge">
+            {caseData.appointments.map((a) => (
+              <div key={a.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm text-ink">
+                <span className="truncate">{a.title}</span>
+                <span className="shrink-0 text-xs text-ink-3">{formatDateTime(a.starts_at)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      <Card>
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-xs font-bold uppercase tracking-wide text-ink-2">{t("caseDetail.members")}</span>
+        </div>
+
+        {caseData.is_owner && (
+          <div className="mb-3 flex flex-col gap-2 rounded-xl border border-edge p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                value={invitePhone}
+                onChange={(e) => {
+                  setInvitePhone(e.target.value);
+                  setInviteLookup(null);
+                }}
+                placeholder={t("caseDetail.invitePhonePlaceholder")}
+                className="flex-1 rounded-lg border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+              />
+              <Button size="sm" variant="secondary" onClick={handleLookupPhone} disabled={inviteLoading || !invitePhone.trim()}>
+                {t("caseDetail.lookupAction")}
+              </Button>
+            </div>
+            {inviteLookup === "not-found" && (
+              <p className="text-xs text-danger">{t("caseDetail.userNotFound")}</p>
+            )}
+            {inviteLookup && inviteLookup !== "not-found" && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm text-ink">{inviteLookup.display_name}</span>
+                <select
+                  value={inviteRole}
+                  onChange={(e) => setInviteRole(e.target.value as "worker" | "member")}
+                  className="rounded-lg border border-edge bg-surface px-2 py-1 text-xs text-ink outline-none focus:border-accent"
+                >
+                  <option value="member">{t("caseDetail.roleMember")}</option>
+                  <option value="worker">{t("caseDetail.roleWorker")}</option>
+                </select>
+                <Button size="sm" onClick={handleInvite} disabled={inviteLoading}>
+                  {t("caseDetail.inviteAction")}
+                </Button>
+              </div>
+            )}
+            {inviteError && <p className="text-xs text-danger">{inviteError}</p>}
+          </div>
+        )}
+
+        {members.filter((m) => m.status === "accepted").length === 0 ? (
+          <p className="text-sm text-ink-3">{t("caseDetail.noMembers")}</p>
+        ) : (
+          <div className="flex flex-col divide-y divide-edge overflow-hidden rounded-xl border border-edge">
+            {members
+              .filter((m) => m.status === "accepted")
+              .map((m) => (
+                <div key={m.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm text-ink">
+                  <span className="truncate">{m.user_display_name}</span>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="text-xs text-ink-3">{m.role}</span>
+                    {caseData.is_owner && (
+                      <Button size="sm" variant="ghost" onClick={() => handleRemoveMember(m.user_id)}>
+                        {t("common.remove")}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+          </div>
+        )}
+
+        {caseData.is_owner && members.filter((m) => m.status === "pending").length > 0 && (
+          <div className="mt-3">
+            <span className="text-xs font-semibold text-ink-2">{t("caseDetail.pendingInvites")}</span>
+            <div className="mt-1 flex flex-col divide-y divide-edge overflow-hidden rounded-xl border border-edge">
+              {members
+                .filter((m) => m.status === "pending")
+                .map((m) => (
+                  <div key={m.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm text-ink">
+                    <span className="truncate">{m.user_display_name}</span>
+                    <Button size="sm" variant="ghost" onClick={() => handleRemoveMember(m.user_id)}>
+                      {t("caseDetail.revokeInvite")}
+                    </Button>
+                  </div>
+                ))}
+            </div>
           </div>
         )}
       </Card>

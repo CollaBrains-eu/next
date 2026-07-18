@@ -13,8 +13,13 @@ vi.mock("../lib/api", async () => {
     updateAppointment: vi.fn(),
     deleteAppointment: vi.fn(),
     downloadAppointmentIcs: vi.fn(),
+    listCases: vi.fn(),
   };
 });
+
+const CASES: api.CaseOut[] = [
+  { id: "case-1", name: "Smith v. Jones", description: null, status: "open", created_at: "2026-01-01T00:00:00Z" },
+];
 
 const JULY_APPOINTMENTS: api.AppointmentOut[] = [
   {
@@ -44,6 +49,7 @@ describe("Calendar", () => {
     vi.useFakeTimers({ toFake: ["Date"] }); // leave setTimeout real so waitFor/findBy* polling still works
     vi.setSystemTime(new Date(2026, 6, 14));
     vi.mocked(api.listAppointments).mockResolvedValue(JULY_APPOINTMENTS);
+    vi.mocked(api.listCases).mockResolvedValue(CASES);
   });
 
   afterEach(() => {
@@ -94,6 +100,7 @@ describe("Calendar create/edit/delete", () => {
     vi.useFakeTimers({ toFake: ["Date"] }); // leave setTimeout real so waitFor/findBy* polling still works
     vi.setSystemTime(new Date(2026, 6, 14));
     vi.mocked(api.listAppointments).mockResolvedValue(JULY_APPOINTMENTS);
+    vi.mocked(api.listCases).mockResolvedValue(CASES);
     vi.mocked(api.createAppointment).mockResolvedValue({ ...JULY_APPOINTMENTS[0], id: "a2", title: "New one" });
     vi.mocked(api.updateAppointment).mockResolvedValue({ ...JULY_APPOINTMENTS[0], title: "Edited" });
     vi.mocked(api.deleteAppointment).mockResolvedValue(undefined);
@@ -139,5 +146,42 @@ describe("Calendar create/edit/delete", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete appointment" }));
 
     await waitFor(() => expect(api.deleteAppointment).toHaveBeenCalledWith("a1"));
+  });
+
+  it("populates the case picker from listCases and includes the selection on create", async () => {
+    renderPage();
+    await screen.findByText("APK inspection");
+
+    fireEvent.click(screen.getByRole("button", { name: /new appointment/i }));
+    fireEvent.change(screen.getByLabelText(/title/i), { target: { value: "New one" } });
+    fireEvent.change(screen.getByLabelText(/case/i), { target: { value: "case-1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    await waitFor(() => expect(api.createAppointment).toHaveBeenCalled());
+    const [payload] = vi.mocked(api.createAppointment).mock.calls[0];
+    expect(payload.case_id).toBe("case-1");
+  });
+
+  it("pre-selects the linked case when editing an appointment", async () => {
+    vi.mocked(api.listAppointments).mockResolvedValue([{ ...JULY_APPOINTMENTS[0], case_id: "case-1" }]);
+    renderPage();
+    await screen.findByText("APK inspection");
+
+    fireEvent.click(screen.getByText("APK inspection"));
+    const caseSelect = screen.getByLabelText(/case/i) as HTMLSelectElement;
+    expect(caseSelect.value).toBe("case-1");
+  });
+
+  it("sends case_id: null when no case is selected", async () => {
+    renderPage();
+    await screen.findByText("APK inspection");
+
+    fireEvent.click(screen.getByRole("button", { name: /new appointment/i }));
+    fireEvent.change(screen.getByLabelText(/title/i), { target: { value: "New one" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    await waitFor(() => expect(api.createAppointment).toHaveBeenCalled());
+    const [payload] = vi.mocked(api.createAppointment).mock.calls[0];
+    expect(payload.case_id).toBeNull();
   });
 });

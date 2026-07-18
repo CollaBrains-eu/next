@@ -331,3 +331,55 @@ async def test_delete_case_stays_owner_only_even_for_accepted_members(client):
 
     response = await client.delete(f"/cases/{case_id}", headers={"Authorization": f"Bearer {member_token}"})
     assert response.status_code == 403
+
+
+async def test_case_member_responses_include_case_name_and_user_display_name(client):
+    owner_token = await _login(client, _unique("caseownerx"))
+    case_id = await _create_case(client, owner_token, name="Enriched matter")
+
+    member_username = _unique("casememberx")
+    await _login(client, member_username)
+    member_id = await _user_id_for(member_username)
+
+    invite_response = await _invite(client, owner_token, case_id, member_id)
+    body = invite_response.json()
+    assert body["case_name"] == "Enriched matter"
+    assert body["username"] == member_username
+    assert body["user_display_name"] == member_username
+
+    listing = await client.get(f"/cases/{case_id}/members", headers={"Authorization": f"Bearer {owner_token}"})
+    listed = listing.json()[0]
+    assert listed["case_name"] == "Enriched matter"
+    assert listed["username"] == member_username
+
+
+async def test_my_invitations_are_enriched_too(client):
+    owner_token = await _login(client, _unique("caseownery"))
+    case_id = await _create_case(client, owner_token, name="Invited-to matter")
+
+    member_username = _unique("casembertoy")
+    member_token = await _login(client, member_username)
+    member_id = await _user_id_for(member_username)
+    await _invite(client, owner_token, case_id, member_id)
+
+    invitations = await client.get("/cases/invitations", headers={"Authorization": f"Bearer {member_token}"})
+    matching = [i for i in invitations.json() if i["case_id"] == case_id]
+    assert len(matching) == 1
+    assert matching[0]["case_name"] == "Invited-to matter"
+
+
+async def test_case_dashboard_is_owner_true_for_owner_false_for_accepted_member(client):
+    owner_token = await _login(client, _unique("caseownerz"))
+    case_id = await _create_case(client, owner_token)
+
+    member_username = _unique("casememberz")
+    member_token = await _login(client, member_username)
+    member_id = await _user_id_for(member_username)
+    await _invite(client, owner_token, case_id, member_id)
+    await _accept(client, member_token, case_id, member_id)
+
+    owner_view = await client.get(f"/cases/{case_id}", headers={"Authorization": f"Bearer {owner_token}"})
+    assert owner_view.json()["is_owner"] is True
+
+    member_view = await client.get(f"/cases/{case_id}", headers={"Authorization": f"Bearer {member_token}"})
+    assert member_view.json()["is_owner"] is False
