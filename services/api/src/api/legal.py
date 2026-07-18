@@ -30,6 +30,7 @@ from api.models import Document, User
 from api.preferences import build_language_instruction, get_preferences
 from api.reflection import log_reflection, reflect
 from api.search_service import hybrid_search
+from api.user_facts import get_current_facts
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +107,17 @@ async def _generate_draft(
     scope = set(document_ids) if document_ids else None
     citations, context_text = await _retrieve(db, instruction, context_chunks, scope, user_id)
 
+    try:
+        facts = await get_current_facts(db, user_id=user_id)
+    except Exception:  # noqa: BLE001 - facts retrieval must never fail the draft response
+        logger.exception("facts retrieval failed for legal draft request")
+        facts = []
+
+    facts_text = ""
+    if facts:
+        fact_lines = "\n".join(f"- {fact.fact_type}: {fact.value.get('text', '')}" for fact in facts)
+        facts_text = f"\n\nKnown facts about the user:\n{fact_lines}"
+
     language_instruction = ""
     try:
         preferences = await get_preferences(db, user_id=user_id)
@@ -115,7 +127,7 @@ async def _generate_draft(
 
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT + language_instruction},
-        {"role": "user", "content": f"Context:\n{context_text}\n\nDrafting instruction: {instruction}"},
+        {"role": "user", "content": f"Context:\n{context_text}{facts_text}\n\nDrafting instruction: {instruction}"},
     ]
     draft_text = await chat_completion(messages, user_id=user_id, endpoint="legal.draft")
 
@@ -130,7 +142,7 @@ async def _generate_draft(
             citations, context_text = await _retrieve(db, instruction, retry_limit, scope, user_id)
             messages = [
                 {"role": "system", "content": SYSTEM_PROMPT + language_instruction},
-                {"role": "user", "content": f"Context:\n{context_text}\n\nDrafting instruction: {instruction}"},
+                {"role": "user", "content": f"Context:\n{context_text}{facts_text}\n\nDrafting instruction: {instruction}"},
             ]
             draft_text = await chat_completion(messages, user_id=user_id, endpoint="legal.draft")
             retried = True

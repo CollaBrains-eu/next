@@ -107,3 +107,67 @@ async def test_draft_includes_preferred_language_in_system_prompt(client):
     sent_messages = mock_completion.call_args.args[0]
     system_message = sent_messages[0]["content"]
     assert "you must respond only in fr" in system_message.lower()
+
+
+async def _login_as_legal(client, username: str) -> str:
+    identity = LdapIdentity(username=username, display_name=username, email=f"{username}@collabrains.eu", is_admin=False)
+    with patch("api.auth.ldap_authenticate", return_value=identity):
+        response = await client.post("/auth/token", data={"username": username, "password": "whatever"})
+    return response.json()["access_token"]
+
+
+async def test_draft_includes_a_confirmed_fact_in_the_prompt(client):
+    from datetime import date
+
+    from api.db import async_session
+    from api.models import User, UserFact
+
+    token = await _login_as_legal(client, "legalfactuser1")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    async with async_session() as db:
+        user = (await db.execute(select(User).where(User.username == "legalfactuser1"))).scalar_one()
+        db.add(UserFact(
+            user_id=user.id, fact_type="address", value={"text": "Kerkstraat 1, Amsterdam"},
+            valid_from=date(2020, 1, 1), valid_to=None, status="confirmed",
+        ))
+        await db.commit()
+
+    with (
+        patch("api.legal.hybrid_search", return_value=[]),
+        patch("api.legal.chat_completion", return_value="ok") as mock_completion,
+    ):
+        await client.post("/legal/draft", headers=headers, json={"instruction": "Draft an objection."})
+
+    sent_messages = mock_completion.call_args.args[0]
+    user_message = sent_messages[-1]["content"]
+    assert "Known facts about the user:" in user_message
+    assert "address: Kerkstraat 1, Amsterdam" in user_message
+
+
+async def test_draft_excludes_a_pending_review_fact_from_the_prompt(client):
+    from datetime import date
+
+    from api.db import async_session
+    from api.models import User, UserFact
+
+    token = await _login_as_legal(client, "legalfactuser2")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    async with async_session() as db:
+        user = (await db.execute(select(User).where(User.username == "legalfactuser2"))).scalar_one()
+        db.add(UserFact(
+            user_id=user.id, fact_type="address", value={"text": "Kerkstraat 1, Amsterdam"},
+            valid_from=date(2020, 1, 1), valid_to=None, status="pending_review",
+        ))
+        await db.commit()
+
+    with (
+        patch("api.legal.hybrid_search", return_value=[]),
+        patch("api.legal.chat_completion", return_value="ok") as mock_completion,
+    ):
+        await client.post("/legal/draft", headers=headers, json={"instruction": "Draft an objection."})
+
+    sent_messages = mock_completion.call_args.args[0]
+    user_message = sent_messages[-1]["content"]
+    assert "Known facts about the user:" not in user_message
