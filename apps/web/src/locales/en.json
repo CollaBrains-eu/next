@@ -323,7 +323,12 @@
   "chat": {
     "hint": "Ask a question about your documents. Answers are grounded only in retrieved content and cite sources.",
     "inputPlaceholder": "Ask a question…",
-    "loadError": "Chat request failed"
+    "loadError": "Chat request failed",
+    "lowConfidence": "Low confidence",
+    "thumbsUp": "Good answer",
+    "thumbsDown": "Bad answer",
+    "feedbackThanks": "Thanks for the feedback",
+    "feedbackError": "Couldn't submit feedback. Please try again."
   },
   "legal": {
     "description": "Drafts are grounded only in the documents you select (or all documents if none are selected) and are never a substitute for attorney review.",
@@ -387,6 +392,15 @@
     "tabHealth": "Health",
     "tabBugs": "Bug reports",
     "tabUsers": "Users",
+    "tabFeedback": "Feedback",
+    "feedbackLoadError": "Failed to load feedback",
+    "feedbackRatingLabel": "Rating",
+    "feedbackRatingAll": "All",
+    "feedbackRatingUp": "Up",
+    "feedbackRatingDown": "Down",
+    "feedbackMinConfidenceLabel": "Min. confidence",
+    "feedbackConfidence": "Confidence: {{value}}",
+    "noFeedback": "No feedback yet.",
     "statsLoadError": "Failed to load stats",
     "statUsers": "Users",
     "statDocuments": "Documents",

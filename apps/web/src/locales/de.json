@@ -323,7 +323,12 @@
   "chat": {
     "hint": "Stellen Sie eine Frage zu Ihren Dokumenten. Antworten basieren ausschließlich auf abgerufenen Inhalten und verweisen auf Quellen.",
     "inputPlaceholder": "Stellen Sie eine Frage…",
-    "loadError": "Chat-Anfrage fehlgeschlagen"
+    "loadError": "Chat-Anfrage fehlgeschlagen",
+    "lowConfidence": "Geringe Zuverlässigkeit",
+    "thumbsUp": "Gute Antwort",
+    "thumbsDown": "Schlechte Antwort",
+    "feedbackThanks": "Danke für dein Feedback",
+    "feedbackError": "Feedback konnte nicht gesendet werden. Bitte erneut versuchen."
   },
   "legal": {
     "description": "Entwürfe basieren ausschließlich auf den von Ihnen ausgewählten Dokumenten (oder allen Dokumenten, falls keine ausgewählt sind) und ersetzen niemals die Prüfung durch einen Anwalt.",
@@ -347,6 +352,15 @@
     "tabHealth": "Status",
     "tabBugs": "Fehlermeldungen",
     "tabUsers": "Benutzer",
+    "tabFeedback": "Feedback",
+    "feedbackLoadError": "Feedback konnte nicht geladen werden",
+    "feedbackRatingLabel": "Bewertung",
+    "feedbackRatingAll": "Alle",
+    "feedbackRatingUp": "Positiv",
+    "feedbackRatingDown": "Negativ",
+    "feedbackMinConfidenceLabel": "Min. Zuverlässigkeit",
+    "feedbackConfidence": "Zuverlässigkeit: {{value}}",
+    "noFeedback": "Noch kein Feedback.",
     "statsLoadError": "Statistiken konnten nicht geladen werden",
     "statUsers": "Benutzer",
     "statDocuments": "Dokumente",

@@ -176,6 +176,44 @@ async def test_chat_does_not_retry_when_reflection_flags_sufficient_evidence(cli
     assert mock_completion.call_count == 1
 
 
+async def test_chat_response_includes_the_reflection_verdict(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    with (
+        patch("api.chat.hybrid_search", return_value=[]),
+        patch("api.chat.chat_completion", return_value="the only answer"),
+        patch(
+            "api.chat.reflect",
+            return_value=ReflectionResult(sufficient_evidence=True, confidence=42, issues=[]),
+        ),
+    ):
+        response = await client.post("/chat", headers=headers, json={"message": "What is our retention policy?"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["confidence"] == 42
+    assert body["sufficient_evidence"] is True
+
+
+async def test_chat_response_omits_reflection_verdict_when_reflection_fails(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    with (
+        patch("api.chat.hybrid_search", return_value=[]),
+        patch("api.chat.chat_completion", return_value="the only answer"),
+        patch("api.chat.reflect", side_effect=Exception("reflection LLM call boom")),
+    ):
+        response = await client.post("/chat", headers=headers, json={"message": "What is our retention policy?"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["answer"] == "the only answer"
+    assert body["confidence"] is None
+    assert body["sufficient_evidence"] is None
+
+
 async def _create_service_account_token(username: str = "test-signal-bot") -> str:
     """Insert a role=service user directly (no LDAP path provisions this role) and mint its JWT."""
     from api.auth import create_access_token

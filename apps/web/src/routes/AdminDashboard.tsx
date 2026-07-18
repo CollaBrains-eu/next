@@ -24,9 +24,11 @@ import {
   type AdminStatsOut,
   type AdminUserOut,
   type AiUsageRowOut,
+  type AnswerFeedbackRowOut,
   type BugReportOut,
   type ServiceHealthOut,
   getAdminAiUsage,
+  getAdminFeedback,
   getAdminHealth,
   getAdminStats,
   listBugReports,
@@ -34,7 +36,7 @@ import {
 
 const USERS_PAGE_SIZE = 50;
 
-type Tab = "overview" | "ai-usage" | "health" | "bugs" | "users";
+type Tab = "overview" | "ai-usage" | "health" | "bugs" | "users" | "feedback";
 
 export default function AdminDashboard() {
   const { t } = useTranslation();
@@ -46,6 +48,7 @@ export default function AdminDashboard() {
     { id: "health", label: t("admin.tabHealth") },
     { id: "bugs", label: t("admin.tabBugs") },
     { id: "users", label: t("admin.tabUsers") },
+    { id: "feedback", label: t("admin.tabFeedback") },
   ];
 
   return (
@@ -71,6 +74,7 @@ export default function AdminDashboard() {
       {tab === "health" && <HealthTab />}
       {tab === "bugs" && <BugsTab />}
       {tab === "users" && <UsersTab />}
+      {tab === "feedback" && <FeedbackTab />}
     </div>
   );
 }
@@ -226,6 +230,85 @@ function BugsTab() {
           )}
         </Card>
       ))}
+    </div>
+  );
+}
+
+function FeedbackTab() {
+  const { t } = useTranslation();
+  const { formatDateTime } = useDateFormat();
+  const [rows, setRows] = useState<AnswerFeedbackRowOut[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [ratingFilter, setRatingFilter] = useState<"" | "up" | "down">("");
+  const [minConfidence, setMinConfidence] = useState("");
+
+  function load() {
+    setRows(null);
+    getAdminFeedback({
+      rating: ratingFilter || undefined,
+      minConfidence: minConfidence.trim() === "" ? undefined : Number(minConfidence),
+    })
+      .then(setRows)
+      .catch((err) => setError(err instanceof ApiError ? err.message : t("admin.feedbackLoadError")));
+  }
+
+  useEffect(load, [ratingFilter, minConfidence]);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="flex flex-col gap-1 text-sm text-ink">
+          {t("admin.feedbackRatingLabel")}
+          <select
+            value={ratingFilter}
+            onChange={(e) => setRatingFilter(e.target.value as "" | "up" | "down")}
+            className="rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft"
+          >
+            <option value="">{t("admin.feedbackRatingAll")}</option>
+            <option value="down">{t("admin.feedbackRatingDown")}</option>
+            <option value="up">{t("admin.feedbackRatingUp")}</option>
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-sm text-ink">
+          {t("admin.feedbackMinConfidenceLabel")}
+          <input
+            type="number"
+            min={0}
+            max={100}
+            value={minConfidence}
+            onChange={(e) => setMinConfidence(e.target.value)}
+            placeholder="0-100"
+            className="w-24 rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft"
+          />
+        </label>
+      </div>
+
+      {error && <p className="text-danger">{error}</p>}
+      {!rows && !error && <SkeletonLines className="max-w-md" />}
+      {rows && rows.length === 0 && <EmptyState message={t("admin.noFeedback")} />}
+      {rows && rows.length > 0 && (
+        <div className="flex flex-col gap-3">
+          {rows.map((row) => (
+            <Card key={row.id} className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-ink-3">{formatDateTime(row.created_at)}</span>
+                <div className="flex items-center gap-2">
+                  {row.reflection_confidence !== null && (
+                    <Badge variant={row.reflection_confidence >= 70 ? "warning" : "default"}>
+                      {t("admin.feedbackConfidence", { value: row.reflection_confidence })}
+                    </Badge>
+                  )}
+                  <Badge variant={row.rating === "up" ? "success" : "danger"}>
+                    {row.rating === "up" ? t("admin.feedbackRatingUp") : t("admin.feedbackRatingDown")}
+                  </Badge>
+                </div>
+              </div>
+              <p className="text-sm font-medium text-ink">{row.question}</p>
+              <p className="text-sm text-ink-2">{row.answer}</p>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

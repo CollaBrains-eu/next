@@ -39,7 +39,7 @@ from api.db import async_session, get_db
 from api.memory import maybe_create_memory_from_exchange, reinforce_memories, retrieve_relevant_memories
 from api.models import Document, User
 from api.preferences import build_language_instruction, get_preferences
-from api.reflection import log_reflection, reflect
+from api.reflection import ReflectionResult, log_reflection, reflect
 from api.search_service import hybrid_search
 from api.user_facts import get_current_facts
 
@@ -91,11 +91,15 @@ class Citation(BaseModel):
 class ChatResponse(BaseModel):
     answer: str
     citations: list[Citation]
+    confidence: int | None = None
+    sufficient_evidence: bool | None = None
 
 
 class GroundedAnswer(BaseModel):
     answer: str
     citations: list[Citation]
+    confidence: int | None = None
+    sufficient_evidence: bool | None = None
 
 
 async def _retrieve(db: AsyncSession, query: str, limit: int, owner_id: UUID) -> tuple[list[Citation], str]:
@@ -192,6 +196,7 @@ async def answer_grounded_question(
     messages = _build_messages(history, context_text, message, memory_text, language_instruction, facts_text)
     answer = await chat_completion(messages, user_id=user_id, endpoint="chat")
 
+    result: ReflectionResult | None = None
     try:
         result = await reflect(question=message, answer=answer, context_text=context_text, user_id=user_id, endpoint="chat")
         retried = False
@@ -209,7 +214,12 @@ async def answer_grounded_question(
 
     _spawn_background_task(_extract_and_store_memory(user_id, message, answer))
 
-    return GroundedAnswer(answer=answer, citations=citations)
+    return GroundedAnswer(
+        answer=answer,
+        citations=citations,
+        confidence=result.confidence if result else None,
+        sufficient_evidence=result.sufficient_evidence if result else None,
+    )
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -223,4 +233,9 @@ async def chat(
         db, user_id=current_user.id, message=request.message,
         history=request.history, context_chunks=context_chunks,
     )
-    return ChatResponse(answer=result.answer, citations=result.citations)
+    return ChatResponse(
+        answer=result.answer,
+        citations=result.citations,
+        confidence=result.confidence,
+        sufficient_evidence=result.sufficient_evidence,
+    )

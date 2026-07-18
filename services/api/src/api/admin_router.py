@@ -21,6 +21,7 @@ from api.admin_service import (
     AdminStats,
     AiUsageRow,
     AnalyzeAllStatus,
+    AnswerFeedbackRow,
     CodebergIssueNotConfigured,
     ServiceHealth,
     analyze_all_is_running,
@@ -38,6 +39,7 @@ from api.admin_service import (
     get_service_health,
     get_service_health_by_name,
     get_service_logs,
+    list_answer_feedback,
     list_bug_reports,
     run_analyze_all,
     update_bug_report_status,
@@ -171,6 +173,18 @@ async def admin_ai_usage(
     _require_admin(current_user)
     since = datetime.utcnow() - timedelta(hours=since_hours)
     return await get_ai_usage_report(db, since=since, group_by=group_by)
+
+
+@router.get("/feedback", response_model=list[AnswerFeedbackRow])
+async def admin_feedback(
+    rating: Literal["up", "down"] | None = None,
+    min_confidence: int | None = None,
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[AnswerFeedbackRow]:
+    _require_admin(current_user)
+    return await list_answer_feedback(db, rating=rating, min_confidence=min_confidence, limit=limit)
 
 
 @router.get("/health", response_model=list[ServiceHealth])

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { ChatLog } from "./ChatLog";
 
 describe("ChatLog", () => {
@@ -38,5 +38,70 @@ describe("ChatLog", () => {
       />,
     );
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("shows the low-confidence badge only when confidence is below the threshold", () => {
+    const { rerender } = render(
+      <ChatLog
+        turns={[{ role: "assistant", content: "hello", confidence: 80 }]}
+        sending={false}
+        thinkingLabel="Thinking"
+        lowConfidenceLabel="Low confidence"
+      />,
+    );
+    expect(screen.queryByText("Low confidence")).not.toBeInTheDocument();
+
+    rerender(
+      <ChatLog
+        turns={[{ role: "assistant", content: "hello", confidence: 40 }]}
+        sending={false}
+        thinkingLabel="Thinking"
+        lowConfidenceLabel="Low confidence"
+      />,
+    );
+    expect(screen.getByText("Low confidence")).toBeInTheDocument();
+  });
+
+  it("calls onFeedback with the right rating and disables both buttons after voting", () => {
+    const onFeedback = vi.fn();
+    render(
+      <ChatLog
+        turns={[{ role: "assistant", content: "hello", onFeedback, feedbackGiven: null }]}
+        sending={false}
+        thinkingLabel="Thinking"
+        thumbsUpLabel="Good answer"
+        thumbsDownLabel="Bad answer"
+      />,
+    );
+    fireEvent.click(screen.getByLabelText("Good answer"));
+    expect(onFeedback).toHaveBeenCalledWith("up");
+  });
+
+  it("disables both thumbs buttons once feedbackGiven is set", () => {
+    render(
+      <ChatLog
+        turns={[{ role: "assistant", content: "hello", onFeedback: vi.fn(), feedbackGiven: "down" }]}
+        sending={false}
+        thinkingLabel="Thinking"
+        thumbsUpLabel="Good answer"
+        thumbsDownLabel="Bad answer"
+      />,
+    );
+    expect(screen.getByLabelText("Good answer")).toBeDisabled();
+    expect(screen.getByLabelText("Bad answer")).toBeDisabled();
+    expect(screen.getByLabelText("Bad answer")).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("does not render thumbs buttons for user turns even if onFeedback is somehow set", () => {
+    render(
+      <ChatLog
+        turns={[{ role: "user", content: "hi" }]}
+        sending={false}
+        thinkingLabel="Thinking"
+        thumbsUpLabel="Good answer"
+        thumbsDownLabel="Bad answer"
+      />,
+    );
+    expect(screen.queryByLabelText("Good answer")).not.toBeInTheDocument();
   });
 });

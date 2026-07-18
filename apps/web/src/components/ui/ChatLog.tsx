@@ -1,9 +1,32 @@
 import { useEffect, useRef, type ReactNode } from "react";
+import { Badge } from "./Badge";
+
+// Below this, the model itself flagged the answer as under-evidenced
+// enough to be worth a visible nudge -- see reflection.py's confidence
+// scale (0-100).
+const LOW_CONFIDENCE_THRESHOLD = 60;
 
 export interface ChatTurnDisplay {
   role: "user" | "assistant";
   content: string;
   footer?: ReactNode;
+  confidence?: number | null;
+  feedbackGiven?: "up" | "down" | null;
+  onFeedback?: (rating: "up" | "down") => void;
+}
+
+function ThumbIcon({ down = false }: { down?: boolean }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={down ? { transform: "rotate(180deg)" } : undefined}>
+      <path
+        d="M6 14V7l3-5.5c.3-.5.9-.7 1.4-.3.4.3.6.8.5 1.3L10 7h3.5c.8 0 1.5.7 1.4 1.5l-.8 5c-.1.8-.8 1.5-1.7 1.5H6Z"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinejoin="round"
+      />
+      <path d="M6 14H3.5A1.5 1.5 0 0 1 2 12.5V8.5A1.5 1.5 0 0 1 3.5 7H6v7Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+    </svg>
+  );
 }
 
 /**
@@ -18,11 +41,17 @@ export function ChatLog({
   sending,
   hint,
   thinkingLabel,
+  lowConfidenceLabel,
+  thumbsUpLabel,
+  thumbsDownLabel,
 }: {
   turns: ChatTurnDisplay[];
   sending: boolean;
   hint?: string;
   thinkingLabel: string;
+  lowConfidenceLabel?: string;
+  thumbsUpLabel?: string;
+  thumbsDownLabel?: string;
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -49,6 +78,41 @@ export function ChatLog({
         >
           <p className="whitespace-pre-wrap">{turn.content}</p>
           {turn.footer}
+          {turn.role === "assistant" && (typeof turn.confidence === "number" || turn.onFeedback) && (
+            <div className="mt-2 flex items-center gap-2 border-t border-edge pt-2">
+              {typeof turn.confidence === "number" && turn.confidence < LOW_CONFIDENCE_THRESHOLD && lowConfidenceLabel && (
+                <Badge variant="warning">{lowConfidenceLabel}</Badge>
+              )}
+              {turn.onFeedback && (
+                <div className="ml-auto flex items-center gap-1">
+                  <button
+                    type="button"
+                    aria-label={thumbsUpLabel}
+                    aria-pressed={turn.feedbackGiven === "up"}
+                    disabled={!!turn.feedbackGiven}
+                    onClick={() => turn.onFeedback?.("up")}
+                    className={`rounded p-1 transition-colors duration-fast disabled:cursor-default ${
+                      turn.feedbackGiven === "up" ? "text-accent" : "text-ink-3 hover:text-ink disabled:opacity-40"
+                    }`}
+                  >
+                    <ThumbIcon />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={thumbsDownLabel}
+                    aria-pressed={turn.feedbackGiven === "down"}
+                    disabled={!!turn.feedbackGiven}
+                    onClick={() => turn.onFeedback?.("down")}
+                    className={`rounded p-1 transition-colors duration-fast disabled:cursor-default ${
+                      turn.feedbackGiven === "down" ? "text-danger" : "text-ink-3 hover:text-ink disabled:opacity-40"
+                    }`}
+                  >
+                    <ThumbIcon down />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       ))}
       {sending && (

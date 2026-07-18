@@ -235,12 +235,30 @@ export interface ChatTurn {
 export interface ChatResponse {
   answer: string;
   citations: Citation[];
+  confidence: number | null;
+  sufficient_evidence: boolean | null;
 }
 
 export function chat(message: string, history: ChatTurn[]): Promise<ChatResponse> {
   return request<ChatResponse>("/chat", {
     method: "POST",
     body: JSON.stringify({ message, history }),
+  });
+}
+
+export interface FeedbackIn {
+  endpoint: string;
+  question: string;
+  answer: string;
+  rating: "up" | "down";
+  reflection_confidence?: number | null;
+  reflection_sufficient_evidence?: boolean | null;
+}
+
+export function submitFeedback(body: FeedbackIn): Promise<void> {
+  return request<void>("/feedback", {
+    method: "POST",
+    body: JSON.stringify(body),
   });
 }
 
@@ -688,6 +706,26 @@ export interface AiUsageRowOut {
   call_count: number;
   total_prompt_tokens: number;
   total_completion_tokens: number;
+}
+
+export interface AnswerFeedbackRowOut {
+  id: string;
+  user_id: string;
+  endpoint: string;
+  question: string;
+  answer: string;
+  rating: "up" | "down";
+  reflection_confidence: number | null;
+  reflection_sufficient_evidence: boolean | null;
+  created_at: string;
+}
+
+export function getAdminFeedback(params: { rating?: "up" | "down"; minConfidence?: number } = {}): Promise<AnswerFeedbackRowOut[]> {
+  const query = new URLSearchParams();
+  if (params.rating) query.set("rating", params.rating);
+  if (params.minConfidence !== undefined) query.set("min_confidence", String(params.minConfidence));
+  const qs = query.toString();
+  return request<AnswerFeedbackRowOut[]>(`/admin/feedback${qs ? `?${qs}` : ""}`);
 }
 
 export function getAdminAiUsage(groupBy: "user" | "model" | "endpoint" = "model"): Promise<AiUsageRowOut[]> {

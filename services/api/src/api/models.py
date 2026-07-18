@@ -213,6 +213,27 @@ class ReflectionLog(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class AnswerFeedback(Base):
+    """User thumbs up/down on a grounded answer (Phase 28, answer-quality
+    signal). Stores the answer text and the reflection verdict computed for
+    that same answer, so an admin can query the correlation ReflectionLog
+    alone can't show: a high-confidence answer the user rejected -- the
+    shape of a hallucination worth investigating.
+    """
+
+    __tablename__ = "answer_feedback"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    endpoint: Mapped[str] = mapped_column(String(50), nullable=False)
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    answer: Mapped[str] = mapped_column(Text, nullable=False)
+    rating: Mapped[str] = mapped_column(String(10), nullable=False)  # "up" | "down"
+    reflection_confidence: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    reflection_sufficient_evidence: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Task(Base):
     """An actionable item, created manually or extracted from a document by the Planner Agent.
 
