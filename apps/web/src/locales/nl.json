@@ -13,6 +13,11 @@
     "settings": "Instellingen",
     "admin": "Beheer"
   },
+  "commandCenter": {
+    "groupNavigation": "Navigatie",
+    "groupDocuments": "Documenten",
+    "searching": "Zoeken…"
+  },
   "mobileNav": {
     "navLabel": "Hoofdnavigatie",
     "home": "Home",

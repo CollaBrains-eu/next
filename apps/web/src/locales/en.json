@@ -13,6 +13,11 @@
     "settings": "Settings",
     "admin": "Admin"
   },
+  "commandCenter": {
+    "groupNavigation": "Navigation",
+    "groupDocuments": "Documents",
+    "searching": "Searching…"
+  },
   "mobileNav": {
     "navLabel": "Primary navigation",
     "home": "Home",

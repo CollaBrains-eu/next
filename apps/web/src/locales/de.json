@@ -13,6 +13,11 @@
     "settings": "Einstellungen",
     "admin": "Verwaltung"
   },
+  "commandCenter": {
+    "groupNavigation": "Navigation",
+    "groupDocuments": "Dokumente",
+    "searching": "Suche läuft…"
+  },
   "mobileNav": {
     "navLabel": "Hauptnavigation",
     "home": "Start",
