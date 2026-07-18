@@ -324,3 +324,119 @@ async def test_admin_list_users_returns_is_active_true_for_new_users(client):
     assert response.status_code == 200
     row = next(r for r in response.json() if r["username"] == username)
     assert row["is_active"] is True
+
+async def test_set_role_requires_admin_role(client):
+    # a random uuid is fine here -- the 403 for a non-admin caller must fire
+    # before any user lookup happens
+    token = await _login(client, _unique("setrolemember"), is_admin=False)
+    response = await client.put(
+        f"/admin/users/{uuid4()}/role",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"role": "admin"},
+    )
+    assert response.status_code == 403
+
+
+async def test_set_role_updates_member_to_admin(client):
+    username = _unique("promoteuser")
+    await _login(client, username, is_admin=False)
+    admin_token = await _login(client, _unique("promoteadmin"), is_admin=True)
+
+    users = (await client.get(
+        "/admin/users", headers={"Authorization": f"Bearer {admin_token}"}, params={"limit": 200}
+    )).json()
+    target = next(u for u in users if u["username"] == username)
+
+    response = await client.put(
+        f"/admin/users/{target['id']}/role",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"role": "admin"},
+    )
+    assert response.status_code == 200
+    assert response.json()["role"] == "admin"
+
+
+async def test_set_role_unknown_user_returns_404(client):
+    admin_token = await _login(client, _unique("rolenotfoundadmin"), is_admin=True)
+    response = await client.put(
+        f"/admin/users/{uuid4()}/role",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"role": "admin"},
+    )
+    assert response.status_code == 404
+
+
+async def test_set_role_refuses_service_account(client):
+    admin_token = await _login(client, _unique("rolesvcadmin"), is_admin=True)
+    # signal-bot is a fixed service account seeded elsewhere in this suite's
+    # shared dev DB; if it's ever absent this test is a no-op-safe skip.
+    users = (await client.get(
+        "/admin/users", headers={"Authorization": f"Bearer {admin_token}"}, params={"limit": 200}
+    )).json()
+    service_user = next((u for u in users if u["role"] == "service"), None)
+    if service_user is None:
+        return
+    response = await client.put(
+        f"/admin/users/{service_user['id']}/role",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"role": "member"},
+    )
+    assert response.status_code == 403
+
+async def test_set_role_requires_admin_role(client):
+    # a random uuid is fine here -- the 403 for a non-admin caller must fire
+    # before any user lookup happens
+    token = await _login(client, _unique("setrolemember"), is_admin=False)
+    response = await client.put(
+        f"/admin/users/{uuid4()}/role",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"role": "admin"},
+    )
+    assert response.status_code == 403
+
+
+async def test_set_role_updates_member_to_admin(client):
+    username = _unique("promoteuser")
+    await _login(client, username, is_admin=False)
+    admin_token = await _login(client, _unique("promoteadmin"), is_admin=True)
+
+    users = (await client.get(
+        "/admin/users", headers={"Authorization": f"Bearer {admin_token}"}, params={"limit": 200}
+    )).json()
+    target = next(u for u in users if u["username"] == username)
+
+    response = await client.put(
+        f"/admin/users/{target['id']}/role",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"role": "admin"},
+    )
+    assert response.status_code == 200
+    assert response.json()["role"] == "admin"
+
+
+async def test_set_role_unknown_user_returns_404(client):
+    admin_token = await _login(client, _unique("rolenotfoundadmin"), is_admin=True)
+    response = await client.put(
+        f"/admin/users/{uuid4()}/role",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"role": "admin"},
+    )
+    assert response.status_code == 404
+
+
+async def test_set_role_refuses_service_account(client):
+    admin_token = await _login(client, _unique("rolesvcadmin"), is_admin=True)
+    # signal-bot is a fixed service account seeded elsewhere in this suite's
+    # shared dev DB; if it's ever absent this test is a no-op-safe skip.
+    users = (await client.get(
+        "/admin/users", headers={"Authorization": f"Bearer {admin_token}"}, params={"limit": 200}
+    )).json()
+    service_user = next((u for u in users if u["role"] == "service"), None)
+    if service_user is None:
+        return
+    response = await client.put(
+        f"/admin/users/{service_user['id']}/role",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"role": "member"},
+    )
+    assert response.status_code == 403

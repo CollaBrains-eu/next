@@ -486,3 +486,30 @@ async def admin_resend_welcome(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     email_sent = await send_welcome(db, user=user)
     return ResendWelcomeOut(email_sent=email_sent)
+
+
+class AdminUserRoleUpdate(BaseModel):
+    role: Literal["member", "admin"]
+
+
+@router.put("/users/{user_id}/role", response_model=AdminUserOut)
+async def admin_set_user_role(
+    user_id: UUID,
+    body: AdminUserRoleUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Change a user's role. Postgres-only -- role is documented (auth.py)
+    as the authorization source of truth after first-login provisioning,
+    not re-synced from LDAP group membership."""
+    _require_admin(current_user)
+    user = await db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if user.role == "service":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Service accounts cannot be modified")
+
+    user.role = body.role
+    await db.commit()
+    await db.refresh(user)
+    return user
