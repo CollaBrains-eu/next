@@ -18,7 +18,15 @@ vi.mock("../lib/api", async () => {
 });
 
 const CASES: api.CaseOut[] = [
-  { id: "case-1", name: "Smith v. Jones", description: null, status: "open", created_at: "2026-01-01T00:00:00Z" },
+  {
+    id: "case-1",
+    name: "Smith v. Jones",
+    description: null,
+    status: "open",
+    created_at: "2026-01-01T00:00:00Z",
+    document_count: 0,
+    member_count: 0,
+  },
 ];
 
 const JULY_APPOINTMENTS: api.AppointmentOut[] = [
