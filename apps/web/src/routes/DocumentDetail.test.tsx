@@ -17,6 +17,8 @@ vi.mock("../lib/api", async () => {
     deleteDocument: vi.fn(),
     summarizeDocument: vi.fn(),
     reprocessDocument: vi.fn(),
+    downloadDocumentFile: vi.fn(),
+    previewDocumentFile: vi.fn(),
   };
 });
 
@@ -105,5 +107,33 @@ describe("DocumentDetail", () => {
     renderAt("doc-1");
     await screen.findByRole("heading", { name: "factuur-77621.pdf" });
     expect(screen.queryByRole("button", { name: "Reprocess" })).not.toBeInTheDocument();
+  });
+
+  it("shows Preview and Download buttons for a ready PDF document", async () => {
+    renderAt("doc-1");
+    expect(await screen.findByRole("button", { name: "Preview" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Download" })).toBeInTheDocument();
+  });
+
+  it("does not show a Preview button for a non-previewable mime type", async () => {
+    vi.mocked(api.getDocument).mockResolvedValue({ ...mockDoc, mime_type: "text/plain" });
+    renderAt("doc-1");
+    await screen.findByRole("heading", { name: "factuur-77621.pdf" });
+    expect(screen.queryByRole("button", { name: "Preview" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Download" })).toBeInTheDocument();
+  });
+
+  it("clicking Download calls downloadDocumentFile with the document id and filename", async () => {
+    vi.mocked(api.downloadDocumentFile).mockResolvedValue(undefined);
+    renderAt("doc-1");
+    fireEvent.click(await screen.findByRole("button", { name: "Download" }));
+    await waitFor(() => expect(api.downloadDocumentFile).toHaveBeenCalledWith("doc-1", "factuur-77621.pdf"));
+  });
+
+  it("clicking Preview calls previewDocumentFile with the document id", async () => {
+    vi.mocked(api.previewDocumentFile).mockResolvedValue(undefined);
+    renderAt("doc-1");
+    fireEvent.click(await screen.findByRole("button", { name: "Preview" }));
+    await waitFor(() => expect(api.previewDocumentFile).toHaveBeenCalledWith("doc-1"));
   });
 });

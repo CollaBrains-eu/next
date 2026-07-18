@@ -40,13 +40,15 @@ async def _user_id(username: str) -> UUID:
         return result.scalar_one().id
 
 
-async def _create_document(owner_id: UUID, title: str, content: str) -> UUID:
+async def _create_document(
+    owner_id: UUID, title: str, content: str, *, paperless_id: int | None = None
+) -> UUID:
     document_id = uuid4()
     async with async_session() as db:
         db.add(
             Document(
                 id=document_id, owner_id=owner_id, title=title, filename=f"{title}.txt",
-                mime_type="text/plain", status="ready",
+                mime_type="text/plain", status="ready", paperless_id=paperless_id,
             )
         )
         db.add(DocumentChunk(document_id=document_id, chunk_index=0, content=content, embedding=FAKE_EMBEDDING))
@@ -177,3 +179,69 @@ async def test_chat_does_not_ground_answers_in_other_users_documents(client):
     assert response.json()["citations"] == []
     sent_context = mock_completion.call_args.args[0][-1]["content"]
     assert "confidential" not in sent_context
+
+
+async def test_get_document_file_forbidden_for_non_owner(client):
+    await _login(client, "accessowner6")
+    owner_id = await _user_id("accessowner6")
+    document_id = await _create_document(owner_id, "Private file", "content", paperless_id=42)
+
+    other_token = await _login(client, "accessother6")
+    response = await client.get(
+        f"/documents/{document_id}/file", headers={"Authorization": f"Bearer {other_token}"}
+    )
+    assert response.status_code == 403
+
+
+async def test_get_document_file_allowed_for_owner(client):
+    owner_token = await _login(client, "accessowner7")
+    owner_id = await _user_id("accessowner7")
+    document_id = await _create_document(owner_id, "My file", "content", paperless_id=42)
+
+    with patch("api.documents.fetch_document_file", return_value=(b"%PDF-1.4 fake bytes", "application/pdf")):
+        response = await client.get(
+            f"/documents/{document_id}/file", headers={"Authorization": f"Bearer {owner_token}"}
+        )
+
+    assert response.status_code == 200
+    assert response.content == b"%PDF-1.4 fake bytes"
+    assert response.headers["content-type"] == "application/pdf"
+    assert 'attachment; filename="My file.txt"' in response.headers["content-disposition"]
+
+
+async def test_get_document_file_admin_can_download_any_document(client):
+    await _login(client, "accessowner8")
+    owner_id = await _user_id("accessowner8")
+    document_id = await _create_document(owner_id, "Someone's file", "content", paperless_id=99)
+
+    admin_token = await _login(client, "accessadmin3", is_admin=True)
+    with patch("api.documents.fetch_document_file", return_value=(b"bytes", "text/plain")):
+        response = await client.get(
+            f"/documents/{document_id}/file", headers={"Authorization": f"Bearer {admin_token}"}
+        )
+    assert response.status_code == 200
+
+
+async def test_get_document_file_supports_inline_disposition(client):
+    owner_token = await _login(client, "accessowner9")
+    owner_id = await _user_id("accessowner9")
+    document_id = await _create_document(owner_id, "Inline file", "content", paperless_id=7)
+
+    with patch("api.documents.fetch_document_file", return_value=(b"bytes", "application/pdf")):
+        response = await client.get(
+            f"/documents/{document_id}/file?disposition=inline",
+            headers={"Authorization": f"Bearer {owner_token}"},
+        )
+    assert response.status_code == 200
+    assert response.headers["content-disposition"].startswith("inline;")
+
+
+async def test_get_document_file_404_when_paperless_id_missing(client):
+    owner_token = await _login(client, "accessowner10")
+    owner_id = await _user_id("accessowner10")
+    document_id = await _create_document(owner_id, "Not yet processed", "content", paperless_id=None)
+
+    response = await client.get(
+        f"/documents/{document_id}/file", headers={"Authorization": f"Bearer {owner_token}"}
+    )
+    assert response.status_code == 404

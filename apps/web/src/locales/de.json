@@ -206,7 +206,10 @@
     "deleteModalTitle": "\"{{title}}\" löschen?",
     "deleteModalBody": "Dies kann nicht rückgängig gemacht werden.",
     "deleteConfirm": "Dokument löschen",
-    "deletedToast": "\"{{title}}\" gelöscht"
+    "deletedToast": "\"{{title}}\" gelöscht",
+    "download": "Herunterladen",
+    "downloadError": "Herunterladen fehlgeschlagen",
+    "preview": "Vorschau"
   },
   "caseDetail": {
     "loadError": "Fall konnte nicht geladen werden",

@@ -63,6 +63,14 @@ async def fetch_document_text(paperless_id: int) -> str:
         return response.json().get("content", "")
 
 
+async def fetch_document_file(paperless_id: int) -> tuple[bytes, str]:
+    async with _client() as client:
+        response = await client.get(f"/api/documents/{paperless_id}/download/")
+        response.raise_for_status()
+        content_type = response.headers.get("content-type", "application/octet-stream")
+        return response.content, content_type
+
+
 async def delete_document(paperless_id: int) -> None:
     async with _client() as client:
         response = await client.delete(f"/api/documents/{paperless_id}/")

@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { ApiError, deleteDocument, getDocument, reprocessDocument, summarizeDocument, type DocumentDetailOut } from "../lib/api";
+import {
+  ApiError,
+  deleteDocument,
+  downloadDocumentFile,
+  getDocument,
+  previewDocumentFile,
+  reprocessDocument,
+  summarizeDocument,
+  type DocumentDetailOut,
+} from "../lib/api";
 import { Alert } from "../components/ui/Alert";
 import { Badge } from "../components/ui/Badge";
 import { Breadcrumbs } from "../components/ui/Breadcrumbs";
@@ -21,6 +30,12 @@ const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "default
   failed: "danger",
 };
 
+const PREVIEWABLE_MIME_PREFIXES = ["application/pdf", "image/"];
+
+function isPreviewable(mimeType: string): boolean {
+  return PREVIEWABLE_MIME_PREFIXES.some((prefix) => mimeType.startsWith(prefix));
+}
+
 export default function DocumentDetail() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
@@ -32,6 +47,8 @@ export default function DocumentDetail() {
   const [summarizing, setSummarizing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [reprocessing, setReprocessing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const load = useCallback(() => {
@@ -76,6 +93,30 @@ export default function DocumentDetail() {
       setError(err instanceof ApiError ? err.message : t("documentDetail.reprocessError"));
     } finally {
       setReprocessing(false);
+    }
+  }
+
+  async function handleDownload() {
+    if (!id || !doc) return;
+    setDownloading(true);
+    try {
+      await downloadDocumentFile(id, doc.filename);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("documentDetail.downloadError"));
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  async function handlePreview() {
+    if (!id) return;
+    setPreviewing(true);
+    try {
+      await previewDocumentFile(id);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("documentDetail.downloadError"));
+    } finally {
+      setPreviewing(false);
     }
   }
 
@@ -128,6 +169,14 @@ export default function DocumentDetail() {
           </div>
         </div>
         <div className="flex shrink-0 gap-2">
+          {isPreviewable(doc.mime_type) && (
+            <Button variant="secondary" size="sm" onClick={handlePreview} disabled={doc.status !== "ready" || previewing}>
+              {t("documentDetail.preview")}
+            </Button>
+          )}
+          <Button variant="secondary" size="sm" onClick={handleDownload} disabled={doc.status !== "ready" || downloading}>
+            {t("documentDetail.download")}
+          </Button>
           <Button variant="secondary" size="sm" onClick={handleSummarize} disabled={doc.status !== "ready" || summarizing}>
             {summarizing ? t("documentDetail.summarizing") : doc.summary ? t("documentDetail.resummarize") : t("documentDetail.summarize")}
           </Button>

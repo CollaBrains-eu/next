@@ -206,7 +206,10 @@
     "deleteModalTitle": "\"{{title}}\" verwijderen?",
     "deleteModalBody": "Dit kan niet ongedaan worden gemaakt.",
     "deleteConfirm": "Document verwijderen",
-    "deletedToast": "\"{{title}}\" verwijderd"
+    "deletedToast": "\"{{title}}\" verwijderd",
+    "download": "Downloaden",
+    "downloadError": "Downloaden mislukt",
+    "preview": "Voorbeeld"
   },
   "caseDetail": {
     "loadError": "Kon zaak niet laden",

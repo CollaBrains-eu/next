@@ -27,7 +27,7 @@ plain function, not inlined in the endpoint, so the Planning Engine
 from datetime import datetime, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,8 +42,8 @@ from api.embeddings import embed_text
 from api.entity_agent import extract_entities
 from api.events import Event, EventType, publish, subscribe
 from api.models import Document, DocumentChunk, User
-from api.paperless_client import delete_document as paperless_delete, fetch_document_text, \
-    submit_document, wait_for_paperless_id
+from api.paperless_client import delete_document as paperless_delete, fetch_document_file, \
+    fetch_document_text, submit_document, wait_for_paperless_id
 from api.planner_agent import extract_tasks
 from api.search_service import hybrid_search
 from api.signal_client import send_signal_message
@@ -355,6 +355,39 @@ async def get_document(
         ocr_text=document.ocr_text,
         chunk_count=count_result.scalar_one(),
         summary=document.summary,
+    )
+
+
+@router.get("/{document_id}/file")
+async def get_document_file(
+    document_id: UUID,
+    disposition: str = Query("attachment"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_effective_user),
+) -> Response:
+    if disposition not in ("attachment", "inline"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="disposition must be 'attachment' or 'inline'"
+        )
+
+    document = await db.get(Document, document_id)
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    if document.owner_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to view this document")
+    if document.paperless_id is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document file not yet available")
+
+    content, content_type = await fetch_document_file(document.paperless_id)
+    # Filenames come from the original upload (UploadFile.filename) and are
+    # attacker-controlled; strip control chars and quotes before they land
+    # in a header value.
+    safe_filename = "".join(ch for ch in document.filename if ch.isprintable() and ch not in '"\\').strip()
+    safe_filename = safe_filename or "document"
+    return Response(
+        content=content,
+        media_type=content_type,
+        headers={"Content-Disposition": f'{disposition}; filename="{safe_filename}"'},
     )
 
 

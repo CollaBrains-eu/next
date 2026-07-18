@@ -206,7 +206,10 @@
     "deleteModalTitle": "Delete \"{{title}}\"?",
     "deleteModalBody": "This cannot be undone.",
     "deleteConfirm": "Delete document",
-    "deletedToast": "\"{{title}}\" deleted"
+    "deletedToast": "\"{{title}}\" deleted",
+    "download": "Download",
+    "downloadError": "Download failed",
+    "preview": "Preview"
   },
   "caseDetail": {
     "loadError": "Failed to load case",

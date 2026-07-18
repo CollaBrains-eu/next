@@ -530,6 +530,33 @@ export async function downloadAppointmentIcs(id: string, filename: string): Prom
   URL.revokeObjectURL(url);
 }
 
+async function fetchDocumentFileBlob(id: string, disposition: "attachment" | "inline"): Promise<Blob> {
+  const headers = new Headers();
+  const token = getToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const response = await fetch(`${API_URL}/documents/${id}/file?disposition=${disposition}`, { headers });
+  if (!response.ok) throw new ApiError(response.status, response.statusText);
+  return response.blob();
+}
+
+export async function downloadDocumentFile(id: string, filename: string): Promise<void> {
+  const blob = await fetchDocumentFileBlob(id, "attachment");
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+export async function previewDocumentFile(id: string): Promise<void> {
+  const blob = await fetchDocumentFileBlob(id, "inline");
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 export interface AskResponse {
   answer: string;
   tools_called: string[];
