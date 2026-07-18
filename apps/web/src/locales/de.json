@@ -61,7 +61,9 @@
     "title": "Benachrichtigungen",
     "empty": "Alles erledigt",
     "pendingReviews_one": "{{count}} Entität wartet auf Prüfung",
-    "pendingReviews_other": "{{count}} Entitäten warten auf Prüfung"
+    "pendingReviews_other": "{{count}} Entitäten warten auf Prüfung",
+    "pendingCaseInvitations_one": "{{count}} ausstehende Falleinladung",
+    "pendingCaseInvitations_other": "{{count}} ausstehende Falleinladungen"
   },
   "common": {
     "openMenu": "Menü öffnen",
@@ -76,7 +78,8 @@
     "send": "Senden",
     "thinking": "Denkt nach…",
     "addFilter": "+ Filter hinzufügen",
-    "profile": "Mein Profil"
+    "profile": "Mein Profil",
+    "remove": "Entfernen"
   },
   "documents": {
     "title": "Dokumente",
@@ -142,7 +145,11 @@
     "createError": "Fall konnte nicht erstellt werden",
     "emptyMessageSub": "Fälle, die du erstellst oder die mit dir geteilt werden, erscheinen hier.",
     "exportCsv": "CSV exportieren",
-    "exportError": "CSV-Export fehlgeschlagen. Bitte erneut versuchen."
+    "exportError": "CSV-Export fehlgeschlagen. Bitte erneut versuchen.",
+    "pendingInvitationsTitle": "Ausstehende Einladungen",
+    "acceptInvitation": "Annehmen",
+    "declineInvitation": "Ablehnen",
+    "invitationError": "Antwort auf diese Einladung fehlgeschlagen"
   },
   "tasks": {
     "title": "Aufgaben",
@@ -240,7 +247,20 @@
     "attachConfirm": "Verknüpfen",
     "selectPlaceholder": "Auswählen…",
     "nothingLinked": "Noch nichts verknüpft.",
-    "decisions": "Entscheidungen"
+    "decisions": "Entscheidungen",
+    "members": "Mitglieder",
+    "invitePhonePlaceholder": "Telefonnummer, z.B. +491511234567",
+    "lookupAction": "Suchen",
+    "userNotFound": "Kein Benutzer mit dieser Telefonnummer gefunden.",
+    "roleMember": "Mitglied",
+    "roleWorker": "Mitarbeiter",
+    "inviteAction": "Einladen",
+    "lookupError": "Suche nach dieser Telefonnummer fehlgeschlagen",
+    "inviteError": "Einladen dieses Benutzers fehlgeschlagen",
+    "noMembers": "Noch keine Mitglieder.",
+    "pendingInvites": "Ausstehende Einladungen",
+    "revokeInvite": "Widerrufen",
+    "removeMemberError": "Entfernen dieses Mitglieds fehlgeschlagen"
   },
   "entities": {
     "title": "Entitäten",

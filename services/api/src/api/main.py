@@ -26,6 +26,7 @@ from api.preferences_router import router as preferences_router
 from api.residencies_router import router as residencies_router
 from api.tasks import router as tasks_router
 from api.tools_router import router as tools_router
+from api.users_router import router as users_router
 from api.vehicles_router import router as vehicles_router
 from api.webauthn_router import router as webauthn_router
 
@@ -64,6 +65,7 @@ app.include_router(residencies_router)
 app.include_router(webauthn_router)
 app.include_router(onboarding_router)
 app.include_router(appointments_router)
+app.include_router(users_router)
 
 
 @app.get("/health")

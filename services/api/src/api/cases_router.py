@@ -93,6 +93,7 @@ class CaseDashboardOut(CaseOut):
     decisions: list[CaseDecisionOut]
     vehicles: list[CaseVehicleOut]
     appointments: list[CaseAppointmentOut]
+    is_owner: bool
 
 
 class DocumentCaseRequest(BaseModel):
@@ -118,10 +119,23 @@ async def _require_case_access(db: AsyncSession, case: Case, current_user: User)
 class CaseMemberOut(BaseModel):
     id: UUID
     case_id: UUID
+    case_name: str
     user_id: UUID
+    username: str
+    user_display_name: str
     role: str
     status: str
     created_at: datetime
+
+
+async def _case_member_out(db: AsyncSession, member: CaseMember) -> CaseMemberOut:
+    case = await db.get(Case, member.case_id)
+    user = await db.get(User, member.user_id)
+    return CaseMemberOut(
+        id=member.id, case_id=member.case_id, case_name=case.name,
+        user_id=member.user_id, username=user.username, user_display_name=user.display_name,
+        role=member.role, status=member.status, created_at=member.created_at,
+    )
 
 
 class CaseMemberCreate(BaseModel):
@@ -150,11 +164,12 @@ async def list_cases_endpoint(
 async def list_my_invitations_endpoint(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> list[CaseMember]:
+) -> list[CaseMemberOut]:
     """Registered before /cases/{case_id} -- otherwise FastAPI would try
     to parse "invitations" as a case_id UUID and 422 instead of matching
     this route."""
-    return await list_pending_invitations(db, user_id=current_user.id)
+    members = await list_pending_invitations(db, user_id=current_user.id)
+    return [await _case_member_out(db, member) for member in members]
 
 
 @router.get("/cases/export.csv")
@@ -205,6 +220,7 @@ async def get_case_endpoint(
         appointments=[
             CaseAppointmentOut(id=a.id, title=a.title, starts_at=a.starts_at) for a in result["appointments"]
         ],
+        is_owner=case.user_id == current_user.id or current_user.role == "admin",
     )
 
 
@@ -334,12 +350,13 @@ async def list_case_members_endpoint(
     case_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> list[CaseMember]:
+) -> list[CaseMemberOut]:
     case = await db.get(Case, case_id)
     if case is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
     await _require_case_access(db, case, current_user)
-    return await list_case_members(db, case_id=case_id)
+    members = await list_case_members(db, case_id=case_id)
+    return [await _case_member_out(db, member) for member in members]
 
 
 @router.post("/cases/{case_id}/members", response_model=CaseMemberOut, status_code=status.HTTP_201_CREATED)
@@ -348,7 +365,7 @@ async def add_case_member_endpoint(
     request: CaseMemberCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> CaseMember:
+) -> CaseMemberOut:
     case = await db.get(Case, case_id)
     if case is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
@@ -358,7 +375,8 @@ async def add_case_member_endpoint(
     if member_user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    return await add_case_member(db, case_id=case_id, user_id=request.user_id, role=request.role)
+    member = await add_case_member(db, case_id=case_id, user_id=request.user_id, role=request.role)
+    return await _case_member_out(db, member)
 
 
 @router.delete("/cases/{case_id}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -392,12 +410,12 @@ async def accept_case_invitation_endpoint(
     user_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> CaseMember:
+) -> CaseMemberOut:
     _require_invited_user(user_id, current_user)
     member = await respond_to_case_invitation(db, case_id=case_id, user_id=user_id, accept=True)
     if member is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No pending invitation found")
-    return member
+    return await _case_member_out(db, member)
 
 
 @router.post("/cases/{case_id}/members/{user_id}/decline", response_model=CaseMemberOut)
@@ -406,9 +424,9 @@ async def decline_case_invitation_endpoint(
     user_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> CaseMember:
+) -> CaseMemberOut:
     _require_invited_user(user_id, current_user)
     member = await respond_to_case_invitation(db, case_id=case_id, user_id=user_id, accept=False)
     if member is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No pending invitation found")
-    return member
+    return await _case_member_out(db, member)

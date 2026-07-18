@@ -280,3 +280,103 @@ async def test_export_documents_csv_admin_sees_all_documents(client):
 async def test_export_documents_csv_requires_auth(client):
     response = await client.get("/documents/export.csv")
     assert response.status_code == 401
+
+
+async def test_accepted_case_member_can_read_and_download_a_case_linked_document(client):
+    owner_token = await _login(client, "sharingowner1")
+    owner_id = await _user_id("sharingowner1")
+    document_id = await _create_document(owner_id, "Case doc", "content", paperless_id=11)
+
+    case_response = await client.post(
+        "/cases", headers={"Authorization": f"Bearer {owner_token}"}, json={"name": "Shared matter"}
+    )
+    case_id = case_response.json()["id"]
+    await client.put(
+        f"/documents/{document_id}/case", headers={"Authorization": f"Bearer {owner_token}"}, json={"case_id": case_id}
+    )
+
+    member_token = await _login(client, "sharingmember1")
+    member_id = (await _user_id("sharingmember1"))
+    await client.post(
+        f"/cases/{case_id}/members", headers={"Authorization": f"Bearer {owner_token}"}, json={"user_id": str(member_id)}
+    )
+    await client.post(
+        f"/cases/{case_id}/members/{member_id}/accept", headers={"Authorization": f"Bearer {member_token}"}
+    )
+
+    get_response = await client.get(f"/documents/{document_id}", headers={"Authorization": f"Bearer {member_token}"})
+    assert get_response.status_code == 200
+
+    with patch("api.documents.fetch_document_file", return_value=(b"bytes", "application/pdf")):
+        file_response = await client.get(
+            f"/documents/{document_id}/file", headers={"Authorization": f"Bearer {member_token}"}
+        )
+    assert file_response.status_code == 200
+
+
+async def test_pending_case_member_cannot_read_a_case_linked_document(client):
+    owner_token = await _login(client, "sharingowner2")
+    owner_id = await _user_id("sharingowner2")
+    document_id = await _create_document(owner_id, "Case doc", "content")
+
+    case_response = await client.post(
+        "/cases", headers={"Authorization": f"Bearer {owner_token}"}, json={"name": "Shared matter"}
+    )
+    case_id = case_response.json()["id"]
+    await client.put(
+        f"/documents/{document_id}/case", headers={"Authorization": f"Bearer {owner_token}"}, json={"case_id": case_id}
+    )
+
+    pending_token = await _login(client, "sharingpending1")
+    pending_id = await _user_id("sharingpending1")
+    await client.post(
+        f"/cases/{case_id}/members", headers={"Authorization": f"Bearer {owner_token}"}, json={"user_id": str(pending_id)}
+    )
+    # deliberately not accepted
+
+    response = await client.get(f"/documents/{document_id}", headers={"Authorization": f"Bearer {pending_token}"})
+    assert response.status_code == 403
+
+
+async def test_unrelated_user_still_cannot_read_a_case_linked_document(client):
+    owner_token = await _login(client, "sharingowner3")
+    owner_id = await _user_id("sharingowner3")
+    document_id = await _create_document(owner_id, "Case doc", "content")
+
+    case_response = await client.post(
+        "/cases", headers={"Authorization": f"Bearer {owner_token}"}, json={"name": "Shared matter"}
+    )
+    case_id = case_response.json()["id"]
+    await client.put(
+        f"/documents/{document_id}/case", headers={"Authorization": f"Bearer {owner_token}"}, json={"case_id": case_id}
+    )
+
+    other_token = await _login(client, "sharingother1")
+    response = await client.get(f"/documents/{document_id}", headers={"Authorization": f"Bearer {other_token}"})
+    assert response.status_code == 403
+
+
+async def test_accepted_case_member_still_cannot_delete_the_document(client):
+    owner_token = await _login(client, "sharingowner4")
+    owner_id = await _user_id("sharingowner4")
+    document_id = await _create_document(owner_id, "Case doc", "content")
+
+    case_response = await client.post(
+        "/cases", headers={"Authorization": f"Bearer {owner_token}"}, json={"name": "Shared matter"}
+    )
+    case_id = case_response.json()["id"]
+    await client.put(
+        f"/documents/{document_id}/case", headers={"Authorization": f"Bearer {owner_token}"}, json={"case_id": case_id}
+    )
+
+    member_token = await _login(client, "sharingmember4")
+    member_id = await _user_id("sharingmember4")
+    await client.post(
+        f"/cases/{case_id}/members", headers={"Authorization": f"Bearer {owner_token}"}, json={"user_id": str(member_id)}
+    )
+    await client.post(
+        f"/cases/{case_id}/members/{member_id}/accept", headers={"Authorization": f"Bearer {member_token}"}
+    )
+
+    response = await client.delete(f"/documents/{document_id}", headers={"Authorization": f"Bearer {member_token}"})
+    assert response.status_code == 403
