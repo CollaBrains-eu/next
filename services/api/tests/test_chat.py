@@ -68,6 +68,63 @@ async def test_chat_omits_language_instruction_when_no_preference_set(client):
     assert "Respond in" not in system_message
 
 
+async def test_chat_includes_a_confirmed_fact_in_the_prompt(client):
+    from datetime import date
+
+    from api.db import async_session
+    from api.models import User, UserFact
+
+    token = await _login_as(client, "chatfactuser1")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    async with async_session() as db:
+        user = (await db.execute(select(User).where(User.username == "chatfactuser1"))).scalar_one()
+        db.add(UserFact(
+            user_id=user.id, fact_type="address", value={"text": "Kerkstraat 1, Amsterdam"},
+            valid_from=date(2020, 1, 1), valid_to=None, status="confirmed",
+        ))
+        await db.commit()
+
+    with (
+        patch("api.chat.hybrid_search", return_value=[]),
+        patch("api.chat.chat_completion", return_value="ok") as mock_completion,
+    ):
+        await client.post("/chat", headers=headers, json={"message": "hello"})
+
+    sent_messages = mock_completion.call_args.args[0]
+    user_message = sent_messages[-1]["content"]
+    assert "Known facts about the user:" in user_message
+    assert "address: Kerkstraat 1, Amsterdam" in user_message
+
+
+async def test_chat_excludes_a_pending_review_fact_from_the_prompt(client):
+    from datetime import date
+
+    from api.db import async_session
+    from api.models import User, UserFact
+
+    token = await _login_as(client, "chatfactuser2")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    async with async_session() as db:
+        user = (await db.execute(select(User).where(User.username == "chatfactuser2"))).scalar_one()
+        db.add(UserFact(
+            user_id=user.id, fact_type="address", value={"text": "Kerkstraat 1, Amsterdam"},
+            valid_from=date(2020, 1, 1), valid_to=None, status="pending_review",
+        ))
+        await db.commit()
+
+    with (
+        patch("api.chat.hybrid_search", return_value=[]),
+        patch("api.chat.chat_completion", return_value="ok") as mock_completion,
+    ):
+        await client.post("/chat", headers=headers, json={"message": "hello"})
+
+    sent_messages = mock_completion.call_args.args[0]
+    user_message = sent_messages[-1]["content"]
+    assert "Known facts about the user:" not in user_message
+
+
 async def test_chat_retries_retrieval_when_reflection_flags_insufficient_evidence(client):
     token = await _login(client)
     headers = {"Authorization": f"Bearer {token}"}

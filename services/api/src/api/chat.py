@@ -41,6 +41,7 @@ from api.models import Document, User
 from api.preferences import build_language_instruction, get_preferences
 from api.reflection import log_reflection, reflect
 from api.search_service import hybrid_search
+from api.user_facts import get_current_facts
 
 logger = logging.getLogger(__name__)
 
@@ -132,11 +133,11 @@ async def _extract_and_store_memory(user_id: UUID, user_message: str, answer: st
 
 def _build_messages(
     history: list[ChatTurn], context_text: str, question: str, memory_text: str = "",
-    language_instruction: str = "",
+    language_instruction: str = "", facts_text: str = "",
 ) -> list[dict]:
     messages = [{"role": "system", "content": SYSTEM_PROMPT + language_instruction}]
     messages.extend({"role": turn.role, "content": turn.content} for turn in history)
-    messages.append({"role": "user", "content": f"Context:\n{context_text}{memory_text}\n\nQuestion: {question}"})
+    messages.append({"role": "user", "content": f"Context:\n{context_text}{facts_text}{memory_text}\n\nQuestion: {question}"})
     return messages
 
 
@@ -170,6 +171,17 @@ async def answer_grounded_question(
         memory_lines = "\n".join(f"- {memory.summary}" for memory in memories)
         memory_text = f"\n\nRelevant memories:\n{memory_lines}"
 
+    try:
+        facts = await get_current_facts(db, user_id=user_id)
+    except Exception:  # noqa: BLE001 - facts retrieval must never fail the answer
+        logger.exception("facts retrieval failed for grounded question")
+        facts = []
+
+    facts_text = ""
+    if facts:
+        fact_lines = "\n".join(f"- {fact.fact_type}: {fact.value.get('text', '')}" for fact in facts)
+        facts_text = f"\n\nKnown facts about the user:\n{fact_lines}"
+
     language_instruction = ""
     try:
         preferences = await get_preferences(db, user_id=user_id)
@@ -177,7 +189,7 @@ async def answer_grounded_question(
     except Exception:  # noqa: BLE001 - preference lookup must never fail the answer
         logger.exception("preference lookup failed for grounded question")
 
-    messages = _build_messages(history, context_text, message, memory_text, language_instruction)
+    messages = _build_messages(history, context_text, message, memory_text, language_instruction, facts_text)
     answer = await chat_completion(messages, user_id=user_id, endpoint="chat")
 
     try:
@@ -186,7 +198,7 @@ async def answer_grounded_question(
         if not result.sufficient_evidence and context_chunks < REFLECTION_RETRY_CAP:
             retry_limit = min(context_chunks * 2, REFLECTION_RETRY_CAP)
             citations, context_text = await _retrieve(db, message, retry_limit, user_id)
-            messages = _build_messages(history, context_text, message, memory_text, language_instruction)
+            messages = _build_messages(history, context_text, message, memory_text, language_instruction, facts_text)
             answer = await chat_completion(messages, user_id=user_id, endpoint="chat")
             retried = True
         await log_reflection(db, user_id=user_id, endpoint="chat", question=message, result=result, retried=retried)
