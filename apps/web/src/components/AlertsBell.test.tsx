@@ -6,7 +6,7 @@ import * as api from "../lib/api";
 
 vi.mock("../lib/api", async () => {
   const actual = await vi.importActual<typeof api>("../lib/api");
-  return { ...actual, getPendingReviewEntityCount: vi.fn() };
+  return { ...actual, getPendingReviewEntityCount: vi.fn(), listMyCaseInvitations: vi.fn() };
 });
 
 function renderBell() {
@@ -20,6 +20,7 @@ function renderBell() {
 describe("AlertsBell", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(api.listMyCaseInvitations).mockResolvedValue([]);
   });
 
   it("shows no count badge when there is nothing pending", async () => {
@@ -60,5 +61,29 @@ describe("AlertsBell", () => {
     vi.mocked(api.getPendingReviewEntityCount).mockResolvedValue({ count: 137 });
     renderBell();
     expect(await screen.findByTestId("alerts-bell-badge")).toHaveTextContent("137");
+  });
+
+  it("combines pending reviews and pending case invitations into one badge count", async () => {
+    vi.mocked(api.getPendingReviewEntityCount).mockResolvedValue({ count: 2 });
+    vi.mocked(api.listMyCaseInvitations).mockResolvedValue([
+      { id: "m1", case_id: "c1", case_name: "Smith matter", user_id: "u1", username: "me", user_display_name: "Me", role: "member", status: "pending", created_at: "2026-01-01T00:00:00Z" },
+    ]);
+    renderBell();
+    expect(await screen.findByTestId("alerts-bell-badge")).toHaveTextContent("3");
+    fireEvent.click(screen.getByLabelText("Alerts"));
+    expect(screen.getByText("2 entities pending review")).toBeInTheDocument();
+    expect(screen.getByText("1 case invitation waiting")).toBeInTheDocument();
+  });
+
+  it("shows only the case-invitations line when there are no pending reviews", async () => {
+    vi.mocked(api.getPendingReviewEntityCount).mockResolvedValue({ count: 0 });
+    vi.mocked(api.listMyCaseInvitations).mockResolvedValue([
+      { id: "m1", case_id: "c1", case_name: "Smith matter", user_id: "u1", username: "me", user_display_name: "Me", role: "member", status: "pending", created_at: "2026-01-01T00:00:00Z" },
+    ]);
+    renderBell();
+    expect(await screen.findByTestId("alerts-bell-badge")).toHaveTextContent("1");
+    fireEvent.click(screen.getByLabelText("Alerts"));
+    expect(screen.queryByText(/entities pending review/)).not.toBeInTheDocument();
+    expect(screen.getByText("1 case invitation waiting")).toBeInTheDocument();
   });
 });

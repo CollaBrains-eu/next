@@ -36,6 +36,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.ai_gateway import chat_completion
 from api.auth import get_effective_user
+from api.cases import is_case_member
 from api.chunking import chunk_text
 from api.config import settings
 from api.db import async_session, get_db
@@ -363,6 +364,17 @@ async def export_documents_csv(
     )
 
 
+async def _can_read_document(db: AsyncSession, document: Document, current_user: User) -> bool:
+    """Owner and admin always can; an accepted member of the document's
+    case can too (case-member document sharing, Phase 1) -- delete stays
+    owner/admin-only, this only widens read/download access."""
+    if document.owner_id == current_user.id or current_user.role == "admin":
+        return True
+    if document.case_id is not None:
+        return await is_case_member(db, case_id=document.case_id, user_id=current_user.id)
+    return False
+
+
 @router.get("/{document_id}", response_model=DocumentDetailOut)
 async def get_document(
     document_id: UUID,
@@ -372,7 +384,7 @@ async def get_document(
     document = await db.get(Document, document_id)
     if document is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
-    if document.owner_id != current_user.id and current_user.role != "admin":
+    if not await _can_read_document(db, document, current_user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to view this document")
 
     count_result = await db.execute(
@@ -411,7 +423,7 @@ async def get_document_file(
     document = await db.get(Document, document_id)
     if document is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
-    if document.owner_id != current_user.id and current_user.role != "admin":
+    if not await _can_read_document(db, document, current_user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to view this document")
     if document.paperless_id is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document file not yet available")

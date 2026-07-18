@@ -6,7 +6,17 @@ import EmptyState from "../components/EmptyState";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 import { SkeletonLines } from "../components/ui/Skeleton";
-import { ApiError, createCase, downloadCasesCsv, listCases, type CaseOut } from "../lib/api";
+import {
+  acceptCaseInvitation,
+  ApiError,
+  createCase,
+  declineCaseInvitation,
+  downloadCasesCsv,
+  listCases,
+  listMyCaseInvitations,
+  type CaseMemberOut,
+  type CaseOut,
+} from "../lib/api";
 import { useDateFormat } from "../hooks/useDateFormat";
 
 export default function Cases() {
@@ -20,6 +30,7 @@ export default function Cases() {
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [invitations, setInvitations] = useState<CaseMemberOut[]>([]);
 
   function refresh() {
     setLoading(true);
@@ -29,9 +40,33 @@ export default function Cases() {
       .finally(() => setLoading(false));
   }
 
+  function refreshInvitations() {
+    listMyCaseInvitations().then(setInvitations).catch(() => undefined);
+  }
+
   useEffect(() => {
     refresh();
+    refreshInvitations();
   }, []);
+
+  async function handleAcceptInvitation(invitation: CaseMemberOut) {
+    try {
+      await acceptCaseInvitation(invitation.case_id, invitation.user_id);
+      setInvitations((prev) => prev.filter((i) => i.id !== invitation.id));
+      refresh();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("cases.invitationError"));
+    }
+  }
+
+  async function handleDeclineInvitation(invitation: CaseMemberOut) {
+    try {
+      await declineCaseInvitation(invitation.case_id, invitation.user_id);
+      setInvitations((prev) => prev.filter((i) => i.id !== invitation.id));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("cases.invitationError"));
+    }
+  }
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
@@ -79,6 +114,27 @@ export default function Cases() {
           {cases.length > 0 && newCaseButton}
         </div>
       </div>
+
+      {invitations.length > 0 && (
+        <Card>
+          <span className="text-xs font-bold uppercase tracking-wide text-ink-2">{t("cases.pendingInvitationsTitle")}</span>
+          <div className="mt-2 flex flex-col divide-y divide-edge">
+            {invitations.map((invitation) => (
+              <div key={invitation.id} className="flex items-center justify-between gap-3 py-2 text-sm text-ink">
+                <span className="truncate">{invitation.case_name}</span>
+                <div className="flex shrink-0 gap-2">
+                  <Button size="sm" onClick={() => handleAcceptInvitation(invitation)}>
+                    {t("cases.acceptInvitation")}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => handleDeclineInvitation(invitation)}>
+                    {t("cases.declineInvitation")}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {creating && (
         <Card>

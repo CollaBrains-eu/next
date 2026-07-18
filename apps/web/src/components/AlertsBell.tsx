@@ -3,10 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Dropdown } from "./ui/Dropdown";
 import { Tooltip } from "./ui/Tooltip";
-import { getPendingReviewEntityCount } from "../lib/api";
+import { getPendingReviewEntityCount, listMyCaseInvitations } from "../lib/api";
 
 export function AlertsBell() {
-  const [pendingCount, setPendingCount] = useState(0);
+  const [pendingReviewCount, setPendingReviewCount] = useState(0);
+  const [pendingInvitationCount, setPendingInvitationCount] = useState(0);
   const navigate = useNavigate();
   const { t } = useTranslation();
 
@@ -14,16 +15,25 @@ export function AlertsBell() {
     // A real COUNT query, not listEntities(...).length -- that list endpoint caps at
     // limit=50, which silently undercounted this badge once the review queue grew past it.
     getPendingReviewEntityCount()
-      .then(({ count }) => setPendingCount(count))
+      .then(({ count }) => setPendingReviewCount(count))
       .catch(() => {
         // Alerts are a nice-to-have signal, not core navigation -- fail silently.
       });
+    listMyCaseInvitations()
+      .then((invitations) => setPendingInvitationCount(invitations.length))
+      .catch(() => {});
   }, []);
 
-  const options =
-    pendingCount > 0
-      ? [{ label: t("alerts.pendingReviews", { count: pendingCount }), onSelect: () => navigate("/entities/review") }]
-      : [{ label: t("alerts.empty"), onSelect: () => {} }];
+  const pendingCount = pendingReviewCount + pendingInvitationCount;
+  const options = [
+    ...(pendingReviewCount > 0
+      ? [{ label: t("alerts.pendingReviews", { count: pendingReviewCount }), onSelect: () => navigate("/entities/review") }]
+      : []),
+    ...(pendingInvitationCount > 0
+      ? [{ label: t("alerts.pendingCaseInvitations", { count: pendingInvitationCount }), onSelect: () => navigate("/cases") }]
+      : []),
+    ...(pendingCount === 0 ? [{ label: t("alerts.empty"), onSelect: () => {} }] : []),
+  ];
 
   return (
     <Tooltip label={t("alerts.title")}>

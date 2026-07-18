@@ -61,7 +61,9 @@
     "title": "Meldingen",
     "empty": "Je bent helemaal bij",
     "pendingReviews_one": "{{count}} entiteit wacht op beoordeling",
-    "pendingReviews_other": "{{count}} entiteiten wachten op beoordeling"
+    "pendingReviews_other": "{{count}} entiteiten wachten op beoordeling",
+    "pendingCaseInvitations_one": "{{count}} dossieruitnodiging in afwachting",
+    "pendingCaseInvitations_other": "{{count}} dossieruitnodigingen in afwachting"
   },
   "common": {
     "openMenu": "Menu openen",
@@ -76,7 +78,8 @@
     "send": "Verzenden",
     "thinking": "Aan het denken…",
     "addFilter": "+ Filter toevoegen",
-    "profile": "Mijn profiel"
+    "profile": "Mijn profiel",
+    "remove": "Verwijderen"
   },
   "documents": {
     "title": "Documenten",
@@ -142,7 +145,11 @@
     "createError": "Kon zaak niet aanmaken",
     "emptyMessageSub": "Zaken die je aanmaakt of die met je worden gedeeld, verschijnen hier.",
     "exportCsv": "Exporteer CSV",
-    "exportError": "CSV exporteren is mislukt. Probeer het opnieuw."
+    "exportError": "CSV exporteren is mislukt. Probeer het opnieuw.",
+    "pendingInvitationsTitle": "Openstaande uitnodigingen",
+    "acceptInvitation": "Accepteren",
+    "declineInvitation": "Afwijzen",
+    "invitationError": "Reageren op die uitnodiging is mislukt"
   },
   "tasks": {
     "title": "Taken",
@@ -240,7 +247,20 @@
     "attachConfirm": "Koppelen",
     "selectPlaceholder": "Selecteer…",
     "nothingLinked": "Nog niets gekoppeld.",
-    "decisions": "Beslissingen"
+    "decisions": "Beslissingen",
+    "members": "Leden",
+    "invitePhonePlaceholder": "Telefoonnummer, bijv. +491511234567",
+    "lookupAction": "Opzoeken",
+    "userNotFound": "Geen gebruiker gevonden met dat telefoonnummer.",
+    "roleMember": "Lid",
+    "roleWorker": "Medewerker",
+    "inviteAction": "Uitnodigen",
+    "lookupError": "Opzoeken van dat telefoonnummer is mislukt",
+    "inviteError": "Uitnodigen van die gebruiker is mislukt",
+    "noMembers": "Nog geen leden.",
+    "pendingInvites": "Openstaande uitnodigingen",
+    "revokeInvite": "Intrekken",
+    "removeMemberError": "Verwijderen van dat lid is mislukt"
   },
   "entities": {
     "title": "Entiteiten",

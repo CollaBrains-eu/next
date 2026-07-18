@@ -391,6 +391,19 @@ export interface CaseDashboardOut extends CaseOut {
   decisions: { id: string; summary: string }[];
   vehicles: { id: string; kenteken: string | null; merk: string | null; handelsbenaming: string | null }[];
   appointments: { id: string; title: string; starts_at: string }[];
+  is_owner: boolean;
+}
+
+export interface CaseMemberOut {
+  id: string;
+  case_id: string;
+  case_name: string;
+  user_id: string;
+  username: string;
+  user_display_name: string;
+  role: "worker" | "member";
+  status: "pending" | "accepted" | "declined";
+  created_at: string;
 }
 
 export interface DecisionListItemOut {
@@ -418,6 +431,42 @@ export function updateCaseStatus(id: string, status: "open" | "closed"): Promise
     method: "PATCH",
     body: JSON.stringify({ status }),
   });
+}
+
+export function listCaseMembers(caseId: string): Promise<CaseMemberOut[]> {
+  return request<CaseMemberOut[]>(`/cases/${caseId}/members`);
+}
+
+export function inviteCaseMember(caseId: string, userId: string, role: "worker" | "member"): Promise<CaseMemberOut> {
+  return request<CaseMemberOut>(`/cases/${caseId}/members`, {
+    method: "POST",
+    body: JSON.stringify({ user_id: userId, role }),
+  });
+}
+
+export function removeCaseMember(caseId: string, userId: string): Promise<void> {
+  return request<void>(`/cases/${caseId}/members/${userId}`, { method: "DELETE" });
+}
+
+export function listMyCaseInvitations(): Promise<CaseMemberOut[]> {
+  return request<CaseMemberOut[]>("/cases/invitations");
+}
+
+export function acceptCaseInvitation(caseId: string, userId: string): Promise<CaseMemberOut> {
+  return request<CaseMemberOut>(`/cases/${caseId}/members/${userId}/accept`, { method: "POST" });
+}
+
+export function declineCaseInvitation(caseId: string, userId: string): Promise<CaseMemberOut> {
+  return request<CaseMemberOut>(`/cases/${caseId}/members/${userId}/decline`, { method: "POST" });
+}
+
+export async function lookupUserByPhone(phone: string): Promise<{ id: string; username: string; display_name: string } | null> {
+  try {
+    return await request<{ id: string; username: string; display_name: string }>(`/users/lookup?phone=${encodeURIComponent(phone)}`);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null;
+    throw err;
+  }
 }
 
 export function listDecisions(): Promise<DecisionListItemOut[]> {
