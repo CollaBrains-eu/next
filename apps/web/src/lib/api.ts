@@ -717,6 +717,15 @@ export function resetUserPassword(userId: string): Promise<AdminUserCreatedOut> 
   return request<AdminUserCreatedOut>(`/admin/users/${userId}/password`, { method: "PUT" });
 }
 
+export interface ResendWelcomeOut {
+  ok: boolean;
+  email_sent: boolean;
+}
+
+export function resendWelcome(userId: string): Promise<ResendWelcomeOut> {
+  return request<ResendWelcomeOut>(`/admin/users/${userId}/resend-welcome`, { method: "POST" });
+}
+
 export function deactivateUser(userId: string): Promise<void> {
   return request<void>(`/admin/users/${userId}`, { method: "DELETE" });
 }

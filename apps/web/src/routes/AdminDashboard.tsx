@@ -19,6 +19,7 @@ import {
   setUserRole,
   setUserPhone,
   resetUserPassword,
+  resendWelcome,
   deactivateUser,
   type AdminStatsOut,
   type AdminUserOut,
@@ -246,6 +247,7 @@ function UsersTab() {
   const [usersLoading, setUsersLoading] = useState(true);
   const [usersError, setUsersError] = useState<string | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
+  const [rowNotice, setRowNotice] = useState<string | null>(null);
   const [phoneModalUser, setPhoneModalUser] = useState<AdminUserOut | null>(null);
   const [phoneInput, setPhoneInput] = useState("");
   const [phoneError, setPhoneError] = useState<string | null>(null);
@@ -336,6 +338,21 @@ function UsersTab() {
     }
   }
 
+  async function handleResendWelcome(user: AdminUserOut) {
+    setRowError(null);
+    setRowNotice(null);
+    try {
+      const result = await resendWelcome(user.id);
+      setRowNotice(
+        result.email_sent
+          ? t("admin.welcomeResentEmail", { username: user.username })
+          : t("admin.welcomeResentNoEmail", { username: user.username })
+      );
+    } catch (err) {
+      setRowError(err instanceof ApiError ? err.message : t("admin.resendWelcomeError"));
+    }
+  }
+
   async function handleDeactivate() {
     if (!deactivateTarget) return;
     setDeactivating(true);
@@ -392,6 +409,10 @@ function UsersTab() {
           {
             label: t("admin.resetPassword"),
             onSelect: () => handleResetPassword(row),
+          },
+          {
+            label: t("admin.resendWelcome"),
+            onSelect: () => handleResendWelcome(row),
           },
           {
             label: t("admin.deactivate"),
@@ -533,6 +554,7 @@ function UsersTab() {
       ) : (
         <>
           {rowError && <p className="text-sm text-danger">{rowError}</p>}
+          {rowNotice && <p className="text-sm text-ink-2">{rowNotice}</p>}
           <DataTable
             columns={columns}
             rows={users}

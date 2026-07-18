@@ -392,7 +392,11 @@
     "deactivateConfirmTitle": "Deactivate user?",
     "deactivateConfirmBody": "Deactivate {{displayName}}? They will be signed out immediately and can no longer log in. Their documents and cases are kept.",
     "deactivateError": "Failed to deactivate user",
-    "deactivatedBadge": "Deactivated"
+    "deactivatedBadge": "Deactivated",
+    "resendWelcome": "Resend welcome",
+    "welcomeResentEmail": "Welcome email resent to {{username}}.",
+    "welcomeResentNoEmail": "Welcome link refreshed for {{username}}, but no email was sent (SMTP not configured or user has no email on file).",
+    "resendWelcomeError": "Failed to resend welcome"
   },
   "settings": {
     "title": "Settings",

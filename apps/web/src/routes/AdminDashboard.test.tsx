@@ -14,6 +14,7 @@ vi.mock("../lib/api", async () => {
     createAdminUser: vi.fn(),
     setUserRole: vi.fn(),
     resetUserPassword: vi.fn(),
+    resendWelcome: vi.fn(),
     deactivateUser: vi.fn(),
     setUserPhone: vi.fn(),
     listAdminUsers: vi.fn(),
@@ -319,6 +320,73 @@ describe("AdminDashboard Users tab", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "Reset password" }));
 
     expect(await screen.findByText("LDAP unreachable")).toBeInTheDocument();
+  });
+
+  it("resends the welcome email via the row action menu", async () => {
+    vi.mocked(api.getAdminStats).mockResolvedValue({
+      total_users: 0, total_documents: 0, documents_by_status: {}, ai_calls_last_24h: 0,
+    });
+    vi.mocked(api.listAdminUsers).mockResolvedValue([
+      {
+        id: "u1", username: "bob", display_name: "Bob", email: "bob@collabrains.eu",
+        role: "member", phone_number: null, created_at: "2026-01-01T00:00:00Z", last_login_at: null,
+        is_active: true,
+      },
+    ]);
+    vi.mocked(api.resendWelcome).mockResolvedValue({ ok: true, email_sent: true });
+    render(<AdminDashboard />);
+    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+
+    await screen.findByText("bob");
+    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Resend welcome" }));
+
+    await waitFor(() => expect(api.resendWelcome).toHaveBeenCalledWith("u1"));
+    expect(await screen.findByText("Welcome email resent to bob.")).toBeInTheDocument();
+  });
+
+  it("shows a distinct notice when resend-welcome sends no email", async () => {
+    vi.mocked(api.getAdminStats).mockResolvedValue({
+      total_users: 0, total_documents: 0, documents_by_status: {}, ai_calls_last_24h: 0,
+    });
+    vi.mocked(api.listAdminUsers).mockResolvedValue([
+      {
+        id: "u1", username: "bob", display_name: "Bob", email: null,
+        role: "member", phone_number: null, created_at: "2026-01-01T00:00:00Z", last_login_at: null,
+        is_active: true,
+      },
+    ]);
+    vi.mocked(api.resendWelcome).mockResolvedValue({ ok: true, email_sent: false });
+    render(<AdminDashboard />);
+    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+
+    await screen.findByText("bob");
+    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Resend welcome" }));
+
+    expect(await screen.findByText(/but no email was sent/i)).toBeInTheDocument();
+  });
+
+  it("shows an inline error when resend-welcome fails", async () => {
+    vi.mocked(api.getAdminStats).mockResolvedValue({
+      total_users: 0, total_documents: 0, documents_by_status: {}, ai_calls_last_24h: 0,
+    });
+    vi.mocked(api.listAdminUsers).mockResolvedValue([
+      {
+        id: "u1", username: "bob", display_name: "Bob", email: "bob@collabrains.eu",
+        role: "member", phone_number: null, created_at: "2026-01-01T00:00:00Z", last_login_at: null,
+        is_active: true,
+      },
+    ]);
+    vi.mocked(api.resendWelcome).mockRejectedValue(new api.ApiError(404, "User not found"));
+    render(<AdminDashboard />);
+    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+
+    await screen.findByText("bob");
+    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Resend welcome" }));
+
+    expect(await screen.findByText("User not found")).toBeInTheDocument();
   });
 
   it("deactivates a user via the row action menu after confirming", async () => {

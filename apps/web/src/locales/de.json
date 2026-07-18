@@ -352,7 +352,11 @@
     "deactivateConfirmTitle": "Benutzer deaktivieren?",
     "deactivateConfirmBody": "{{displayName}} deaktivieren? Diese Person wird sofort abgemeldet und kann sich nicht mehr anmelden. Ihre Dokumente und Fälle bleiben erhalten.",
     "deactivateError": "Benutzer konnte nicht deaktiviert werden",
-    "deactivatedBadge": "Deaktiviert"
+    "deactivatedBadge": "Deaktiviert",
+    "resendWelcome": "Willkommens-E-Mail erneut senden",
+    "welcomeResentEmail": "Willkommens-E-Mail erneut an {{username}} gesendet.",
+    "welcomeResentNoEmail": "Willkommenslink für {{username}} erneuert, aber es wurde keine E-Mail gesendet (SMTP nicht konfiguriert oder keine E-Mail-Adresse hinterlegt).",
+    "resendWelcomeError": "Willkommens-E-Mail konnte nicht erneut gesendet werden"
   },
   "auth": {
     "title": "Anmelden",

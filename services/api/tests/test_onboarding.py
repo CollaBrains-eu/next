@@ -130,6 +130,38 @@ async def test_resend_welcome_sends_email_when_smtp_configured(client, monkeypat
     assert len(tokens) == 1
 
 
+async def test_resend_welcome_email_link_uses_configured_app_base_url(client, monkeypatch):
+    """Regression test for a real incident: APP_BASE_URL was never set in
+    .env, so onboarding links silently defaulted to https://collabrains.eu
+    -- a domain that doesn't resolve -- meaning every welcome email/Signal
+    link ever sent was dead. This asserts the link is built from
+    settings.app_base_url, not hardcoded."""
+    monkeypatch.setattr(settings, "smtp_host", "smtp.example.com")
+    monkeypatch.setattr(settings, "smtp_username", "user")
+    monkeypatch.setattr(settings, "smtp_password", "pass")
+    monkeypatch.setattr(settings, "app_base_url", "https://example.test")
+
+    target_username = _unique("resendwelcomeurltarget")
+    await _login(client, target_username)
+    target_id = await _user_id_for(target_username)
+
+    admin_token = await _login(client, _unique("resendwelcomeurladmin"), is_admin=True)
+    with patch("api.onboarding_service.send_email", AsyncMock(return_value=True)) as mock_send:
+        response = await client.post(
+            f"/admin/users/{target_id}/resend-welcome", headers={"Authorization": f"Bearer {admin_token}"}
+        )
+    assert response.status_code == 200
+
+    async with async_session() as db:
+        result = await db.execute(select(OnboardingToken).where(OnboardingToken.user_id == UUID(target_id)))
+        token = result.scalars().one()
+
+    call_kwargs = mock_send.call_args.kwargs
+    expected_url = f"https://example.test/onboard?token={token.token}"
+    assert expected_url in call_kwargs["text_body"]
+    assert expected_url in call_kwargs["html_body"]
+
+
 async def test_resend_welcome_reports_email_not_sent_when_unconfigured(client, monkeypatch):
     monkeypatch.setattr(settings, "smtp_host", "")
 

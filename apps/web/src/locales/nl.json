@@ -392,7 +392,11 @@
     "deactivateConfirmTitle": "Gebruiker deactiveren?",
     "deactivateConfirmBody": "{{displayName}} deactiveren? Deze persoon wordt direct uitgelogd en kan niet meer inloggen. Diens documenten en zaken blijven bewaard.",
     "deactivateError": "Kon gebruiker niet deactiveren",
-    "deactivatedBadge": "Gedeactiveerd"
+    "deactivatedBadge": "Gedeactiveerd",
+    "resendWelcome": "Welkomstmail opnieuw sturen",
+    "welcomeResentEmail": "Welkomstmail opnieuw verstuurd naar {{username}}.",
+    "welcomeResentNoEmail": "Welkomstlink vernieuwd voor {{username}}, maar er is geen e-mail verstuurd (SMTP niet geconfigureerd of geen e-mailadres bekend).",
+    "resendWelcomeError": "Welkomstmail opnieuw sturen is mislukt"
   },
   "settings": {
     "title": "Instellingen",
