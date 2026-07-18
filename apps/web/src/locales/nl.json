@@ -351,7 +351,11 @@
     "rowActions": "Acties",
     "makeAdmin": "Beheerder maken",
     "makeMember": "Lid maken",
-    "roleUpdateError": "Kon rol niet bijwerken"
+    "roleUpdateError": "Kon rol niet bijwerken",
+    "setPhone": "Telefoon instellen",
+    "phoneModalTitle": "Telefoonnummer instellen",
+    "save": "Opslaan",
+    "phoneUpdateError": "Kon telefoonnummer niet bijwerken"
   },
   "settings": {
     "title": "Instellingen",

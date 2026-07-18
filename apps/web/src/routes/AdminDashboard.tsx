@@ -16,6 +16,7 @@ import {
   createAdminUser,
   listAdminUsers,
   setUserRole,
+  setUserPhone,
   type AdminStatsOut,
   type AdminUserCreatedOut,
   type AdminUserOut,
@@ -243,6 +244,10 @@ function UsersTab() {
   const [usersLoading, setUsersLoading] = useState(true);
   const [usersError, setUsersError] = useState<string | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
+  const [phoneModalUser, setPhoneModalUser] = useState<AdminUserOut | null>(null);
+  const [phoneInput, setPhoneInput] = useState("");
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [phoneSaving, setPhoneSaving] = useState(false);
   const [hasMore, setHasMore] = useState(true);
 
   async function loadUsers(offset: number) {
@@ -301,6 +306,21 @@ function UsersTab() {
     }
   }
 
+  async function handleSavePhone() {
+    if (!phoneModalUser) return;
+    setPhoneSaving(true);
+    setPhoneError(null);
+    try {
+      const updated = await setUserPhone(phoneModalUser.id, phoneInput.trim() || null);
+      setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+      setPhoneModalUser(null);
+    } catch (err) {
+      setPhoneError(err instanceof ApiError ? err.message : t("admin.phoneUpdateError"));
+    } finally {
+      setPhoneSaving(false);
+    }
+  }
+
   const columns: Column<AdminUserOut>[] = [
     { key: "username", header: t("admin.usernameLabel"), render: (row) => row.username },
     { key: "display_name", header: t("admin.displayNameLabel"), render: (row) => row.display_name },
@@ -325,6 +345,14 @@ function UsersTab() {
           {
             label: row.role === "admin" ? t("admin.makeMember") : t("admin.makeAdmin"),
             onSelect: () => handleRoleChange(row, row.role === "admin" ? "member" : "admin"),
+          },
+          {
+            label: t("admin.setPhone"),
+            onSelect: () => {
+              setPhoneModalUser(row);
+              setPhoneInput(row.phone_number ?? "");
+              setPhoneError(null);
+            },
           },
         ];
         return (
@@ -410,6 +438,25 @@ function UsersTab() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        open={phoneModalUser !== null}
+        onClose={() => setPhoneModalUser(null)}
+        title={t("admin.phoneModalTitle")}
+      >
+        <div className="flex flex-col gap-3">
+          {phoneError && <p className="text-sm text-danger">{phoneError}</p>}
+          <TextField label={t("admin.phoneColumn")} value={phoneInput} onChange={setPhoneInput} placeholder="+491511234567" />
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setPhoneModalUser(null)}>
+              {t("common.cancel")}
+            </Button>
+            <Button type="button" size="sm" disabled={phoneSaving} onClick={handleSavePhone}>
+              {t("admin.save")}
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       {usersError ? (

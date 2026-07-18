@@ -213,4 +213,59 @@ describe("AdminDashboard Users tab", () => {
     expect(await screen.findByText("boom")).toBeInTheDocument();
   });
 
+  it("sets a user's phone number via the row action menu", async () => {
+    vi.mocked(api.getAdminStats).mockResolvedValue({
+      total_users: 0, total_documents: 0, documents_by_status: {}, ai_calls_last_24h: 0,
+    });
+    vi.mocked(api.listAdminUsers).mockResolvedValue([
+      {
+        id: "u1", username: "bob", display_name: "Bob", email: "bob@collabrains.eu",
+        role: "member", phone_number: null, created_at: "2026-01-01T00:00:00Z", last_login_at: null,
+        is_active: true,
+      },
+    ]);
+    vi.mocked(api.setUserPhone).mockResolvedValue({
+      id: "u1", username: "bob", display_name: "Bob", email: "bob@collabrains.eu",
+      role: "member", phone_number: "+15551239999", created_at: "2026-01-01T00:00:00Z", last_login_at: null,
+      is_active: true,
+    });
+    render(<AdminDashboard />);
+    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+
+    await screen.findByText("bob");
+    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Set phone" }));
+
+    fireEvent.change(screen.getByLabelText("Phone"), { target: { value: "+15551239999" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(api.setUserPhone).toHaveBeenCalledWith("u1", "+15551239999"));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("shows an error inside the phone modal when the save fails", async () => {
+    vi.mocked(api.getAdminStats).mockResolvedValue({
+      total_users: 0, total_documents: 0, documents_by_status: {}, ai_calls_last_24h: 0,
+    });
+    vi.mocked(api.listAdminUsers).mockResolvedValue([
+      {
+        id: "u1", username: "bob", display_name: "Bob", email: "bob@collabrains.eu",
+        role: "member", phone_number: null, created_at: "2026-01-01T00:00:00Z", last_login_at: null,
+        is_active: true,
+      },
+    ]);
+    vi.mocked(api.setUserPhone).mockRejectedValue(new api.ApiError(409, "Already linked"));
+    render(<AdminDashboard />);
+    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+
+    await screen.findByText("bob");
+    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Set phone" }));
+    fireEvent.change(screen.getByLabelText("Phone"), { target: { value: "+15551239999" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText("Already linked")).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
 });

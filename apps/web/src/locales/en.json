@@ -351,7 +351,11 @@
     "rowActions": "Actions",
     "makeAdmin": "Make admin",
     "makeMember": "Make member",
-    "roleUpdateError": "Failed to update role"
+    "roleUpdateError": "Failed to update role",
+    "setPhone": "Set phone",
+    "phoneModalTitle": "Set phone number",
+    "save": "Save",
+    "phoneUpdateError": "Failed to update phone number"
   },
   "settings": {
     "title": "Settings",

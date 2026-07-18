@@ -311,7 +311,11 @@
     "rowActions": "Aktionen",
     "makeAdmin": "Zum Administrator machen",
     "makeMember": "Zum Mitglied machen",
-    "roleUpdateError": "Rolle konnte nicht aktualisiert werden"
+    "roleUpdateError": "Rolle konnte nicht aktualisiert werden",
+    "setPhone": "Telefon festlegen",
+    "phoneModalTitle": "Telefonnummer festlegen",
+    "save": "Speichern",
+    "phoneUpdateError": "Telefonnummer konnte nicht aktualisiert werden"
   },
   "auth": {
     "title": "Anmelden",
