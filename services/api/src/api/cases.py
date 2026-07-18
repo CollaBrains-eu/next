@@ -11,7 +11,7 @@ api/decisions.py (checks ownership before calling it).
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.models import Appointment, Case, CaseMember, Decision, Document, GraphEdge, Task, Vehicle
@@ -42,6 +42,56 @@ async def list_cases(db: AsyncSession, *, user_id: UUID) -> list[Case]:
         .distinct()
     )
     return list(result.scalars().all())
+
+
+async def list_cases_with_counts(db: AsyncSession, *, user_id: UUID) -> list[tuple[Case, int, int]]:
+    """Like list_cases, but each row also carries its document_count and
+    (accepted-only) member_count -- for the Cases list view, which needs
+    both numbers cheaply rather than N+1 queries per case."""
+    document_counts = (
+        select(Document.case_id, func.count().label("n"))
+        .where(Document.case_id.is_not(None))
+        .group_by(Document.case_id)
+        .subquery()
+    )
+    member_counts = (
+        select(CaseMember.case_id, func.count().label("n"))
+        .where(CaseMember.status == "accepted")
+        .group_by(CaseMember.case_id)
+        .subquery()
+    )
+    result = await db.execute(
+        select(Case, func.coalesce(document_counts.c.n, 0), func.coalesce(member_counts.c.n, 0))
+        .outerjoin(document_counts, document_counts.c.case_id == Case.id)
+        .outerjoin(member_counts, member_counts.c.case_id == Case.id)
+        .outerjoin(CaseMember, CaseMember.case_id == Case.id)
+        .where(
+            or_(
+                Case.user_id == user_id,
+                (CaseMember.user_id == user_id) & (CaseMember.status == "accepted"),
+            )
+        )
+        .order_by(Case.created_at.desc())
+        .distinct()
+    )
+    return [(case, doc_count, member_count) for case, doc_count, member_count in result.all()]
+
+
+async def get_case_counts(db: AsyncSession, *, case_id: UUID) -> tuple[int, int]:
+    """(document_count, accepted-member_count) for a single case -- used
+    wherever a CaseOut is built outside the bulk list_cases_with_counts
+    query (create/update endpoints)."""
+    document_count = (
+        await db.execute(select(func.count()).select_from(Document).where(Document.case_id == case_id))
+    ).scalar_one()
+    member_count = (
+        await db.execute(
+            select(func.count())
+            .select_from(CaseMember)
+            .where(CaseMember.case_id == case_id, CaseMember.status == "accepted")
+        )
+    ).scalar_one()
+    return document_count, member_count
 
 
 async def is_case_member(db: AsyncSession, *, case_id: UUID, user_id: UUID) -> bool:

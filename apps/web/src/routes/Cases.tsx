@@ -1,11 +1,16 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Card from "../components/Card";
 import EmptyState from "../components/EmptyState";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
+import { BulkActionBar } from "../components/ui/BulkActionBar";
+import { Column, DataTable } from "../components/ui/DataTable";
+import { FilterChips } from "../components/ui/FilterChips";
 import { SkeletonLines } from "../components/ui/Skeleton";
+import { TextField } from "../components/ui/form";
+import { useBulkSelection } from "../hooks/useBulkSelection";
 import {
   acceptCaseInvitation,
   ApiError,
@@ -14,10 +19,13 @@ import {
   downloadCasesCsv,
   listCases,
   listMyCaseInvitations,
+  updateCaseStatus,
   type CaseMemberOut,
   type CaseOut,
 } from "../lib/api";
 import { useDateFormat } from "../hooks/useDateFormat";
+
+type ViewMode = "cards" | "table";
 
 export default function Cases() {
   const { t } = useTranslation();
@@ -30,7 +38,16 @@ export default function Cases() {
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [nameQuery, setNameQuery] = useState("");
+  const [statusFilters, setStatusFilters] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<ViewMode>("cards");
+  const { isSelected, toggle, clear, selectedCount, selectedKeys } = useBulkSelection<CaseOut>((c) => c.id);
   const [invitations, setInvitations] = useState<CaseMemberOut[]>([]);
+
+  const STATUS_FILTER_OPTIONS = [
+    { id: "open", label: t("cases.filterOpen") },
+    { id: "closed", label: t("cases.filterClosed") },
+  ];
 
   function refresh() {
     setLoading(true);
@@ -97,6 +114,89 @@ export default function Cases() {
     }
   }
 
+  async function handleBulkSetStatus(targetStatus: "open" | "closed") {
+    const ids = cases.filter((c) => selectedKeys.has(c.id) && c.status !== targetStatus).map((c) => c.id);
+    if (ids.length === 0) {
+      clear();
+      return;
+    }
+    try {
+      await Promise.all(ids.map((id) => updateCaseStatus(id, targetStatus)));
+      clear();
+      refresh();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("cases.updateError"));
+    }
+  }
+
+  const activeStatusFilters = useMemo(() => new Set(statusFilters), [statusFilters]);
+  const filteredCases = useMemo(
+    () =>
+      cases.filter(
+        (c) =>
+          (activeStatusFilters.size === 0 || activeStatusFilters.has(c.status)) &&
+          (nameQuery.trim() === "" ||
+            c.name.toLowerCase().includes(nameQuery.trim().toLowerCase()) ||
+            (c.description ?? "").toLowerCase().includes(nameQuery.trim().toLowerCase()))
+      ),
+    [cases, activeStatusFilters, nameQuery]
+  );
+
+  const columns: Column<CaseOut>[] = [
+    {
+      key: "select",
+      header: "",
+      render: (c) => (
+        <input
+          type="checkbox"
+          checked={isSelected(c)}
+          onChange={() => toggle(c)}
+          onClick={(event) => event.stopPropagation()}
+          className="h-4 w-4 accent-accent"
+        />
+      ),
+    },
+    {
+      key: "name",
+      header: t("cases.columnName"),
+      sortable: true,
+      sortValue: (c) => c.name.toLowerCase(),
+      render: (c) => (
+        <Link to={`/cases/${c.id}`} className="font-medium text-ink hover:text-accent">
+          {c.name}
+        </Link>
+      ),
+    },
+    {
+      key: "status",
+      header: t("cases.columnStatus"),
+      sortable: true,
+      sortValue: (c) => c.status,
+      render: (c) => <Badge variant={c.status === "open" ? "success" : "default"}>{c.status}</Badge>,
+    },
+    {
+      key: "document_count",
+      header: t("cases.columnDocuments"),
+      sortable: true,
+      sortValue: (c) => c.document_count,
+      render: (c) => c.document_count,
+    },
+    {
+      key: "member_count",
+      header: t("cases.columnMembers"),
+      sortable: true,
+      sortValue: (c) => c.member_count,
+      render: (c) => c.member_count,
+    },
+    {
+      key: "created_at",
+      header: t("cases.columnCreated"),
+      sortable: true,
+      sortValue: (c) => c.created_at,
+      render: (c) => formatDate(c.created_at),
+    },
+  ];
+
   const newCaseButton = !creating && (
     <Button onClick={() => setCreating(true)}>{t("cases.newCase")}</Button>
   );
@@ -106,6 +206,20 @@ export default function Cases() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-ink">{t("cases.title")}</h1>
         <div className="flex items-center gap-2">
+          {cases.length > 0 && (
+            <div className="flex gap-1 border-r border-edge pr-2">
+              {(["cards", "table"] as ViewMode[]).map((mode) => (
+                <Button
+                  key={mode}
+                  size="sm"
+                  variant={viewMode === mode ? "primary" : "ghost"}
+                  onClick={() => setViewMode(mode)}
+                >
+                  {mode === "cards" ? t("cases.viewCards") : t("cases.viewTable")}
+                </Button>
+              ))}
+            </div>
+          )}
           {cases.length > 0 && (
             <Button variant="secondary" onClick={handleExportCsv} disabled={exporting}>
               {t("cases.exportCsv")}
@@ -172,22 +286,55 @@ export default function Cases() {
       ) : cases.length === 0 && !creating ? (
         <EmptyState heading={t("cases.emptyMessage")} message={t("cases.emptyMessageSub")} action={newCaseButton} />
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {cases.map((c, index) => (
-            <Link key={c.id} to={`/cases/${c.id}`} className="card-tilt animate-cardIn rounded-2xl opacity-0" style={{ animationDelay: `${Math.min(index, 8) * 90}ms` }}>
-              <Card className="flex h-full flex-col gap-2 transition-colors duration-fast hover:border-accent">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-ink">{c.name}</span>
-                  <Badge variant={c.status === "open" ? "success" : "default"}>{c.status}</Badge>
-                </div>
-                {c.description && <p className="text-sm text-ink-2">{c.description}</p>}
-                <span className="mt-auto text-xs text-ink-3">
-                  {formatDate(c.created_at)}
-                </span>
-              </Card>
-            </Link>
-          ))}
-        </div>
+        <>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="w-full max-w-xs">
+              <TextField label={t("cases.searchLabel")} value={nameQuery} onChange={setNameQuery} placeholder={t("cases.searchPlaceholder")} />
+            </div>
+            <FilterChips
+              label={t("cases.statusFilterLabel")}
+              chips={STATUS_FILTER_OPTIONS.filter((opt) => statusFilters.includes(opt.id))}
+              onRemove={(id) => setStatusFilters((prev) => prev.filter((s) => s !== id))}
+              addOptions={STATUS_FILTER_OPTIONS.filter((opt) => !statusFilters.includes(opt.id))}
+              onAdd={(opt) => setStatusFilters((prev) => [...prev, opt.id])}
+            />
+          </div>
+
+          {viewMode === "table" ? (
+            <DataTable columns={columns} rows={filteredCases} rowKey={(c) => c.id} />
+          ) : (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredCases.map((c, index) => (
+                <Link
+                  key={c.id}
+                  to={`/cases/${c.id}`}
+                  className="card-tilt animate-cardIn rounded-2xl opacity-0"
+                  style={{ animationDelay: `${Math.min(index, 8) * 90}ms` }}
+                >
+                  <Card className="flex h-full flex-col gap-2 transition-colors duration-fast hover:border-accent">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-ink">{c.name}</span>
+                      <Badge variant={c.status === "open" ? "success" : "default"}>{c.status}</Badge>
+                    </div>
+                    {c.description && <p className="text-sm text-ink-2">{c.description}</p>}
+                    <span className="mt-auto text-xs text-ink-3">
+                      {t("cases.cardMeta", { docs: c.document_count, members: c.member_count })} · {formatDate(c.created_at)}
+                    </span>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
+
+          <BulkActionBar
+            count={selectedCount}
+            onCancel={clear}
+            actions={[
+              { label: t("cases.bulkClose"), onClick: () => handleBulkSetStatus("closed") },
+              { label: t("cases.bulkReopen"), onClick: () => handleBulkSetStatus("open") },
+            ]}
+          />
+        </>
       )}
     </div>
   );

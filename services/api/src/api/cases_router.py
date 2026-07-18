@@ -21,6 +21,7 @@ from api.cases import (
     attach_document_to_case,
     create_case,
     delete_case,
+    get_case_counts,
     get_case_dashboard,
     is_case_member,
     link_decision_to_case,
@@ -28,6 +29,7 @@ from api.cases import (
     link_vehicle_to_case,
     list_case_members,
     list_cases,
+    list_cases_with_counts,
     list_pending_invitations,
     remove_case_member,
     respond_to_case_invitation,
@@ -56,6 +58,8 @@ class CaseOut(BaseModel):
     description: str | None
     status: str
     created_at: datetime
+    document_count: int
+    member_count: int
 
 
 class CaseDocumentOut(BaseModel):
@@ -148,16 +152,27 @@ async def create_case_endpoint(
     request: CaseCreateRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> Case:
-    return await create_case(db, user_id=current_user.id, name=request.name, description=request.description)
+) -> CaseOut:
+    case = await create_case(db, user_id=current_user.id, name=request.name, description=request.description)
+    return CaseOut(
+        id=case.id, name=case.name, description=case.description, status=case.status, created_at=case.created_at,
+        document_count=0, member_count=0,
+    )
 
 
 @router.get("/cases", response_model=list[CaseOut])
 async def list_cases_endpoint(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> list[Case]:
-    return await list_cases(db, user_id=current_user.id)
+) -> list[CaseOut]:
+    rows = await list_cases_with_counts(db, user_id=current_user.id)
+    return [
+        CaseOut(
+            id=case.id, name=case.name, description=case.description, status=case.status, created_at=case.created_at,
+            document_count=doc_count, member_count=member_count,
+        )
+        for case, doc_count, member_count in rows
+    ]
 
 
 @router.get("/cases/invitations", response_model=list[CaseMemberOut])
@@ -207,9 +222,11 @@ async def get_case_endpoint(
 
     case = result["case"]
     await _require_case_access(db, case, current_user)
+    document_count, member_count = await get_case_counts(db, case_id=case_id)
 
     return CaseDashboardOut(
         id=case.id, name=case.name, description=case.description, status=case.status, created_at=case.created_at,
+        document_count=document_count, member_count=member_count,
         documents=[CaseDocumentOut(id=doc.id, title=doc.title) for doc in result["documents"]],
         tasks=[CaseTaskOut(id=task.id, title=task.title, status=task.status) for task in result["tasks"]],
         decisions=[CaseDecisionOut(id=dec.id, summary=dec.summary) for dec in result["decisions"]],
@@ -230,7 +247,7 @@ async def update_case_endpoint(
     request: CaseUpdateRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> Case:
+) -> CaseOut:
     existing = await db.get(Case, case_id)
     if existing is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
@@ -242,7 +259,11 @@ async def update_case_endpoint(
     updated = await update_case(
         db, case_id=case_id, name=request.name, description=request.description, status_value=request.status,
     )
-    return updated
+    document_count, member_count = await get_case_counts(db, case_id=case_id)
+    return CaseOut(
+        id=updated.id, name=updated.name, description=updated.description, status=updated.status,
+        created_at=updated.created_at, document_count=document_count, member_count=member_count,
+    )
 
 
 @router.delete("/cases/{case_id}", status_code=status.HTTP_204_NO_CONTENT)

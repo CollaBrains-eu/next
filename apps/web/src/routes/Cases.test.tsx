@@ -11,6 +11,7 @@ vi.mock("../lib/api", async () => {
     listCases: vi.fn(),
     createCase: vi.fn(),
     downloadCasesCsv: vi.fn(),
+    updateCaseStatus: vi.fn(),
     listMyCaseInvitations: vi.fn(),
     acceptCaseInvitation: vi.fn(),
     declineCaseInvitation: vi.fn(),
@@ -18,8 +19,14 @@ vi.mock("../lib/api", async () => {
 });
 
 const CASES: api.CaseOut[] = [
-  { id: "c1", name: "Alpha matter", description: "First case", status: "open", created_at: "2026-01-01T00:00:00Z" },
-  { id: "c2", name: "Beta matter", description: null, status: "closed", created_at: "2026-01-02T00:00:00Z" },
+  {
+    id: "c1", name: "Alpha matter", description: "First case", status: "open",
+    created_at: "2026-01-01T00:00:00Z", document_count: 3, member_count: 1,
+  },
+  {
+    id: "c2", name: "Beta matter", description: null, status: "closed",
+    created_at: "2026-01-02T00:00:00Z", document_count: 0, member_count: 0,
+  },
 ];
 
 const INVITATION: api.CaseMemberOut = {
@@ -40,6 +47,10 @@ describe("Cases", () => {
     vi.clearAllMocks();
     vi.mocked(api.listCases).mockResolvedValue(CASES);
     vi.mocked(api.createCase).mockResolvedValue(CASES[0]);
+    vi.mocked(api.updateCaseStatus).mockImplementation(async (id, status) => ({
+      ...CASES.find((c) => c.id === id)!,
+      status,
+    }));
     vi.mocked(api.listMyCaseInvitations).mockResolvedValue([]);
   });
 
@@ -93,6 +104,53 @@ describe("Cases", () => {
     await screen.findByText("Alpha matter");
     fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
     expect(await screen.findByText("Export broke")).toBeInTheDocument();
+  });
+
+  it("filters by name/description as you type", async () => {
+    renderPage();
+    await screen.findByText("Alpha matter");
+    fireEvent.change(screen.getByLabelText("Search"), { target: { value: "beta" } });
+    expect(screen.queryByText("Alpha matter")).not.toBeInTheDocument();
+    expect(screen.getByText("Beta matter")).toBeInTheDocument();
+  });
+
+  it("filters by status via FilterChips", async () => {
+    renderPage();
+    await screen.findByText("Alpha matter");
+    fireEvent.click(screen.getByText("+ Add filter"));
+    fireEvent.click(screen.getByText("Open"));
+    expect(screen.getByText("Alpha matter")).toBeInTheDocument();
+    expect(screen.queryByText("Beta matter")).not.toBeInTheDocument();
+  });
+
+  it("switches to table view and shows document/member counts", async () => {
+    renderPage();
+    await screen.findByText("Alpha matter");
+    fireEvent.click(screen.getByRole("button", { name: "Table" }));
+    const row = screen.getByText("Alpha matter").closest("tr")!;
+    expect(row).toHaveTextContent("3");
+    expect(row).toHaveTextContent("1");
+  });
+
+  it("bulk-closes selected open cases and refetches", async () => {
+    renderPage();
+    await screen.findByText("Alpha matter");
+    fireEvent.click(screen.getByRole("button", { name: "Table" }));
+    const row = screen.getByText("Alpha matter").closest("tr")!;
+    fireEvent.click(row.querySelector("input[type=checkbox]")!);
+    fireEvent.click(screen.getByRole("button", { name: "Close selected" }));
+    await waitFor(() => expect(api.updateCaseStatus).toHaveBeenCalledWith("c1", "closed"));
+  });
+
+  it("bulk-close is a no-op for rows already closed", async () => {
+    renderPage();
+    await screen.findByText("Alpha matter");
+    fireEvent.click(screen.getByRole("button", { name: "Table" }));
+    const row = screen.getByText("Beta matter").closest("tr")!;
+    fireEvent.click(row.querySelector("input[type=checkbox]")!);
+    fireEvent.click(screen.getByRole("button", { name: "Close selected" }));
+    await waitFor(() => expect(screen.queryByText("1 selected")).not.toBeInTheDocument());
+    expect(api.updateCaseStatus).not.toHaveBeenCalled();
   });
 
   it("shows a pending-invitations banner and accepts an invitation", async () => {

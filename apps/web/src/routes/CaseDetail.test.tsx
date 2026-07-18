@@ -28,6 +28,8 @@ const CASE: api.CaseDashboardOut = {
   description: "First case",
   status: "open",
   created_at: "2026-01-01T00:00:00Z",
+  document_count: 0,
+  member_count: 0,
   documents: [],
   tasks: [],
   decisions: [],

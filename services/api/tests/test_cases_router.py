@@ -33,7 +33,31 @@ async def test_create_and_get_case(client):
     assert body["documents"] == []
     assert body["tasks"] == []
     assert body["decisions"] == []
+    assert body["document_count"] == 0
+    assert body["member_count"] == 0
     assert body["appointments"] == []
+
+
+async def test_list_cases_includes_document_and_member_counts(client):
+    owner_token = await _login(client, "caserouteruser28")
+    owner_headers = {"Authorization": f"Bearer {owner_token}"}
+    member_token = await _login(client, "caserouteruser29")
+    member_id = await _user_id_for("caserouteruser29")
+
+    create_response = await client.post("/cases", headers=owner_headers, json={"name": "A case"})
+    case_id = create_response.json()["id"]
+    assert create_response.json()["document_count"] == 0
+    assert create_response.json()["member_count"] == 0
+
+    document = await _create_document(await _user_id_for("caserouteruser28"))
+    await client.put(f"/documents/{document.id}/case", headers=owner_headers, json={"case_id": case_id})
+    await client.post(f"/cases/{case_id}/members", headers=owner_headers, json={"user_id": str(member_id)})
+    await client.post(f"/cases/{case_id}/members/{member_id}/accept", headers={"Authorization": f"Bearer {member_token}"})
+
+    list_response = await client.get("/cases", headers=owner_headers)
+    matching = [c for c in list_response.json() if c["id"] == case_id][0]
+    assert matching["document_count"] == 1
+    assert matching["member_count"] == 1
 
 
 async def test_case_dashboard_includes_appointments_linked_via_case_id(client):

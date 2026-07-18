@@ -383,6 +383,8 @@ export interface CaseOut {
   description: string | null;
   status: string;
   created_at: string;
+  document_count: number;
+  member_count: number;
 }
 
 export interface CaseDashboardOut extends CaseOut {
