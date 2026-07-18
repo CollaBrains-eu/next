@@ -14,7 +14,7 @@ user, via the existing auto-provision-on-first-login path in api.auth.
 import secrets
 from dataclasses import dataclass
 
-from ldap3 import HASHED_SALTED_SHA, MODIFY_ADD, Connection, Server
+from ldap3 import HASHED_SALTED_SHA, MODIFY_ADD, MODIFY_REPLACE, Connection, Server
 from ldap3.utils.hashed import hashed
 
 from api.config import settings
@@ -137,3 +137,59 @@ def create_user(*, username: str, display_name: str, email: str, is_admin: bool)
         return LdapUserCreated(username=username, temporary_password=temporary_password)
     finally:
         conn.unbind()
+
+
+def set_password(*, username: str) -> str:
+    """Admin-bind password reset (Admin Dashboard). Generates a fresh
+    temporary password -- never admin-typed, same rationale as
+    create_user's password generation -- and overwrites userPassword.
+    Returns the new password once; it is never stored or logged. Raises
+    LdapAdminError if the user doesn't exist or the modify fails."""
+    admin_dn = f"cn=admin,{settings.ldap_base_dn}"
+    server = Server(settings.ldap_url)
+    conn = Connection(server, user=admin_dn, password=settings.ldap_admin_password)
+
+    if not conn.bind():
+        raise LdapAdminError("could not bind as LDAP admin")
+
+    try:
+        user_dn = settings.ldap_bind_dn_template.format(username=username)
+        conn.search(search_base=user_dn, search_filter="(objectClass=inetOrgPerson)", attributes=["uid"])
+        if not conn.entries:
+            raise LdapAdminError(f"user {username!r} does not exist")
+
+        temporary_password = secrets.token_urlsafe(12)
+        password_hash = hashed(HASHED_SALTED_SHA, temporary_password)
+        modified = conn.modify(user_dn, {"userPassword": [(MODIFY_REPLACE, [password_hash])]})
+        if not modified:
+            raise LdapAdminError(conn.result.get("description", "LDAP password modify failed"))
+
+        return temporary_password
+    finally:
+        conn.unbind()
+
+
+def delete_user(*, username: str) -> None:
+    """Admin-bind LDAP entry delete (Admin Dashboard "deactivate"). Does
+    not touch Postgres -- callers pair this with User.is_active = False.
+    Raises LdapAdminError (message containing "does not exist") if
+    there's no such entry, or on any other directory-reported failure."""
+    admin_dn = f"cn=admin,{settings.ldap_base_dn}"
+    server = Server(settings.ldap_url)
+    conn = Connection(server, user=admin_dn, password=settings.ldap_admin_password)
+
+    if not conn.bind():
+        raise LdapAdminError("could not bind as LDAP admin")
+
+    try:
+        user_dn = settings.ldap_bind_dn_template.format(username=username)
+        conn.search(search_base=user_dn, search_filter="(objectClass=inetOrgPerson)", attributes=["uid"])
+        if not conn.entries:
+            raise LdapAdminError(f"user {username!r} does not exist")
+
+        deleted = conn.delete(user_dn)
+        if not deleted:
+            raise LdapAdminError(conn.result.get("description", "LDAP delete failed"))
+    finally:
+        conn.unbind()
+
