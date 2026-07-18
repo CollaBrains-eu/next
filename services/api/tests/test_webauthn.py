@@ -3,6 +3,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from jose import jwt
+from webauthn.helpers import base64url_to_bytes
 
 from api.config import settings
 from api.ldap_auth import LdapIdentity
@@ -79,6 +80,37 @@ async def test_register_complete_creates_credential(client):
     assert listing.status_code == 200
     labels = [row["label"] for row in listing.json()]
     assert "My Laptop" in labels
+
+
+async def test_register_complete_passes_the_exact_challenge_bytes_to_verification(client):
+    """Regression test for a bug where the Redis client (missing
+    decode_responses=True) returned the cached challenge as bytes, and
+    base64url_to_bytes() silently mis-decoded that bytes value (via str()
+    formatting) instead of raising -- corrupting expected_challenge on every
+    single registration. The other register/complete tests all mock
+    verify_registration_response's return value without inspecting what it
+    was called with, so they can't catch this class of bug."""
+    username = _unique("passkeychallengetype")
+    token = await _login(client, username)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    begin = await client.post("/auth/webauthn/register/begin", headers=headers)
+    expected_challenge_bytes = base64url_to_bytes(begin.json()["challenge"])
+
+    captured_kwargs = {}
+
+    def fake_verify(**kwargs):
+        captured_kwargs.update(kwargs)
+        return _fake_verified_registration()
+
+    with patch("api.webauthn_router.verify_registration_response", side_effect=fake_verify):
+        complete = await client.post(
+            "/auth/webauthn/register/complete",
+            headers=headers,
+            json={"credential": {"id": "x", "rawId": "x", "response": {}}},
+        )
+    assert complete.status_code == 200
+    assert captured_kwargs["expected_challenge"] == expected_challenge_bytes
 
 
 async def test_credentials_list_is_scoped_to_current_user(client):
@@ -183,6 +215,43 @@ async def test_login_complete_issues_a_valid_token_and_updates_sign_count(client
 
     listing = await client.get("/auth/webauthn/credentials", headers=headers)
     assert listing.json()[0]["last_used_at"] is not None
+
+
+async def test_login_complete_passes_the_exact_challenge_bytes_to_verification(client):
+    """Same regression as test_register_complete_passes_the_exact_challenge_bytes_to_verification,
+    but for the login ceremony's separate Redis key/getdel call."""
+    from webauthn.helpers import bytes_to_base64url
+
+    username = _unique("passkeyloginchallengetype")
+    token = await _login(client, username)
+    headers = {"Authorization": f"Bearer {token}"}
+    raw_credential_id = _unique_credential_id()
+
+    await client.post("/auth/webauthn/register/begin", headers=headers)
+    with patch(
+        "api.webauthn_router.verify_registration_response",
+        return_value=_fake_verified_registration(credential_id=raw_credential_id),
+    ):
+        await client.post("/auth/webauthn/register/complete", headers=headers, json={"credential": {"id": "x"}})
+
+    begin = await client.post("/auth/webauthn/login/begin")
+    session_key = begin.json()["session_key"]
+    expected_challenge_bytes = base64url_to_bytes(begin.json()["challenge"])
+    encoded_id = bytes_to_base64url(raw_credential_id)
+
+    captured_kwargs = {}
+
+    def fake_verify(**kwargs):
+        captured_kwargs.update(kwargs)
+        return _fake_verified_authentication(credential_id=raw_credential_id)
+
+    with patch("api.webauthn_router.verify_authentication_response", side_effect=fake_verify):
+        complete = await client.post(
+            "/auth/webauthn/login/complete",
+            json={"session_key": session_key, "credential": {"id": encoded_id, "rawId": encoded_id}},
+        )
+    assert complete.status_code == 200
+    assert captured_kwargs["expected_challenge"] == expected_challenge_bytes
 
 
 async def test_login_complete_challenge_is_single_use(client):
