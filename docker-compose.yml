@@ -204,7 +204,7 @@ services:
     restart: unless-stopped
     profiles: ["signal"]
     environment:
-      MODE: native
+      MODE: json-rpc
     volumes:
       - ./infra/signal-cli:/home/.local/share/signal-cli
     ports:

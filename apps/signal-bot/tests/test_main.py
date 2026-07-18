@@ -246,3 +246,63 @@ def test_handle_attachment_message_replies_unlinked_when_sender_unresolved(monke
     main.handle_attachment_message(client, "some-uuid", [{"id": "a1"}], None)
 
     assert sent == [("some-uuid", main.UNLINKED_REPLY)]
+
+
+def test_receive_ws_url_uses_ws_scheme_and_encodes_the_plus_sign():
+    assert main._receive_ws_url() == "ws://signal-cli:8080/v1/receive/%2B15550001111"
+
+
+def test_handle_envelope_skips_envelopes_that_failed_to_decrypt(monkeypatch):
+    """A signal-cli UntrustedIdentityException (or any other decrypt failure)
+    arrives over the websocket as an `exception` field on the envelope
+    instead of a dataMessage -- this must not be treated as a text message
+    or attachment, and must not crash the loop (ADR 0008)."""
+    client = MagicMock()
+    handled = []
+    monkeypatch.setattr(main, "handle_text_message", lambda c, sender, text: handled.append((sender, text)))
+    monkeypatch.setattr(
+        main, "handle_attachment_message", lambda c, sender, attachments, caption: handled.append("attachment")
+    )
+
+    envelope = {
+        "exception": {"message": "Untrusted identity: some-uuid", "type": "UntrustedIdentityException"},
+        "envelope": {"sourceNumber": "+15559998888"},
+        "account": "+15550001111",
+    }
+    main.handle_envelope(client, envelope)
+
+    assert handled == []
+
+
+def test_stream_envelopes_yields_one_dict_per_frame(monkeypatch):
+    frames = [
+        '{"envelope": {"sourceNumber": "+15559998888", "dataMessage": {"message": "hi"}}}',
+        "",
+        '{"envelope": {"sourceNumber": "+15559998888", "typingMessage": {"action": "STARTED"}}}',
+    ]
+
+    class FakeWebSocket:
+        def __init__(self):
+            self._frames = list(frames)
+
+        def recv(self):
+            if not self._frames:
+                raise main.websocket.WebSocketTimeoutException("no more frames")
+            return self._frames.pop(0)
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(main.websocket, "create_connection", lambda url, timeout: FakeWebSocket())
+
+    received = []
+    try:
+        for envelope in main.stream_envelopes():
+            received.append(envelope)
+    except main.websocket.WebSocketTimeoutException:
+        pass
+
+    assert received == [
+        {"envelope": {"sourceNumber": "+15559998888", "dataMessage": {"message": "hi"}}},
+        {"envelope": {"sourceNumber": "+15559998888", "typingMessage": {"action": "STARTED"}}},
+    ]

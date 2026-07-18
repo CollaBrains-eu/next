@@ -1,10 +1,15 @@
 """Signal bot: text-chat and document-upload bridge for CollaBrains.
 
-Polls signal-cli-rest-api for incoming messages, resolves the sender's
-phone number (Signal's sealed-sender behavior often only gives us a UUID,
-so a `/v1/contacts` lookup is needed -- see
+Connects to signal-cli-rest-api's /v1/receive websocket (json-rpc mode --
+see docs/adr/0008-phase3d-signal-jsonrpc-mode.md for why: native mode's
+plain HTTP polling was found to silently drop messages it couldn't
+decrypt, e.g. after an UntrustedIdentityException, with no error surfaced
+anywhere -- the websocket stream reports these as an `exception` field on
+the envelope instead of hiding them), resolves the sender's phone number
+(Signal's sealed-sender behavior often only gives us a UUID, so a
+`/v1/contacts` lookup is needed -- see
 docs/adr/0006-phase3b-signal-identity-linking.md), and either:
-  - forwards a text message to /chat and replies with the answer, or
+  - forwards a text message to /manager/ask and replies with the answer, or
   - downloads an attachment and uploads it to /documents, acknowledging
     receipt immediately (docs/adr/0007-phase3c-signal-attachments-notifications.md).
     The document pipeline notifies the sender on Signal itself once
@@ -12,12 +17,14 @@ docs/adr/0006-phase3b-signal-identity-linking.md), and either:
 Unlinked numbers get a clear explanation instead of a generic error, for
 either kind of message.
 """
+import json
 import logging
 import os
 import time
 import urllib.parse
 
 import httpx
+import websocket
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("signal_bot")
@@ -26,7 +33,7 @@ SIGNAL_CLI_URL = os.environ.get("SIGNAL_CLI_URL", "http://signal-cli:8080")
 SIGNAL_PHONE_NUMBER = os.environ["SIGNAL_PHONE_NUMBER"]
 COLLABRAINS_API_URL = os.environ.get("COLLABRAINS_API_URL", "http://api:8000")
 SIGNAL_BOT_API_TOKEN = os.environ["SIGNAL_BOT_API_TOKEN"]
-POLL_INTERVAL_SECONDS = float(os.environ.get("SIGNAL_POLL_INTERVAL_SECONDS", "3"))
+RECONNECT_DELAY_SECONDS = float(os.environ.get("SIGNAL_POLL_INTERVAL_SECONDS", "3"))
 # A sealed-sender envelope can arrive before signal-cli's own contact sync
 # has recorded that UUID's phone number yet -- retrying a few times with a
 # short delay covers that race instead of prematurely telling an
@@ -56,14 +63,13 @@ def _receive_url() -> str:
     return f"{SIGNAL_CLI_URL}/v1/receive/{_encoded_number()}"
 
 
+def _receive_ws_url() -> str:
+    ws_base = SIGNAL_CLI_URL.replace("https://", "wss://", 1).replace("http://", "ws://", 1)
+    return f"{ws_base}/v1/receive/{_encoded_number()}"
+
+
 def _auth_headers(phone_number: str) -> dict:
     return {"Authorization": f"Bearer {SIGNAL_BOT_API_TOKEN}", "X-On-Behalf-Of-Phone": phone_number}
-
-
-def fetch_messages(client: httpx.Client) -> list[dict]:
-    response = client.get(_receive_url(), timeout=30.0)
-    response.raise_for_status()
-    return response.json()
 
 
 def extract_message(envelope: dict) -> tuple[str, str] | None:
@@ -235,6 +241,11 @@ def send_reply(client: httpx.Client, recipient: str, text: str) -> None:
 
 
 def handle_envelope(client: httpx.Client, envelope: dict) -> None:
+    exception = envelope.get("exception")
+    if exception:
+        logger.warning("skipping envelope that failed to decrypt: %s", exception)
+        return
+
     attachment_parsed = extract_attachments(envelope)
     if attachment_parsed is not None:
         sender, attachments, caption = attachment_parsed
@@ -249,16 +260,36 @@ def handle_envelope(client: httpx.Client, envelope: dict) -> None:
         handle_text_message(client, sender, text)
 
 
+def stream_envelopes():
+    """Connects to the /v1/receive websocket and yields one envelope dict per frame.
+
+    A blank/unparseable frame is skipped rather than raised, since
+    signal-cli-rest-api sends occasional keepalive frames on this
+    connection."""
+    ws = websocket.create_connection(_receive_ws_url(), timeout=60)
+    try:
+        while True:
+            raw = ws.recv()
+            if not raw:
+                continue
+            try:
+                yield json.loads(raw)
+            except json.JSONDecodeError:
+                logger.warning("skipping unparseable websocket frame: %r", raw)
+    finally:
+        ws.close()
+
+
 def run() -> None:
-    logger.info("signal-bot starting, number=%s, polling every %ss", SIGNAL_PHONE_NUMBER, POLL_INTERVAL_SECONDS)
+    logger.info("signal-bot starting, number=%s, connecting via websocket", SIGNAL_PHONE_NUMBER)
     with httpx.Client() as client:
         while True:
             try:
-                for envelope in fetch_messages(client):
+                for envelope in stream_envelopes():
                     handle_envelope(client, envelope)
             except Exception:
-                logger.exception("poll cycle failed, will retry")
-            time.sleep(POLL_INTERVAL_SECONDS)
+                logger.exception("websocket connection failed, reconnecting in %ss", RECONNECT_DELAY_SECONDS)
+            time.sleep(RECONNECT_DELAY_SECONDS)
 
 
 if __name__ == "__main__":
