@@ -40,7 +40,8 @@
     "recentCasesEmpty": "No cases yet.",
     "systemStatusTitle": "System status",
     "systemStatusEmpty": "All systems nominal.",
-    "viewAll": "View all →"
+    "viewAll": "View all →",
+    "myTasksOverdue": "Overdue"
   },
   "alerts": {
     "title": "Alerts",

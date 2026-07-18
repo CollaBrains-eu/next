@@ -143,6 +143,24 @@ describe("Dashboard", () => {
     expect(await screen.findByText("System status")).toBeInTheDocument();
     expect(await screen.findByText("All systems nominal.")).toBeInTheDocument();
   });
+
+  it("shows an overdue indicator in the My-tasks widget header when a loaded task is overdue", async () => {
+    vi.mocked(api.listTasks).mockResolvedValue([
+      { id: "t1", document_id: null, title: "Review lease", description: null, due_date: "2020-01-01", assignee: null, status: "open", position: 0, source: "manual", created_at: "2026-01-01T00:00:00Z" },
+    ]);
+    renderPage();
+    expect(await screen.findByText("Review lease")).toBeInTheDocument();
+    expect(screen.getByTestId("my-tasks-overdue-indicator")).toHaveTextContent("Overdue");
+  });
+
+  it("hides the overdue indicator when no loaded task is overdue", async () => {
+    vi.mocked(api.listTasks).mockResolvedValue([
+      { id: "t1", document_id: null, title: "Review lease", description: null, due_date: "2099-06-15", assignee: null, status: "open", position: 0, source: "manual", created_at: "2026-01-01T00:00:00Z" },
+    ]);
+    renderPage();
+    expect(await screen.findByText("Review lease")).toBeInTheDocument();
+    expect(screen.queryByTestId("my-tasks-overdue-indicator")).not.toBeInTheDocument();
+  });
 });
 
 describe("getGreetingKey", () => {

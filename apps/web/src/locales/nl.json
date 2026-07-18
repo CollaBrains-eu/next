@@ -40,7 +40,8 @@
     "recentCasesEmpty": "Nog geen zaken.",
     "systemStatusTitle": "Systeemstatus",
     "systemStatusEmpty": "Alle systemen operationeel.",
-    "viewAll": "Alles bekijken →"
+    "viewAll": "Alles bekijken →",
+    "myTasksOverdue": "Te laat"
   },
   "alerts": {
     "title": "Meldingen",

@@ -40,7 +40,8 @@
     "recentCasesEmpty": "Noch keine Fälle.",
     "systemStatusTitle": "Systemstatus",
     "systemStatusEmpty": "Alle Systeme funktionsfähig.",
-    "viewAll": "Alle anzeigen →"
+    "viewAll": "Alle anzeigen →",
+    "myTasksOverdue": "Überfällig"
   },
   "alerts": {
     "title": "Benachrichtigungen",

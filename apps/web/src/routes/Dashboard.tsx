@@ -146,9 +146,16 @@ export default function Dashboard() {
           isEmpty={recentTasks.length === 0}
           emptyMessage={t("dashboard.myTasksEmpty")}
           actions={
-            <Link to="/tasks" className="text-xs text-accent hover:underline">
-              {t("dashboard.viewAll")}
-            </Link>
+            <>
+              {recentTasks.some((task) => task.due_date && taskUrgency(task.due_date).variant === "danger") && (
+                <Badge variant="danger" data-testid="my-tasks-overdue-indicator">
+                  {t("dashboard.myTasksOverdue")}
+                </Badge>
+              )}
+              <Link to="/tasks" className="text-xs text-accent hover:underline">
+                {t("dashboard.viewAll")}
+              </Link>
+            </>
           }
         >
           <ul className="flex flex-col gap-2">
