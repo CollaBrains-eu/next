@@ -66,6 +66,25 @@ async def detect_conflicts(
     return list(result.scalars().all())
 
 
+async def get_current_facts(db: AsyncSession, *, user_id: UUID) -> list[UserFact]:
+    """Confirmed facts valid right now (Phase 26 read path -- extraction
+    and review already existed; nothing consumed the result until this).
+    Only status == "confirmed": a pending_review fact could be a bad
+    extraction, which is exactly what the review step exists to catch."""
+    today = date.today()
+    result = await db.execute(
+        select(UserFact)
+        .where(
+            UserFact.user_id == user_id,
+            UserFact.status == "confirmed",
+            UserFact.valid_from <= today,
+            or_(UserFact.valid_to.is_(None), UserFact.valid_to >= today),
+        )
+        .order_by(UserFact.fact_type)
+    )
+    return list(result.scalars().all())
+
+
 async def extract_facts_from_document(
     db: AsyncSession, *, document_id: UUID, text: str, user_id: UUID,
 ) -> list[UserFact]:
