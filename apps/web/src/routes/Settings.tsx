@@ -3,11 +3,36 @@ import { useTranslation } from "react-i18next";
 import { AddressHistory } from "../components/AddressHistory";
 import Card from "../components/Card";
 import { PasskeySettings } from "../components/PasskeySettings";
+import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
-import { ApiError, getPreferences, setPreferences } from "../lib/api";
-import { syncLanguage } from "../lib/auth";
+import { Combobox, type ComboboxOption } from "../components/ui/Combobox";
+import {
+  ApiError,
+  getOrganization,
+  getPreferences,
+  listOrganizationMembers,
+  renameOrganization,
+  setOrganizationPolicies,
+  setPreferences,
+  type OrganizationMemberOut,
+} from "../lib/api";
+import { syncLanguage, useAuth } from "../lib/auth";
 import { toDateFormatPrefs, type DateFormat, type TimeFormat } from "../lib/dateFormat";
 import { setDateFormatPrefs } from "../hooks/useDateFormat";
+import { useToast } from "../lib/toast";
+
+// The full goal-type vocabulary planning_engine.build_steps() recognizes --
+// APPROVAL_REQUIRED_GOALS is only the *default* subset of these that
+// require approval, not the set of choices an org can pick from.
+const GOAL_TYPES = [
+  "summarize_case",
+  "analyze_new_upload",
+  "draft_legal_document",
+  "prepare_objection",
+  "draft_communication",
+  "organize_document_collection",
+  "generate_timeline",
+];
 
 export default function Settings() {
   const { t } = useTranslation();
@@ -155,6 +180,124 @@ export default function Settings() {
         </div>
         <AddressHistory />
       </div>
+
+      <OrganizationSection />
     </div>
+  );
+}
+
+function OrganizationSection() {
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  const { showToast } = useToast();
+  const isAdmin = user?.role === "admin";
+
+  const [name, setName] = useState("");
+  const [approvalRequiredGoals, setApprovalRequiredGoals] = useState<ComboboxOption[]>([]);
+  const [members, setMembers] = useState<OrganizationMemberOut[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const goalOptions: ComboboxOption[] = GOAL_TYPES.map((id) => ({ id, label: t(`settings.orgGoalType.${id}`) }));
+
+  useEffect(() => {
+    Promise.all([getOrganization(), listOrganizationMembers()])
+      .then(([org, memberList]) => {
+        setName(org.name);
+        const approved = org.policies.approval_required_goals;
+        const selectedIds = Array.isArray(approved) ? approved.filter((id): id is string => typeof id === "string") : [];
+        setApprovalRequiredGoals(goalOptions.filter((option) => selectedIds.includes(option.id)));
+        setMembers(memberList);
+      })
+      .catch((err) => setError(err instanceof ApiError ? err.message : t("settings.orgLoadError")))
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function handleSave() {
+    setSaving(true);
+    setSaved(false);
+    setError(null);
+    try {
+      await renameOrganization(name);
+      await setOrganizationPolicies({ approval_required_goals: approvalRequiredGoals.map((o) => o.id) });
+      setSaved(true);
+      showToast(t("settings.orgSaved"));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("settings.orgSaveError"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card className="flex max-w-md flex-col gap-3">
+      <h2 className="text-lg font-semibold text-ink">{t("settings.orgTitle")}</h2>
+
+      {loading ? (
+        <p className="text-sm text-ink-3">{t("common.loading")}</p>
+      ) : (
+        <>
+          <div>
+            <label className="text-sm font-medium text-ink" htmlFor="org-name">
+              {t("settings.orgNameLabel")}
+            </label>
+            {isAdmin ? (
+              <input
+                id="org-name"
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setSaved(false);
+                }}
+                className="mt-1 w-full rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft"
+              />
+            ) : (
+              <p className="mt-1 text-sm text-ink">{name}</p>
+            )}
+          </div>
+
+          {isAdmin && (
+            <div>
+              <label className="text-sm font-medium text-ink">{t("settings.orgApprovalRequiredLabel")}</label>
+              <p className="mb-1 text-xs text-ink-3">{t("settings.orgApprovalRequiredHint")}</p>
+              <Combobox
+                options={goalOptions}
+                selected={approvalRequiredGoals}
+                onChange={(next) => {
+                  setApprovalRequiredGoals(next);
+                  setSaved(false);
+                }}
+                placeholder={t("settings.orgApprovalRequiredPlaceholder")}
+              />
+            </div>
+          )}
+
+          <div>
+            <span className="text-sm font-medium text-ink">{t("settings.orgMembersLabel")}</span>
+            <ul className="mt-1 flex flex-col gap-1.5">
+              {members?.map((member) => (
+                <li key={member.id} className="flex items-center justify-between gap-2 text-sm text-ink">
+                  <span>
+                    {member.display_name} <span className="text-ink-3">({member.username})</span>
+                  </span>
+                  <Badge variant={member.role === "admin" ? "warning" : "default"}>{member.role}</Badge>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {error && <p className="text-sm text-danger">{error}</p>}
+          {saved && <p className="text-sm text-success">{t("settings.saved")}</p>}
+          {isAdmin && (
+            <Button onClick={handleSave} disabled={saving} className="self-start">
+              {t("settings.save")}
+            </Button>
+          )}
+        </>
+      )}
+    </Card>
   );
 }

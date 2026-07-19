@@ -470,7 +470,25 @@
     "loadError": "Kon voorkeuren niet laden",
     "saveError": "Kon voorkeuren niet opslaan",
     "saved": "Opgeslagen.",
-    "save": "Opslaan"
+    "save": "Opslaan",
+    "orgTitle": "Organisatie",
+    "orgLoadError": "Kon organisatie niet laden",
+    "orgNameLabel": "Naam",
+    "orgApprovalRequiredLabel": "Doelen die goedkeuring vereisen",
+    "orgApprovalRequiredHint": "AI-gegenereerde resultaten voor deze doeltypen moeten worden goedgekeurd voordat ze van kracht worden.",
+    "orgApprovalRequiredPlaceholder": "Zoek doeltypen…",
+    "orgMembersLabel": "Leden",
+    "orgSaved": "Organisatie-instellingen opgeslagen.",
+    "orgSaveError": "Kon organisatie-instellingen niet opslaan",
+    "orgGoalType": {
+      "summarize_case": "Zaak samenvatten",
+      "analyze_new_upload": "Nieuwe upload analyseren",
+      "draft_legal_document": "Juridisch document opstellen",
+      "prepare_objection": "Bezwaar voorbereiden",
+      "draft_communication": "Bericht opstellen",
+      "organize_document_collection": "Documentverzameling organiseren",
+      "generate_timeline": "Tijdlijn genereren"
+    }
   },
   "phonePrompt": {
     "title": "Stel uw telefoonnummer in",

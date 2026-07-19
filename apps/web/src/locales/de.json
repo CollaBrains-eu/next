@@ -470,7 +470,25 @@
     "loadError": "Einstellungen konnten nicht geladen werden",
     "saveError": "Einstellungen konnten nicht gespeichert werden",
     "saved": "Gespeichert.",
-    "save": "Speichern"
+    "save": "Speichern",
+    "orgTitle": "Organisation",
+    "orgLoadError": "Organisation konnte nicht geladen werden",
+    "orgNameLabel": "Name",
+    "orgApprovalRequiredLabel": "Genehmigungspflichtige Ziele",
+    "orgApprovalRequiredHint": "KI-generierte Ergebnisse für diese Zieltypen müssen vor der Anwendung genehmigt werden.",
+    "orgApprovalRequiredPlaceholder": "Zieltypen suchen…",
+    "orgMembersLabel": "Mitglieder",
+    "orgSaved": "Organisationseinstellungen gespeichert.",
+    "orgSaveError": "Organisationseinstellungen konnten nicht gespeichert werden",
+    "orgGoalType": {
+      "summarize_case": "Fall zusammenfassen",
+      "analyze_new_upload": "Neuen Upload analysieren",
+      "draft_legal_document": "Rechtsdokument entwerfen",
+      "prepare_objection": "Einspruch vorbereiten",
+      "draft_communication": "Nachricht entwerfen",
+      "organize_document_collection": "Dokumentensammlung organisieren",
+      "generate_timeline": "Zeitleiste erstellen"
+    }
   },
   "phonePrompt": {
     "title": "Telefonnummer festlegen",

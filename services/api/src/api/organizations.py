@@ -7,6 +7,7 @@ tenant isolation are explicitly deferred; see the ADR for why.
 """
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.models import Organization, User
@@ -17,6 +18,23 @@ async def get_organization_for_user(db: AsyncSession, user_id: UUID) -> Organiza
     if user is None:
         return None
     return await db.get(Organization, user.organization_id)
+
+
+async def list_organization_members(db: AsyncSession, organization_id: UUID) -> list[User]:
+    result = await db.execute(
+        select(User).where(User.organization_id == organization_id).order_by(User.username)
+    )
+    return list(result.scalars().all())
+
+
+async def rename_organization(db: AsyncSession, *, organization_id: UUID, name: str) -> Organization:
+    organization = await db.get(Organization, organization_id)
+    if organization is None:
+        raise ValueError(f"unknown organization: {organization_id}")
+    organization.name = name
+    await db.commit()
+    await db.refresh(organization)
+    return organization
 
 
 async def get_approval_required_goals(
