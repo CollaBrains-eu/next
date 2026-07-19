@@ -39,7 +39,7 @@ async def test_extract_tasks_persists_parsed_items(client):
         '[{"title": "Submit the report", "description": "Alice needs to submit it.", '
         '"due_date": "2026-08-01", "assignee": "Alice"}]'
     )
-    with patch("api.planner_agent.chat_completion", return_value=fake_llm_output):
+    with patch("api.planner_agent.chat_completion", return_value=fake_llm_output) as mock_completion:
         response = await client.post(f"/documents/{document_id}/extract-tasks", headers=headers)
 
     assert response.status_code == 200
@@ -49,6 +49,10 @@ async def test_extract_tasks_persists_parsed_items(client):
     assert tasks[0]["due_date"] == "2026-08-01"
     assert tasks[0]["assignee"] == "Alice"
     assert tasks[0]["source"] == "planner_agent"
+
+    from api.planner_agent import EXTRACTION_SCHEMA
+
+    assert mock_completion.call_args.kwargs["schema"] == EXTRACTION_SCHEMA
 
 
 async def test_extract_tasks_handles_unparseable_llm_output_gracefully(client):

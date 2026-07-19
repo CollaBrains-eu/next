@@ -86,6 +86,66 @@ async def test_chat_completion_sends_json_format_when_json_mode_enabled(monkeypa
     assert "format" not in captured_request["json"]
 
 
+async def test_chat_completion_sends_json_schema_as_format_when_schema_given(monkeypatch):
+    import httpx
+    from sqlalchemy import select
+
+    from api.ai_gateway import chat_completion
+    from api.db import async_session
+    from api.models import User
+
+    username = f"schema-test-user-{uuid.uuid4().hex[:8]}"
+    async with async_session() as db:
+        db.add(User(username=username, display_name="x", role="member"))
+        await db.commit()
+        result = await db.execute(select(User).where(User.username == username))
+        real_user_id = result.scalar_one().id
+
+    captured_request = {}
+    schema = {"type": "array", "items": {"type": "object", "properties": {"title": {"type": "string"}}}}
+
+    class FakeResponse:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"message": {"content": "[]"}, "prompt_eval_count": 1, "eval_count": 1}
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        async def post(self, url, json):
+            captured_request["json"] = json
+            return FakeResponse()
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+
+    # schema alone (no json_mode) should still constrain the output shape.
+    await chat_completion(
+        [{"role": "user", "content": "hi"}], user_id=real_user_id, endpoint="test.schema", schema=schema
+    )
+    assert captured_request["json"]["format"] == schema
+
+    # schema takes precedence over a bare json_mode=True passed alongside it.
+    await chat_completion(
+        [{"role": "user", "content": "hi"}],
+        user_id=real_user_id,
+        endpoint="test.schema_precedence",
+        json_mode=True,
+        schema=schema,
+    )
+    assert captured_request["json"]["format"] == schema
+
+
 async def test_chat_completion_with_tools_sends_tools_and_returns_full_message(monkeypatch):
     import httpx
     from sqlalchemy import select

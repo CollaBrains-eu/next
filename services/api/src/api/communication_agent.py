@@ -35,6 +35,16 @@ SYSTEM_PROMPT = (
 )
 
 
+DRAFT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "subject": {"type": ["string", "null"]},
+        "body": {"type": "string"},
+    },
+    "required": ["body"],
+}
+
+
 class CommunicationDraft(BaseModel):
     channel: str
     recipient: str
@@ -70,7 +80,7 @@ async def draft_communication(
             ),
         },
     ]
-    raw = await chat_completion(messages, user_id=user_id, endpoint="communication.draft", json_mode=True)
+    raw = await chat_completion(messages, user_id=user_id, endpoint="communication.draft", schema=DRAFT_SCHEMA)
 
     try:
         payload = json.loads(raw)

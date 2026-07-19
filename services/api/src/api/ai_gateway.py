@@ -45,6 +45,7 @@ async def _call_ollama(
     endpoint: str,
     model: str | None,
     json_mode: bool,
+    schema: dict[str, Any] | None,
     tools: list[dict[str, Any]] | None,
 ) -> dict[str, Any]:
     await _check_rate_limit(user_id)
@@ -59,7 +60,16 @@ async def _call_ollama(
         request_body: dict[str, Any] = {
             "model": chosen_model, "messages": messages, "stream": False, "think": False,
         }
-        if json_mode:
+        if schema is not None:
+            # Structured outputs (Ollama >=0.5): a real JSON schema, not just
+            # "some JSON" -- format="json" alone lets a model return a bare
+            # object where an array was asked for (or vice versa), which then
+            # fails an isinstance() check downstream and gets silently
+            # discarded. Confirmed live against this deployment's own models:
+            # both qwen2.5:3b-instruct and qwen3:8b did exactly this on an
+            # array-shaped prompt when only given format="json".
+            request_body["format"] = schema
+        elif json_mode:
             request_body["format"] = "json"
         if tools:
             request_body["tools"] = tools
@@ -92,18 +102,26 @@ async def chat_completion(
     endpoint: str,
     model: str | None = None,
     json_mode: bool = False,
+    schema: dict[str, Any] | None = None,
 ) -> str:
-    """Set json_mode=True for prompts that require valid JSON output.
+    """Set json_mode=True for prompts that require valid JSON output, or pass
+    `schema` (a JSON Schema dict) when the output has a specific shape --
+    schema is strictly stronger and implies json_mode, so callers with a
+    known shape should prefer it over bare json_mode=True.
 
-    Uses Ollama's grammar-constrained JSON decoding ("format": "json") rather
-    than relying on prompt instructions alone -- a small model asked only in
-    the prompt to "return JSON" can and does occasionally produce malformed
-    output (mismatched braces, missing closing brackets) on more complex
-    structures. Confirmed directly: the Entity Agent's extraction prompt
-    (docs/adr/0008-phase4-entity-graph.md) hit this on its first live test.
+    Uses Ollama's grammar-constrained JSON decoding rather than relying on
+    prompt instructions alone -- a small model asked only in the prompt to
+    "return JSON" can and does occasionally produce malformed output
+    (mismatched braces, missing closing brackets), or valid-but-wrong-shaped
+    JSON (an object where an array was asked for). Confirmed directly: the
+    Entity Agent's extraction prompt (docs/adr/0008-phase4-entity-graph.md)
+    hit the malformed-output case on its first live test; the wrong-shape
+    case was confirmed live against this deployment's own models while
+    diagnosing why task extraction silently produced nothing for real
+    documents.
     """
     message = await _call_ollama(
-        messages, user_id=user_id, endpoint=endpoint, model=model, json_mode=json_mode, tools=None,
+        messages, user_id=user_id, endpoint=endpoint, model=model, json_mode=json_mode, schema=schema, tools=None,
     )
     return message["content"]
 
@@ -127,5 +145,5 @@ async def chat_completion_with_tools(
     is out of scope here.
     """
     return await _call_ollama(
-        messages, user_id=user_id, endpoint=endpoint, model=model, json_mode=False, tools=tools,
+        messages, user_id=user_id, endpoint=endpoint, model=model, json_mode=False, schema=None, tools=tools,
     )

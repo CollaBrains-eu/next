@@ -5,7 +5,7 @@ from sqlalchemy import select
 
 from api.db import async_session
 from api.models import ReflectionLog, User
-from api.reflection import ReflectionResult, log_reflection, reflect
+from api.reflection import REFLECTION_SCHEMA, ReflectionResult, log_reflection, reflect
 
 
 async def _create_user(username: str) -> User:
@@ -23,7 +23,7 @@ async def test_reflect_parses_well_formed_json():
     with patch(
         "api.reflection.chat_completion",
         return_value='{"sufficient_evidence": false, "confidence": 30, "issues": ["no supporting excerpt"]}',
-    ):
+    ) as mock_completion:
         result = await reflect(
             question="What is the deadline?", answer="The deadline is next Friday.",
             context_text="(no relevant documents found)", user_id=user.id, endpoint="chat",
@@ -32,6 +32,7 @@ async def test_reflect_parses_well_formed_json():
     assert result.sufficient_evidence is False
     assert result.confidence == 30
     assert result.issues == ["no supporting excerpt"]
+    assert mock_completion.call_args.kwargs["schema"] == REFLECTION_SCHEMA
 
 
 async def test_reflect_falls_back_permissively_on_malformed_json():

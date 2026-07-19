@@ -43,6 +43,17 @@ worth remembering, return {{"should_remember": false, "memory_type": "episodic",
 User: {user_message}
 Assistant: {answer}"""
 
+EXTRACTION_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "should_remember": {"type": "boolean"},
+        "memory_type": {"type": "string", "enum": sorted(MEMORY_TYPES)},
+        "summary": {"type": "string"},
+        "importance": {"type": "integer"},
+    },
+    "required": ["should_remember", "memory_type", "summary", "importance"],
+}
+
 
 async def create_memory(
     db: AsyncSession,
@@ -136,7 +147,7 @@ async def maybe_create_memory_from_exchange(
     """
     prompt = EXTRACTION_PROMPT.format(user_message=user_message[:2000], answer=answer[:2000])
     raw = await chat_completion(
-        [{"role": "user", "content": prompt}], user_id=user_id, endpoint="memory.extract", json_mode=True
+        [{"role": "user", "content": prompt}], user_id=user_id, endpoint="memory.extract", schema=EXTRACTION_SCHEMA
     )
 
     try:

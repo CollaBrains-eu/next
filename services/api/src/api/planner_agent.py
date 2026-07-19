@@ -27,6 +27,20 @@ If there are no actionable tasks, return an empty array: []
 Document:
 {text}"""
 
+EXTRACTION_SCHEMA = {
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string"},
+            "description": {"type": ["string", "null"]},
+            "due_date": {"type": ["string", "null"]},
+            "assignee": {"type": ["string", "null"]},
+        },
+        "required": ["title"],
+    },
+}
+
 
 def _parse_due_date(value: str | None) -> date | None:
     if not value:
@@ -56,7 +70,7 @@ async def extract_tasks(
         [{"role": "user", "content": prompt}],
         user_id=user_id,
         endpoint="planner.extract_tasks",
-        json_mode=True,
+        schema=EXTRACTION_SCHEMA,
     )
 
     try:
