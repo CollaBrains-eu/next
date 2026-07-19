@@ -56,6 +56,41 @@ entities, return {{"entities": [], "relationships": []}}.
 Document:
 {text}"""
 
+EXTRACTION_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "entities": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "type": {"type": "string", "enum": ["organization", "address"]},
+                    "street": {"type": ["string", "null"]},
+                    "house_number": {"type": ["string", "null"]},
+                    "postal_code": {"type": ["string", "null"]},
+                    "city": {"type": ["string", "null"]},
+                    "country": {"type": ["string", "null"]},
+                },
+                "required": ["name", "type"],
+            },
+        },
+        "relationships": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "source": {"type": "string"},
+                    "target": {"type": "string"},
+                    "type": {"type": "string"},
+                },
+                "required": ["source", "target", "type"],
+            },
+        },
+    },
+    "required": ["entities", "relationships"],
+}
+
 
 def _normalize_address_key(item: dict) -> str:
     postal = str(item.get("postal_code") or "").strip().lower()
@@ -186,7 +221,7 @@ async def extract_entities(db: AsyncSession, *, document_id: UUID, text: str, us
         [{"role": "user", "content": prompt}],
         user_id=user_id,
         endpoint="entity.extract",
-        json_mode=True,
+        schema=EXTRACTION_SCHEMA,
     )
 
     try:

@@ -29,6 +29,16 @@ REFLECTION_SYSTEM_PROMPT = (
     "question, or if the answer makes claims the context does not support."
 )
 
+REFLECTION_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "sufficient_evidence": {"type": "boolean"},
+        "confidence": {"type": "integer"},
+        "issues": {"type": "array", "items": {"type": "string"}},
+    },
+    "required": ["sufficient_evidence", "confidence", "issues"],
+}
+
 
 @dataclass
 class ReflectionResult:
@@ -60,7 +70,9 @@ async def reflect(
         {"role": "system", "content": REFLECTION_SYSTEM_PROMPT},
         {"role": "user", "content": f"Question: {question}\n\nContext:\n{context_text}\n\nAnswer:\n{answer}"},
     ]
-    raw = await chat_completion(messages, user_id=user_id, endpoint=f"{endpoint}.reflection", json_mode=True)
+    raw = await chat_completion(
+        messages, user_id=user_id, endpoint=f"{endpoint}.reflection", schema=REFLECTION_SCHEMA
+    )
 
     try:
         parsed = json.loads(raw)

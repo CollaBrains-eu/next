@@ -3,7 +3,7 @@ from uuid import uuid4
 
 import pytest
 
-from api.communication_agent import draft_communication
+from api.communication_agent import DRAFT_SCHEMA, draft_communication
 from api.db import async_session
 from api.models import DocumentChunk
 from api.search_service import SearchHit
@@ -49,6 +49,7 @@ async def test_draft_communication_grounds_prompt_in_retrieved_context_only():
     # The retrieved chunk content must be part of what the model saw.
     sent_messages = mock_completion.call_args.args[0]
     assert any("APK expiry date" in m["content"] for m in sent_messages)
+    assert mock_completion.call_args.kwargs["schema"] == DRAFT_SCHEMA
 
 
 async def test_draft_communication_reports_insufficient_context_when_nothing_found():

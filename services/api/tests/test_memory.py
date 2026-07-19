@@ -7,6 +7,7 @@ from sqlalchemy import select
 from api.db import async_session
 from api.ldap_auth import LdapIdentity
 from api.memory import (
+    EXTRACTION_SCHEMA,
     create_memory,
     delete_memory,
     maybe_create_memory_from_exchange,
@@ -155,6 +156,19 @@ async def test_maybe_create_memory_skips_when_not_worth_remembering():
     async with async_session() as db:
         rows = (await db.execute(select(Memory).where(Memory.user_id == user.id))).scalars().all()
     assert rows == []
+
+
+async def test_maybe_create_memory_requests_the_json_schema():
+    user = await _make_user("mem-extract-schema-user")
+    fake_decision = '{"should_remember": false, "memory_type": "episodic", "summary": "", "importance": 0}'
+
+    with patch("api.memory.chat_completion", return_value=fake_decision) as mock_completion:
+        async with async_session() as db:
+            await maybe_create_memory_from_exchange(
+                db, user_id=user.id, user_message="What's the capital of France?", answer="Paris."
+            )
+
+    assert mock_completion.call_args.kwargs["schema"] == EXTRACTION_SCHEMA
 
 
 async def test_maybe_create_memory_persists_when_worth_remembering():

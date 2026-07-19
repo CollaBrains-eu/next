@@ -35,6 +35,27 @@ return {{"facts": []}}.
 Document:
 {text}"""
 
+EXTRACTION_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "facts": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "fact_type": {"type": "string"},
+                    "value": {"type": "string"},
+                    "valid_from": {"type": ["string", "null"]},
+                    "valid_to": {"type": ["string", "null"]},
+                    "confidence": {"type": "number"},
+                },
+                "required": ["fact_type", "value"],
+            },
+        },
+    },
+    "required": ["facts"],
+}
+
 
 def _parse_date(value: object) -> date | None:
     if not isinstance(value, str):
@@ -90,7 +111,7 @@ async def extract_facts_from_document(
 ) -> list[UserFact]:
     prompt = EXTRACTION_PROMPT.format(text=text[:8000])
     raw = await chat_completion(
-        [{"role": "user", "content": prompt}], user_id=user_id, endpoint="facts.extract", json_mode=True
+        [{"role": "user", "content": prompt}], user_id=user_id, endpoint="facts.extract", schema=EXTRACTION_SCHEMA
     )
 
     try:

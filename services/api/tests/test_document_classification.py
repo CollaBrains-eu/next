@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 from api.db import async_session
-from api.document_classification import classify_and_persist, classify_document
+from api.document_classification import CLASSIFICATION_SCHEMA, classify_and_persist, classify_document
 from api.models import Document, User
 
 FAKE_CLASSIFICATION = (
@@ -45,6 +45,15 @@ async def test_classify_document_returns_valid_parsed_output():
     assert result.tags == ["btw", "q3"]
     assert result.correspondent == "Acme BV"
     assert result.confidence == 0.87
+
+
+async def test_classify_document_requests_the_json_schema_not_bare_json_mode():
+    user = await _create_user(_unique("classifyschemauser"))
+    mock = AsyncMock(return_value=FAKE_CLASSIFICATION)
+    with patch("api.document_classification.chat_completion", mock):
+        await classify_document(text="Invoice #123 from Acme BV.", user_id=user.id)
+
+    assert mock.call_args.kwargs["schema"] == CLASSIFICATION_SCHEMA
 
 
 async def test_classify_document_returns_none_on_unparseable_output():

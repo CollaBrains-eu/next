@@ -35,6 +35,12 @@ CLARIFY_PROMPT = (
     "Title: {title}\nPage: {page_url}\nDescription: {description}"
 )
 
+CLARIFY_SCHEMA = {
+    "type": "object",
+    "properties": {"questions": {"type": "array", "items": {"type": "string"}}},
+    "required": ["questions"],
+}
+
 
 class AdminStats(BaseModel):
     total_users: int
@@ -288,7 +294,7 @@ async def generate_clarifying_questions(
         [{"role": "user", "content": prompt}],
         user_id=requesting_user_id,
         endpoint="admin.clarify_bug_report",
-        json_mode=True,
+        schema=CLARIFY_SCHEMA,
     )
     try:
         questions = json.loads(raw).get("questions", [])

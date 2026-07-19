@@ -42,13 +42,17 @@ async def test_extract_entities_persists_entities_mentions_and_relationships(cli
     headers = {"Authorization": f"Bearer {token}"}
     document_id = await _upload_ready_document(client, headers, "Sarah Miller represents Acme Corp.")
 
-    with patch("api.entity_agent.chat_completion", return_value=FAKE_EXTRACTION):
+    with patch("api.entity_agent.chat_completion", return_value=FAKE_EXTRACTION) as mock_completion:
         response = await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
 
     assert response.status_code == 200
     entities = response.json()
     assert {e["name"] for e in entities} == {"Sarah Miller", "Acme Corp"}
     assert {e["entity_type"] for e in entities} == {"organization"}
+
+    from api.entity_agent import EXTRACTION_SCHEMA
+
+    assert mock_completion.call_args.kwargs["schema"] == EXTRACTION_SCHEMA
 
 
 async def test_extract_entities_deduplicates_by_case_insensitive_name_and_type(client):

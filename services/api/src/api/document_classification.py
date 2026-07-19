@@ -32,6 +32,17 @@ name if identifiable, otherwise null. "confidence" is 0.0-1.0, your confidence i
 Document:
 {text}"""
 
+CLASSIFICATION_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "doc_type": {"type": "string", "enum": sorted(VALID_DOC_TYPES)},
+        "tags": {"type": "array", "items": {"type": "string"}},
+        "correspondent": {"type": ["string", "null"]},
+        "confidence": {"type": "number"},
+    },
+    "required": ["doc_type", "tags", "correspondent", "confidence"],
+}
+
 
 class DocumentClassification(BaseModel):
     doc_type: str
@@ -68,7 +79,10 @@ async def classify_document(*, text: str, user_id: UUID) -> DocumentClassificati
         doc_types=" | ".join(f'"{t}"' for t in sorted(VALID_DOC_TYPES)), text=text[:8000],
     )
     raw = await chat_completion(
-        [{"role": "user", "content": prompt}], user_id=user_id, endpoint="document.classify", json_mode=True
+        [{"role": "user", "content": prompt}],
+        user_id=user_id,
+        endpoint="document.classify",
+        schema=CLASSIFICATION_SCHEMA,
     )
     return _parse_classification(raw)
 

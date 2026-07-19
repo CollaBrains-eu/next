@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from api.db import async_session
 from api.models import Document, User, UserFact
-from api.user_facts import detect_conflicts, extract_facts_from_document, get_current_facts
+from api.user_facts import EXTRACTION_SCHEMA, detect_conflicts, extract_facts_from_document, get_current_facts
 
 FAKE_EXTRACTION = (
     '{"facts": [{"fact_type": "address", "value": "Kerkstraat 1, Amsterdam", '
@@ -49,7 +49,7 @@ async def _create_fact(
         return fact
 
 
-async def test_extract_facts_uses_json_mode():
+async def test_extract_facts_requests_the_json_schema():
     user = await _create_user(_unique("factuser"))
     doc = await _create_document(user.id)
     with patch("api.user_facts.chat_completion", AsyncMock(return_value=FAKE_EXTRACTION)) as mock_completion:
@@ -58,7 +58,7 @@ async def test_extract_facts_uses_json_mode():
                 db, document_id=doc.id, text="I moved to Kerkstraat 1 on Jan 1 2026.", user_id=user.id
             )
 
-    assert mock_completion.call_args.kwargs["json_mode"] is True
+    assert mock_completion.call_args.kwargs["schema"] == EXTRACTION_SCHEMA
     assert len(facts) == 1
     assert facts[0].fact_type == "address"
     assert facts[0].value == {"text": "Kerkstraat 1, Amsterdam"}

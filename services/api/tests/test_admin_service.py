@@ -6,8 +6,10 @@ import httpx
 import pytest
 
 from api.admin_service import (
+    CLARIFY_SCHEMA,
     analyze_bug_report,
     create_bug_report,
+    generate_clarifying_questions,
     get_admin_stats,
     get_ai_usage_report,
     get_service_health,
@@ -146,3 +148,19 @@ async def test_analyze_bug_report_returns_none_for_unknown_id():
     async with async_session() as db:
         result = await analyze_bug_report(db, bug_report_id=uuid4(), requesting_user_id=uuid4())
     assert result is None
+
+
+async def test_generate_clarifying_questions_requests_the_json_schema():
+    user = await _create_user(_unique("bugclarifyuser"))
+    async with async_session() as db:
+        created = await create_bug_report(db, user_id=user.id, description="things are broken sometimes")
+
+    with patch(
+        "api.admin_service.chat_completion", AsyncMock(return_value='{"questions": ["Which page?"]}')
+    ) as mock_completion:
+        async with async_session() as db:
+            result = await generate_clarifying_questions(db, bug_report_id=created.id, requesting_user_id=user.id)
+
+    assert result is not None
+    assert result[1] == ["Which page?"]
+    assert mock_completion.call_args.kwargs["schema"] == CLARIFY_SCHEMA
