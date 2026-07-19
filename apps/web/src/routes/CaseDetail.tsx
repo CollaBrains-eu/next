@@ -207,6 +207,7 @@ export default function CaseDetail() {
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="truncate text-2xl font-semibold text-ink">{caseData.name}</h1>
+          <p className="mt-1 text-xs text-ink-3">{t("caseDetail.ownedBy", { name: caseData.owner_display_name })}</p>
           {caseData.description && <p className="mt-1 text-sm text-ink-2">{caseData.description}</p>}
         </div>
         <Tooltip label="Toggle case status">

@@ -110,6 +110,16 @@ class Document(Base):
     )
     tags: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False, default=list)
     correspondent: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Correspondent address, same field set/lengths as AddressDetail (entities'
+    # own address side table) -- kept as flat columns here rather than a side
+    # table since a document has at most one correspondent, not a dedup'd,
+    # relationship-bearing graph node like Entity.
+    correspondent_street: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    correspondent_house_number: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    correspondent_po_box: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    correspondent_postal_code: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    correspondent_city: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    correspondent_country: Mapped[str | None] = mapped_column(String(100), nullable=True)
     classification_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     # Postgres text-search config name ('english'/'german'/'dutch'), detected
     # from ocr_text at ingestion -- see api.text_language. Drives both this

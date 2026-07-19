@@ -23,32 +23,77 @@ logger = logging.getLogger(__name__)
 CLASSIFICATION_PROMPT = """Classify the following document. Return ONLY a JSON object \
 (no prose, no markdown fences) with this shape:
 
-{{"doc_type": one of {doc_types}, \
-"tags": [str, ...], "correspondent": str|null, "confidence": float}}
+{{"doc_type": one of {doc_types}, "tags": [str, ...], "confidence": float, \
+"correspondent": {{"name": str|null, "street": str|null, "house_number": str|null, \
+"po_box": str|null, "postal_code": str|null, "city": str|null, "country": str|null}}}}
 
-"tags" should be short, lowercase keywords (max 5). "correspondent" is the sender/counterparty \
-name if identifiable, otherwise null. "confidence" is 0.0-1.0, your confidence in "doc_type".
+"tags" should be short, lowercase keywords (max 5). "confidence" is 0.0-1.0, your confidence \
+in "doc_type". "correspondent" is the sender/counterparty -- fill in whichever address fields \
+are identifiable in the document (e.g. a letterhead or footer) and null the rest; if no \
+correspondent is identifiable at all, return all of its fields as null.
 
 Document:
 {text}"""
+
+CORRESPONDENT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "name": {"type": ["string", "null"]},
+        "street": {"type": ["string", "null"]},
+        "house_number": {"type": ["string", "null"]},
+        "po_box": {"type": ["string", "null"]},
+        "postal_code": {"type": ["string", "null"]},
+        "city": {"type": ["string", "null"]},
+        "country": {"type": ["string", "null"]},
+    },
+    "required": ["name", "street", "house_number", "po_box", "postal_code", "city", "country"],
+}
 
 CLASSIFICATION_SCHEMA = {
     "type": "object",
     "properties": {
         "doc_type": {"type": "string", "enum": sorted(VALID_DOC_TYPES)},
         "tags": {"type": "array", "items": {"type": "string"}},
-        "correspondent": {"type": ["string", "null"]},
         "confidence": {"type": "number"},
+        "correspondent": CORRESPONDENT_SCHEMA,
     },
-    "required": ["doc_type", "tags", "correspondent", "confidence"],
+    "required": ["doc_type", "tags", "confidence", "correspondent"],
 }
+
+
+class CorrespondentAddress(BaseModel):
+    name: str | None
+    street: str | None
+    house_number: str | None
+    po_box: str | None
+    postal_code: str | None
+    city: str | None
+    country: str | None
 
 
 class DocumentClassification(BaseModel):
     doc_type: str
     tags: list[str]
-    correspondent: str | None
     confidence: float
+    correspondent: CorrespondentAddress
+
+
+def _clean_str(value: object, max_len: int) -> str | None:
+    return str(value)[:max_len] if value else None
+
+
+def _parse_correspondent(payload: object) -> CorrespondentAddress:
+    if not isinstance(payload, dict):
+        payload = {}
+    return CorrespondentAddress(
+        name=_clean_str(payload.get("name"), 255),
+        street=_clean_str(payload.get("street"), 255),
+        house_number=_clean_str(payload.get("house_number"), 20),
+        po_box=_clean_str(payload.get("po_box"), 20),
+        postal_code=_clean_str(payload.get("postal_code"), 20),
+        city=_clean_str(payload.get("city"), 255),
+        country=_clean_str(payload.get("country"), 100),
+    )
 
 
 def _parse_classification(raw: str) -> DocumentClassification | None:
@@ -63,12 +108,11 @@ def _parse_classification(raw: str) -> DocumentClassification | None:
     doc_type = payload.get("doc_type") if payload.get("doc_type") in VALID_DOC_TYPES else "other"
     tags = payload.get("tags")
     tags = [str(t)[:100] for t in tags][:5] if isinstance(tags, list) else []
-    correspondent = payload.get("correspondent")
-    correspondent = str(correspondent)[:255] if correspondent else None
     confidence = payload.get("confidence")
     confidence = float(confidence) if isinstance(confidence, (int, float)) and 0 <= confidence <= 1 else 0.0
+    correspondent = _parse_correspondent(payload.get("correspondent"))
 
-    return DocumentClassification(doc_type=doc_type, tags=tags, correspondent=correspondent, confidence=confidence)
+    return DocumentClassification(doc_type=doc_type, tags=tags, confidence=confidence, correspondent=correspondent)
 
 
 async def classify_document(*, text: str, user_id: UUID) -> DocumentClassification | None:
@@ -110,7 +154,13 @@ async def classify_and_persist(db: AsyncSession, *, document_id: UUID, text: str
 
     document.doc_type = result.doc_type
     document.tags = result.tags
-    document.correspondent = result.correspondent
+    document.correspondent = result.correspondent.name
+    document.correspondent_street = result.correspondent.street
+    document.correspondent_house_number = result.correspondent.house_number
+    document.correspondent_po_box = result.correspondent.po_box
+    document.correspondent_postal_code = result.correspondent.postal_code
+    document.correspondent_city = result.correspondent.city
+    document.correspondent_country = result.correspondent.country
     document.classification_confidence = result.confidence
     document.category_id = await _category_id_for_doc_type(db, result.doc_type)
     await db.commit()

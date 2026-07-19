@@ -258,9 +258,14 @@
     "deletedToast": "\"{{title}}\" verwijderd",
     "download": "Downloaden",
     "downloadError": "Downloaden mislukt",
-    "preview": "Voorbeeld"
+    "preview": "Voorbeeld",
+    "classification": "Classificatie",
+    "docType": "Documenttype",
+    "tags": "Labels",
+    "correspondent": "Correspondent"
   },
   "caseDetail": {
+    "ownedBy": "Eigenaar: {{name}}",
     "loadError": "Kon zaak niet laden",
     "updateError": "Kon zaak niet bijwerken",
     "attachError": "Kon item niet koppelen",

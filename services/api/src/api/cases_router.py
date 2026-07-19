@@ -98,6 +98,7 @@ class CaseDashboardOut(CaseOut):
     vehicles: list[CaseVehicleOut]
     appointments: list[CaseAppointmentOut]
     is_owner: bool
+    owner_display_name: str
 
 
 class DocumentCaseRequest(BaseModel):
@@ -223,6 +224,7 @@ async def get_case_endpoint(
     case = result["case"]
     await _require_case_access(db, case, current_user)
     document_count, member_count = await get_case_counts(db, case_id=case_id)
+    owner = await db.get(User, case.user_id)
 
     return CaseDashboardOut(
         id=case.id, name=case.name, description=case.description, status=case.status, created_at=case.created_at,
@@ -238,6 +240,7 @@ async def get_case_endpoint(
             CaseAppointmentOut(id=a.id, title=a.title, starts_at=a.starts_at) for a in result["appointments"]
         ],
         is_owner=case.user_id == current_user.id or current_user.role == "admin",
+        owner_display_name=owner.display_name if owner is not None else "",
     )
 
 
