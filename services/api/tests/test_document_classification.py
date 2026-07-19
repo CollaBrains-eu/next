@@ -6,7 +6,9 @@ from api.document_classification import CLASSIFICATION_SCHEMA, classify_and_pers
 from api.models import Document, User
 
 FAKE_CLASSIFICATION = (
-    '{"doc_type": "invoice", "tags": ["btw", "q3"], "correspondent": "Acme BV", "confidence": 0.87}'
+    '{"doc_type": "invoice", "tags": ["btw", "q3"], "confidence": 0.87, '
+    '"correspondent": {"name": "Acme BV", "street": "Hoofdstraat", "house_number": "12", '
+    '"po_box": null, "postal_code": "1234 AB", "city": "Amsterdam", "country": "Netherlands"}}'
 )
 
 
@@ -43,8 +45,14 @@ async def test_classify_document_returns_valid_parsed_output():
     assert result is not None
     assert result.doc_type == "invoice"
     assert result.tags == ["btw", "q3"]
-    assert result.correspondent == "Acme BV"
     assert result.confidence == 0.87
+    assert result.correspondent.name == "Acme BV"
+    assert result.correspondent.street == "Hoofdstraat"
+    assert result.correspondent.house_number == "12"
+    assert result.correspondent.po_box is None
+    assert result.correspondent.postal_code == "1234 AB"
+    assert result.correspondent.city == "Amsterdam"
+    assert result.correspondent.country == "Netherlands"
 
 
 async def test_classify_document_requests_the_json_schema_not_bare_json_mode():
@@ -97,6 +105,12 @@ async def test_classify_and_persist_updates_document_fields():
     assert updated is not None
     assert updated.doc_type == "invoice"
     assert updated.correspondent == "Acme BV"
+    assert updated.correspondent_street == "Hoofdstraat"
+    assert updated.correspondent_house_number == "12"
+    assert updated.correspondent_po_box is None
+    assert updated.correspondent_postal_code == "1234 AB"
+    assert updated.correspondent_city == "Amsterdam"
+    assert updated.correspondent_country == "Netherlands"
     assert updated.classification_confidence == 0.87
 
 

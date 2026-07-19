@@ -69,6 +69,7 @@ class DocumentOut(BaseModel):
     doc_type: str | None
     tags: list[str]
     correspondent: str | None
+    category_id: UUID | None
     created_at: datetime
     processed_at: datetime | None
 
@@ -77,6 +78,12 @@ class DocumentDetailOut(DocumentOut):
     ocr_text: str | None
     chunk_count: int
     summary: str | None
+    correspondent_street: str | None
+    correspondent_house_number: str | None
+    correspondent_po_box: str | None
+    correspondent_postal_code: str | None
+    correspondent_city: str | None
+    correspondent_country: str | None
 
 
 async def _notify_owner(db: AsyncSession, document: Document) -> None:
@@ -417,11 +424,18 @@ async def get_document(
         doc_type=document.doc_type,
         tags=document.tags,
         correspondent=document.correspondent,
+        category_id=document.category_id,
         created_at=document.created_at,
         processed_at=document.processed_at,
         ocr_text=document.ocr_text,
         chunk_count=count_result.scalar_one(),
         summary=document.summary,
+        correspondent_street=document.correspondent_street,
+        correspondent_house_number=document.correspondent_house_number,
+        correspondent_po_box=document.correspondent_po_box,
+        correspondent_postal_code=document.correspondent_postal_code,
+        correspondent_city=document.correspondent_city,
+        correspondent_country=document.correspondent_country,
     )
 
 

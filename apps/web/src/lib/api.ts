@@ -159,6 +159,9 @@ export interface DocumentOut {
   mime_type: string;
   status: string;
   error: string | null;
+  doc_type: string | null;
+  tags: string[];
+  correspondent: string | null;
   created_at: string;
   processed_at: string | null;
   category_id: string | null;
@@ -168,6 +171,12 @@ export interface DocumentDetailOut extends DocumentOut {
   ocr_text: string | null;
   chunk_count: number;
   summary: string | null;
+  correspondent_street: string | null;
+  correspondent_house_number: string | null;
+  correspondent_po_box: string | null;
+  correspondent_postal_code: string | null;
+  correspondent_city: string | null;
+  correspondent_country: string | null;
 }
 
 export function listDocuments(): Promise<DocumentOut[]> {
@@ -412,6 +421,7 @@ export interface CaseDashboardOut extends CaseOut {
   vehicles: { id: string; kenteken: string | null; merk: string | null; handelsbenaming: string | null }[];
   appointments: { id: string; title: string; starts_at: string }[];
   is_owner: boolean;
+  owner_display_name: string;
 }
 
 export interface CaseMemberOut {

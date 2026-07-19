@@ -258,9 +258,14 @@
     "deletedToast": "\"{{title}}\" gelöscht",
     "download": "Herunterladen",
     "downloadError": "Herunterladen fehlgeschlagen",
-    "preview": "Vorschau"
+    "preview": "Vorschau",
+    "classification": "Klassifizierung",
+    "docType": "Dokumenttyp",
+    "tags": "Tags",
+    "correspondent": "Korrespondent"
   },
   "caseDetail": {
+    "ownedBy": "Inhaber: {{name}}",
     "loadError": "Fall konnte nicht geladen werden",
     "updateError": "Fall konnte nicht aktualisiert werden",
     "attachError": "Element konnte nicht verknüpft werden",

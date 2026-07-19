@@ -29,12 +29,21 @@ const mockDoc = {
   mime_type: "application/pdf",
   status: "ready",
   error: null,
+  doc_type: null,
+  tags: [],
+  correspondent: null,
   created_at: "2026-07-08T19:11:38Z",
   processed_at: "2026-07-08T19:12:00Z",
   category_id: null,
   ocr_text: "Extracted text here",
   chunk_count: 3,
   summary: null,
+  correspondent_street: null,
+  correspondent_house_number: null,
+  correspondent_po_box: null,
+  correspondent_postal_code: null,
+  correspondent_city: null,
+  correspondent_country: null,
 };
 
 function renderAt(id: string) {
@@ -64,6 +73,42 @@ describe("DocumentDetail", () => {
   it("shows extracted text in a card", async () => {
     renderAt("doc-1");
     expect(await screen.findByText("Extracted text here")).toBeInTheDocument();
+  });
+
+  it("does not show a Classification card when nothing was classified", async () => {
+    renderAt("doc-1");
+    await screen.findByRole("heading", { name: "factuur-77621.pdf" });
+    expect(screen.queryByText("Classification")).not.toBeInTheDocument();
+  });
+
+  it("shows doc type, tags, and correspondent with address once classified", async () => {
+    vi.mocked(api.getDocument).mockResolvedValue({
+      ...mockDoc,
+      doc_type: "invoice",
+      tags: ["btw", "q3"],
+      correspondent: "SNS Bank N.V.",
+      correspondent_street: "Rembrandtlaan",
+      correspondent_house_number: "1",
+      correspondent_po_box: null,
+      correspondent_postal_code: "4700 BP",
+      correspondent_city: "Roosendaal",
+      correspondent_country: "Netherlands",
+    });
+    renderAt("doc-1");
+
+    expect(await screen.findByText("Classification")).toBeInTheDocument();
+    expect(screen.getByText("invoice")).toBeInTheDocument();
+    expect(screen.getByText("btw")).toBeInTheDocument();
+    expect(screen.getByText("q3")).toBeInTheDocument();
+    expect(screen.getByText("SNS Bank N.V.")).toBeInTheDocument();
+    expect(screen.getByText("Rembrandtlaan 1, 4700 BP Roosendaal, Netherlands")).toBeInTheDocument();
+  });
+
+  it("shows correspondent name without an address line when no address was found", async () => {
+    vi.mocked(api.getDocument).mockResolvedValue({ ...mockDoc, correspondent: "Anonymous Sender" });
+    renderAt("doc-1");
+
+    expect(await screen.findByText("Anonymous Sender")).toBeInTheDocument();
   });
 
   it("clicking Delete opens a confirmation Modal, not window.confirm", async () => {

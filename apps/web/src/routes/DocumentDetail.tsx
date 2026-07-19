@@ -36,6 +36,16 @@ function isPreviewable(mimeType: string): boolean {
   return PREVIEWABLE_MIME_PREFIXES.some((prefix) => mimeType.startsWith(prefix));
 }
 
+function formatCorrespondentAddress(doc: DocumentDetailOut): string | null {
+  const streetLine = [doc.correspondent_street, doc.correspondent_house_number].filter(Boolean).join(" ");
+  const poBoxLine = doc.correspondent_po_box ? `P.O. Box ${doc.correspondent_po_box}` : null;
+  const cityLine = [doc.correspondent_postal_code, doc.correspondent_city].filter(Boolean).join(" ");
+  const lines = [streetLine, poBoxLine, cityLine, doc.correspondent_country].filter(
+    (line): line is string => Boolean(line),
+  );
+  return lines.length > 0 ? lines.join(", ") : null;
+}
+
 export default function DocumentDetail() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
@@ -195,6 +205,36 @@ export default function DocumentDetail() {
         <Alert variant="danger" title={t("documentDetail.processingError")}>
           {doc.error}
         </Alert>
+      )}
+
+      {(doc.doc_type || doc.tags.length > 0 || doc.correspondent) && (
+        <Card>
+          <h2 className="text-sm font-medium text-ink-2">{t("documentDetail.classification")}</h2>
+          <div className="mt-2 flex flex-col gap-2">
+            {doc.doc_type && (
+              <MetadataList items={[{ label: t("documentDetail.docType"), value: doc.doc_type }]} />
+            )}
+            {doc.tags.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs text-ink-3">{t("documentDetail.tags")}:</span>
+                {doc.tags.map((tag) => (
+                  <Badge key={tag} variant="default">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            )}
+            {doc.correspondent && (
+              <div>
+                <span className="text-xs text-ink-3">{t("documentDetail.correspondent")}:</span>
+                <p className="text-sm text-ink">{doc.correspondent}</p>
+                {formatCorrespondentAddress(doc) && (
+                  <p className="text-sm text-ink-2">{formatCorrespondentAddress(doc)}</p>
+                )}
+              </div>
+            )}
+          </div>
+        </Card>
       )}
 
       {doc.summary && (

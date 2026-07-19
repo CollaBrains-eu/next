@@ -326,3 +326,36 @@ async def test_upload_triggers_vehicle_detection_and_creates_entity(client):
     response = await client.get("/entities?entity_type=vehicle", headers=headers)
     names = {entity["name"] for entity in response.json()}
     assert "VE01HI" in names
+
+
+async def test_list_documents_includes_classification_and_category_fields(client):
+    from sqlalchemy import select
+
+    from api.db import async_session
+    from api.models import Category, Document, User
+
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    async with async_session() as db:
+        result = await db.execute(select(User).where(User.username == "docuser"))
+        owner = result.scalar_one()
+        result = await db.execute(select(Category).where(Category.category_type == "document").limit(1))
+        category = result.scalar_one()
+        document = Document(
+            owner_id=owner.id, title="listcheck.pdf", filename="listcheck.pdf", mime_type="application/pdf",
+            status="ready", doc_type="invoice", tags=["a", "b"], correspondent="Listcheck BV",
+            category_id=category.id,
+        )
+        db.add(document)
+        await db.commit()
+        await db.refresh(document)
+        document_id = str(document.id)
+
+    response = await client.get("/documents", headers=headers)
+    assert response.status_code == 200
+    body = next(d for d in response.json() if d["id"] == document_id)
+    assert body["doc_type"] == "invoice"
+    assert body["tags"] == ["a", "b"]
+    assert body["correspondent"] == "Listcheck BV"
+    assert body["category_id"] == str(category.id)

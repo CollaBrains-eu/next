@@ -258,9 +258,14 @@
     "deletedToast": "\"{{title}}\" deleted",
     "download": "Download",
     "downloadError": "Download failed",
-    "preview": "Preview"
+    "preview": "Preview",
+    "classification": "Classification",
+    "docType": "Document type",
+    "tags": "Tags",
+    "correspondent": "Correspondent"
   },
   "caseDetail": {
+    "ownedBy": "Owned by {{name}}",
     "loadError": "Failed to load case",
     "updateError": "Failed to update case",
     "attachError": "Failed to attach item",

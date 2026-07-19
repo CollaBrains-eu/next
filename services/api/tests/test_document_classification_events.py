@@ -3,7 +3,11 @@ from unittest.mock import AsyncMock, patch
 from api.ldap_auth import LdapIdentity
 
 FAKE_EMBEDDING = [0.1] * 768
-FAKE_CLASSIFICATION = '{"doc_type": "contract", "tags": ["nda"], "correspondent": "Beacon Inc", "confidence": 0.9}'
+FAKE_CLASSIFICATION = (
+    '{"doc_type": "contract", "tags": ["nda"], "confidence": 0.9, '
+    '"correspondent": {"name": "Beacon Inc", "street": "Market St", "house_number": "1", '
+    '"po_box": null, "postal_code": "94103", "city": "San Francisco", "country": "USA"}}'
+)
 
 
 async def _login(client, username: str) -> str:
@@ -38,6 +42,12 @@ async def test_classification_triggers_after_embeddings_created(client):
     assert body["doc_type"] == "contract"
     assert body["tags"] == ["nda"]
     assert body["correspondent"] == "Beacon Inc"
+    assert body["correspondent_street"] == "Market St"
+    assert body["correspondent_house_number"] == "1"
+    assert body["correspondent_po_box"] is None
+    assert body["correspondent_postal_code"] == "94103"
+    assert body["correspondent_city"] == "San Francisco"
+    assert body["correspondent_country"] == "USA"
 
 
 async def test_classification_skipped_when_auto_classify_disabled(client):

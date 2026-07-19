@@ -36,6 +36,26 @@ async def test_create_and_get_case(client):
     assert body["document_count"] == 0
     assert body["member_count"] == 0
     assert body["appointments"] == []
+    assert body["is_owner"] is True
+    assert body["owner_display_name"] == "caserouteruser1"
+
+
+async def test_case_member_sees_owner_display_name_not_their_own(client):
+    owner_token = await _login(client, "caserouteruser34")
+    owner_headers = {"Authorization": f"Bearer {owner_token}"}
+    member_token = await _login(client, "caserouteruser35")
+    member_headers = {"Authorization": f"Bearer {member_token}"}
+    member_id = await _user_id_for("caserouteruser35")
+
+    case_id = (await client.post("/cases", headers=owner_headers, json={"name": "Shared case"})).json()["id"]
+    await client.post(f"/cases/{case_id}/members", headers=owner_headers, json={"user_id": str(member_id)})
+    await client.post(f"/cases/{case_id}/members/{member_id}/accept", headers=member_headers)
+
+    response = await client.get(f"/cases/{case_id}", headers=member_headers)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["is_owner"] is False
+    assert body["owner_display_name"] == "caserouteruser34"
 
 
 async def test_list_cases_includes_document_and_member_counts(client):

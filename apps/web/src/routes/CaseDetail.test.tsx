@@ -36,6 +36,7 @@ const CASE: api.CaseDashboardOut = {
   vehicles: [],
   appointments: [],
   is_owner: true,
+  owner_display_name: "Alice Owner",
 };
 
 const VEHICLES: api.VehicleOut[] = [
@@ -74,6 +75,13 @@ describe("CaseDetail", () => {
     renderPage();
     expect(await screen.findByRole("heading", { name: "Alpha matter" })).toBeInTheDocument();
     expect(screen.getByText("open")).toBeInTheDocument();
+  });
+
+  it("shows who owns the case, even when viewed by a non-owner", async () => {
+    vi.mocked(api.getCase).mockResolvedValue({ ...CASE, is_owner: false, owner_display_name: "Bob Boss" });
+    renderPage();
+    await screen.findByRole("heading", { name: "Alpha matter" });
+    expect(screen.getByText("Owned by Bob Boss")).toBeInTheDocument();
   });
 
   it("shows 'Nothing linked yet.' for each empty section", async () => {
