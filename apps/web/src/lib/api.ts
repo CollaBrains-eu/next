@@ -690,6 +690,41 @@ export function setPreferences(prefs: {
   });
 }
 
+export interface OrganizationOut {
+  id: string;
+  name: string;
+  policies: Record<string, unknown>;
+}
+
+export function getOrganization(): Promise<OrganizationOut> {
+  return request<OrganizationOut>("/organizations/me");
+}
+
+export function renameOrganization(name: string): Promise<OrganizationOut> {
+  return request<OrganizationOut>("/organizations/me", {
+    method: "PUT",
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function setOrganizationPolicies(policies: Record<string, unknown>): Promise<OrganizationOut> {
+  return request<OrganizationOut>("/organizations/me/policies", {
+    method: "PUT",
+    body: JSON.stringify({ policies }),
+  });
+}
+
+export interface OrganizationMemberOut {
+  id: string;
+  username: string;
+  display_name: string;
+  role: string;
+}
+
+export function listOrganizationMembers(): Promise<OrganizationMemberOut[]> {
+  return request<OrganizationMemberOut[]>("/organizations/me/members");
+}
+
 export interface AdminStatsOut {
   total_users: number;
   total_documents: number;

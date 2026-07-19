@@ -9,13 +9,18 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth import get_current_user
 from api.db import get_db
 from api.models import Organization, User
-from api.organizations import get_organization_for_user, set_organization_policies
+from api.organizations import (
+    get_organization_for_user,
+    list_organization_members,
+    rename_organization,
+    set_organization_policies,
+)
 
 router = APIRouter(prefix="/organizations", tags=["organizations"])
 
@@ -60,4 +65,36 @@ async def set_my_organization_policies(
     _require_admin(current_user)
     organization = await _get_org_or_404(db, current_user)
     updated = await set_organization_policies(db, organization_id=organization.id, policies=request.policies)
+    return OrganizationOut(id=updated.id, name=updated.name, policies=updated.policies)
+
+
+class OrganizationMemberOut(BaseModel):
+    id: UUID
+    username: str
+    display_name: str
+    role: str
+
+
+@router.get("/me/members", response_model=list[OrganizationMemberOut])
+async def list_my_organization_members(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[User]:
+    organization = await _get_org_or_404(db, current_user)
+    return await list_organization_members(db, organization.id)
+
+
+class OrganizationRenameIn(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+
+
+@router.put("/me", response_model=OrganizationOut)
+async def rename_my_organization(
+    body: OrganizationRenameIn,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> OrganizationOut:
+    _require_admin(current_user)
+    organization = await _get_org_or_404(db, current_user)
+    updated = await rename_organization(db, organization_id=organization.id, name=body.name)
     return OrganizationOut(id=updated.id, name=updated.name, policies=updated.policies)

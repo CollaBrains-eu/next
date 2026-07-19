@@ -470,7 +470,25 @@
     "loadError": "Failed to load preferences",
     "saveError": "Failed to save preferences",
     "saved": "Saved.",
-    "save": "Save"
+    "save": "Save",
+    "orgTitle": "Organization",
+    "orgLoadError": "Failed to load organization",
+    "orgNameLabel": "Name",
+    "orgApprovalRequiredLabel": "Goals requiring approval",
+    "orgApprovalRequiredHint": "AI-generated results for these goal types must be approved before they take effect.",
+    "orgApprovalRequiredPlaceholder": "Search goal types…",
+    "orgMembersLabel": "Members",
+    "orgSaved": "Organization settings saved.",
+    "orgSaveError": "Failed to save organization settings",
+    "orgGoalType": {
+      "summarize_case": "Summarize case",
+      "analyze_new_upload": "Analyze new upload",
+      "draft_legal_document": "Draft legal document",
+      "prepare_objection": "Prepare objection",
+      "draft_communication": "Draft communication",
+      "organize_document_collection": "Organize document collection",
+      "generate_timeline": "Generate timeline"
+    }
   },
   "phonePrompt": {
     "title": "Set your phone number",
