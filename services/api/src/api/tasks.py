@@ -8,12 +8,13 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import exists, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth import get_current_user
 from api.db import get_db
-from api.models import Document, Task, User
+from api.documents import _can_read_document
+from api.models import CaseMember, Document, Task, User
 from api.planner_agent import extract_tasks
 
 router = APIRouter(tags=["tasks"])
@@ -59,6 +60,20 @@ class TaskOut(BaseModel):
     recurrence_rule: str | None
 
 
+async def _can_access_task(db: AsyncSession, task: Task, current_user: User) -> bool:
+    """Creator and admin always can; a document-linked task extends the same
+    access `_can_read_document` already grants on that document (owner or
+    accepted case member) -- a task inherits its document's sharing rather
+    than having a separate permission model."""
+    if task.created_by == current_user.id or current_user.role == "admin":
+        return True
+    if task.document_id is not None:
+        document = await db.get(Document, task.document_id)
+        if document is not None:
+            return await _can_read_document(db, document, current_user)
+    return False
+
+
 @router.post("/documents/{document_id}/extract-tasks", response_model=list[TaskOut])
 async def extract_tasks_from_document(
     document_id: UUID,
@@ -68,6 +83,8 @@ async def extract_tasks_from_document(
     document = await db.get(Document, document_id)
     if document is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    if not await _can_read_document(db, document, current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to access this document")
     if document.status != "ready" or not document.ocr_text:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail=f"Document is not ready yet (status: {document.status})"
@@ -88,6 +105,21 @@ async def list_tasks(
     current_user: User = Depends(get_current_user),
 ) -> list[Task]:
     query = select(Task).order_by(Task.created_at.desc()).limit(limit).offset(offset)
+    if current_user.role != "admin":
+        member_exists = exists(
+            select(CaseMember.id).where(
+                CaseMember.case_id == Document.case_id,
+                CaseMember.user_id == current_user.id,
+                CaseMember.status == "accepted",
+            )
+        )
+        query = query.outerjoin(Document, Task.document_id == Document.id).where(
+            or_(
+                Task.created_by == current_user.id,
+                Document.owner_id == current_user.id,
+                member_exists,
+            )
+        )
     if status_filter:
         query = query.where(Task.status == status_filter)
     if document_id:
@@ -161,6 +193,8 @@ async def update_task(
     task = await db.get(Task, task_id)
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+    if not await _can_access_task(db, task, current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to modify this task")
 
     siblings_result = await db.execute(
         select(Task).where(Task.status == update.status, Task.id != task.id).order_by(Task.position)

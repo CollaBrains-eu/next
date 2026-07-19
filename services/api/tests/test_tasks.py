@@ -341,3 +341,114 @@ async def test_editing_due_date_clears_notified_at(client):
     )
     assert response.status_code == 200
     assert response.json()["due_date"] == "2026-07-20"
+
+
+async def _login_as(client, username: str) -> str:
+    identity = LdapIdentity(
+        username=username, display_name=username, email=f"{username}@collabrains.eu", is_admin=False
+    )
+    with patch("api.auth.ldap_authenticate", return_value=identity):
+        response = await client.post("/auth/token", data={"username": username, "password": "whatever"})
+    return response.json()["access_token"]
+
+
+async def _user_id_for(username: str):
+    from sqlalchemy import select
+
+    from api.db import async_session
+    from api.models import User
+
+    async with async_session() as db:
+        return (await db.execute(select(User).where(User.username == username))).scalar_one().id
+
+
+async def test_list_tasks_excludes_other_users_standalone_tasks(client):
+    headers_a = {"Authorization": f"Bearer {await _login_as(client, 'taskowner1')}"}
+    headers_b = {"Authorization": f"Bearer {await _login_as(client, 'taskintruder1')}"}
+
+    created = await client.post("/tasks", headers=headers_a, json={"title": "Owner-only task xtsk1"})
+    task_id = created.json()["id"]
+
+    listed_b = await client.get("/tasks", params={"limit": 200}, headers=headers_b)
+    assert task_id not in {t["id"] for t in listed_b.json()}
+
+    listed_a = await client.get("/tasks", params={"limit": 200}, headers=headers_a)
+    assert task_id in {t["id"] for t in listed_a.json()}
+
+
+async def test_update_task_rejects_non_owner(client):
+    headers_a = {"Authorization": f"Bearer {await _login_as(client, 'taskowner2')}"}
+    headers_b = {"Authorization": f"Bearer {await _login_as(client, 'taskintruder2')}"}
+
+    created = await client.post("/tasks", headers=headers_a, json={"title": "Protected task xtsk2"})
+    task_id = created.json()["id"]
+
+    response = await client.patch(f"/tasks/{task_id}", headers=headers_b, json={"status": "done"})
+    assert response.status_code == 403
+
+
+async def test_extract_tasks_from_document_rejects_non_owner(client):
+    headers_a = {"Authorization": f"Bearer {await _login_as(client, 'taskowner3')}"}
+    headers_b = {"Authorization": f"Bearer {await _login_as(client, 'taskintruder3')}"}
+
+    document_id = await _upload_ready_document(client, headers_a, "Some text with a deadline.")
+
+    response = await client.post(f"/documents/{document_id}/extract-tasks", headers=headers_b)
+    assert response.status_code == 403
+
+
+async def test_accepted_case_member_can_see_and_modify_document_linked_task(client):
+    from uuid import UUID as _UUID
+
+    from api.db import async_session
+    from api.models import Task
+
+    owner_headers = {"Authorization": f"Bearer {await _login_as(client, 'taskcaseowner1')}"}
+    member_headers = {"Authorization": f"Bearer {await _login_as(client, 'taskcasemember1')}"}
+    member_id = await _user_id_for("taskcasemember1")
+
+    document_id = await _upload_ready_document(client, owner_headers, "Case document text.")
+
+    case_response = await client.post("/cases", headers=owner_headers, json={"name": "Shared task case"})
+    case_id = case_response.json()["id"]
+    await client.put(f"/documents/{document_id}/case", headers=owner_headers, json={"case_id": case_id})
+    await client.post(f"/cases/{case_id}/members", headers=owner_headers, json={"user_id": str(member_id)})
+    await client.post(f"/cases/{case_id}/members/{member_id}/accept", headers=member_headers)
+
+    async with async_session() as db:
+        task = Task(document_id=_UUID(document_id), title="Shared case task", source="manual", created_by=None)
+        db.add(task)
+        await db.commit()
+        await db.refresh(task)
+        task_id = str(task.id)
+
+    listed = await client.get("/tasks", params={"limit": 200}, headers=member_headers)
+    assert task_id in {t["id"] for t in listed.json()}
+
+    response = await client.patch(f"/tasks/{task_id}", headers=member_headers, json={"status": "done"})
+    assert response.status_code == 200
+
+
+async def test_non_member_cannot_see_or_modify_document_linked_task_of_others_case(client):
+    from uuid import UUID as _UUID
+
+    from api.db import async_session
+    from api.models import Task
+
+    owner_headers = {"Authorization": f"Bearer {await _login_as(client, 'taskcaseowner2')}"}
+    outsider_headers = {"Authorization": f"Bearer {await _login_as(client, 'taskoutsider2')}"}
+
+    document_id = await _upload_ready_document(client, owner_headers, "Private case document text.")
+
+    async with async_session() as db:
+        task = Task(document_id=_UUID(document_id), title="Private case task", source="manual", created_by=None)
+        db.add(task)
+        await db.commit()
+        await db.refresh(task)
+        task_id = str(task.id)
+
+    listed = await client.get("/tasks", params={"limit": 200}, headers=outsider_headers)
+    assert task_id not in {t["id"] for t in listed.json()}
+
+    response = await client.patch(f"/tasks/{task_id}", headers=outsider_headers, json={"status": "done"})
+    assert response.status_code == 403
