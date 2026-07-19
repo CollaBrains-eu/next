@@ -443,6 +443,7 @@
     "empty": "Noch keine Passkeys registriert.",
     "loadError": "Passkeys konnten nicht geladen werden",
     "registerError": "Registrierung des Passkeys fehlgeschlagen",
+    "duplicateError": "Für dieses Gerät ist bereits ein Passkey für Ihr Konto registriert.",
     "actionError": "Aktion fehlgeschlagen",
     "labelPrompt": "Benennen Sie diesen Passkey (z. B. \"MacBook\")",
     "unnamedPasskey": "Unbenannter Passkey",
