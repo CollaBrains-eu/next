@@ -373,6 +373,7 @@
     "empty": "Nog geen passkeys geregistreerd.",
     "loadError": "Kon passkeys niet laden",
     "registerError": "Registreren van passkey mislukt",
+    "duplicateError": "Dit apparaat heeft al een passkey geregistreerd voor uw account.",
     "actionError": "Actie mislukt",
     "labelPrompt": "Geef deze passkey een naam (bijv. \"MacBook\")",
     "unnamedPasskey": "Naamloze passkey",

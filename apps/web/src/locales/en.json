@@ -373,6 +373,7 @@
     "empty": "No passkeys registered yet.",
     "loadError": "Failed to load passkeys",
     "registerError": "Failed to register passkey",
+    "duplicateError": "This device already has a passkey registered for your account.",
     "actionError": "Action failed",
     "labelPrompt": "Name this passkey (e.g. \"MacBook\")",
     "unnamedPasskey": "Unnamed passkey",

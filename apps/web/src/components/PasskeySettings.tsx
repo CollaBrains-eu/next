@@ -31,7 +31,17 @@ export function PasskeySettings() {
       await registerPasskey(label);
       load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("passkeys.registerError"));
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else if (err instanceof DOMException && err.name === "InvalidStateError") {
+        // The browser/authenticator itself refuses to create a second
+        // resident credential for an account it already has one for --
+        // register/begin's exclude_credentials is what triggers this,
+        // working as intended, not a server error.
+        setError(t("passkeys.duplicateError"));
+      } else {
+        setError(t("passkeys.registerError"));
+      }
     } finally {
       setRegistering(false);
     }
