@@ -17,8 +17,10 @@ from api.entity_agent import extract_entities
 from api.legal import _generate_draft
 from api.models import Document
 from api.planner_agent import extract_tasks
+from api.preferences import get_preferences
 from api.rdw_client import RdwLookupError
 from api.search_service import hybrid_search
+from api.text_language import ts_config_for_preferred_language
 from api.tool_registry import ToolDescriptor, register_tool
 from api.vehicle_agent import lookup_vehicle as _lookup_vehicle
 
@@ -28,7 +30,9 @@ async def _search_handler(
     document_ids: list[UUID] | None = None,
 ) -> dict[str, Any]:
     scope = set(document_ids) if document_ids else None
-    hits = await hybrid_search(db, query, limit=limit, owner_id=user_id, document_ids=scope)
+    preferences = await get_preferences(db, user_id=user_id)
+    language = ts_config_for_preferred_language(preferences.preferred_language if preferences else None)
+    hits = await hybrid_search(db, query, limit=limit, owner_id=user_id, document_ids=scope, language=language)
     return {
         "documents": [
             {

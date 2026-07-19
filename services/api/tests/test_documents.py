@@ -82,6 +82,41 @@ async def test_search_ranks_matching_document_first(client):
     assert "fox" in hits[0]["content"]
 
 
+async def test_upload_detects_document_language_and_populates_chunk_content_tsv(client):
+    from sqlalchemy import select
+
+    from api.db import async_session
+    from api.models import Document, DocumentChunk
+
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    dutch_text = (
+        "Deze overeenkomst wordt aangegaan door en tussen de partijen met als "
+        "doel de voorwaarden vast te stellen die hun voortdurende zakelijke "
+        "relatie beheersen, met inbegrip van betalingsschema's."
+    )
+
+    with (
+        patch("api.documents.submit_document", return_value="task-lang"),
+        patch("api.documents.wait_for_paperless_id", return_value=3),
+        patch("api.documents.fetch_document_text", return_value=dutch_text),
+        patch("api.documents.embed_text", return_value=FAKE_EMBEDDING),
+    ):
+        upload = await client.post(
+            "/documents", headers=headers, files={"file": ("overeenkomst.txt", b"x", "text/plain")}
+        )
+    document_id = upload.json()["id"]
+
+    async with async_session() as db:
+        document = await db.get(Document, document_id)
+        assert document.language == "dutch"
+
+        chunk = (
+            await db.execute(select(DocumentChunk).where(DocumentChunk.document_id == document_id))
+        ).scalar_one()
+        assert chunk.content_tsv is not None
+
+
 async def test_delete_document_removes_it_from_listing(client):
     token = await _login(client)
     headers = {"Authorization": f"Bearer {token}"}
