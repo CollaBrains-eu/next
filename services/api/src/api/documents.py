@@ -32,6 +32,7 @@ from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy import delete, func, select
+from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.ai_gateway import chat_completion
@@ -48,8 +49,10 @@ from api.models import Document, DocumentChunk, User
 from api.paperless_client import delete_document as paperless_delete, fetch_document_file, \
     fetch_document_text, submit_document, wait_for_paperless_id
 from api.planner_agent import extract_tasks
+from api.preferences import get_preferences
 from api.search_service import hybrid_search
 from api.signal_client import send_signal_message
+from api.text_language import detect_document_language, ts_config_for_preferred_language
 from api.user_facts import extract_facts_from_document
 from api.vehicle_agent import detect_and_link_vehicles
 
@@ -123,6 +126,13 @@ async def _handle_document_uploaded(event: Event) -> None:
                     )
                 )
 
+            document.language = detect_document_language(text)
+            await db.flush()
+            await db.execute(
+                sql_text("UPDATE document_chunks SET content_tsv = to_tsvector(:lang, content) WHERE document_id = :doc_id"),
+                {"lang": document.language, "doc_id": document.id},
+            )
+
             document.status = "ready"
             document.processed_at = datetime.now(timezone.utc)
             await db.commit()
@@ -181,6 +191,13 @@ async def _handle_document_reprocess_requested(event: Event) -> None:
                         document_id=document.id, chunk_index=chunk_count - 1, content=chunk, embedding=vector
                     )
                 )
+
+            document.language = detect_document_language(text)
+            await db.flush()
+            await db.execute(
+                sql_text("UPDATE document_chunks SET content_tsv = to_tsvector(:lang, content) WHERE document_id = :doc_id"),
+                {"lang": document.language, "doc_id": document.id},
+            )
 
             document.status = "ready"
             document.processed_at = datetime.now(timezone.utc)
@@ -530,7 +547,9 @@ async def search(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_effective_user),
 ) -> list[SearchResult]:
-    hits = await hybrid_search(db, q, limit=limit, owner_id=current_user.id)
+    preferences = await get_preferences(db, user_id=current_user.id)
+    language = ts_config_for_preferred_language(preferences.preferred_language if preferences else None)
+    hits = await hybrid_search(db, q, limit=limit, owner_id=current_user.id, language=language)
     if not hits:
         return []
 

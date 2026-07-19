@@ -30,6 +30,7 @@ from api.models import Document, User
 from api.preferences import build_language_instruction, get_preferences
 from api.reflection import log_reflection, reflect
 from api.search_service import hybrid_search
+from api.text_language import ts_config_for_preferred_language
 from api.user_facts import get_current_facts
 
 logger = logging.getLogger(__name__)
@@ -74,9 +75,10 @@ class DraftResponse(BaseModel):
 
 
 async def _retrieve(
-    db: AsyncSession, instruction: str, limit: int, scope: set[UUID] | None, owner_id: UUID
+    db: AsyncSession, instruction: str, limit: int, scope: set[UUID] | None, owner_id: UUID,
+    language: str = "english",
 ) -> tuple[list[Citation], str]:
-    hits = await hybrid_search(db, instruction, limit=limit, owner_id=owner_id, document_ids=scope)
+    hits = await hybrid_search(db, instruction, limit=limit, owner_id=owner_id, document_ids=scope, language=language)
 
     citations: list[Citation] = []
     context_blocks: list[str] = []
@@ -105,7 +107,17 @@ async def _generate_draft(
     context_chunks: int = 8,
 ) -> DraftResponse:
     scope = set(document_ids) if document_ids else None
-    citations, context_text = await _retrieve(db, instruction, context_chunks, scope, user_id)
+
+    preferred_language: str | None = None
+    try:
+        preferences = await get_preferences(db, user_id=user_id)
+        preferred_language = preferences.preferred_language if preferences else None
+    except Exception:  # noqa: BLE001 - preference lookup must never fail the draft response
+        logger.exception("preference lookup failed for legal draft request")
+    search_language = ts_config_for_preferred_language(preferred_language)
+    language_instruction = build_language_instruction(preferred_language)
+
+    citations, context_text = await _retrieve(db, instruction, context_chunks, scope, user_id, search_language)
 
     try:
         facts = await get_current_facts(db, user_id=user_id)
@@ -117,13 +129,6 @@ async def _generate_draft(
     if facts:
         fact_lines = "\n".join(f"- {fact.fact_type}: {fact.value.get('text', '')}" for fact in facts)
         facts_text = f"\n\nKnown facts about the user:\n{fact_lines}"
-
-    language_instruction = ""
-    try:
-        preferences = await get_preferences(db, user_id=user_id)
-        language_instruction = build_language_instruction(preferences.preferred_language if preferences else None)
-    except Exception:  # noqa: BLE001 - preference lookup must never fail the draft response
-        logger.exception("preference lookup failed for legal draft request")
 
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT + language_instruction},
@@ -139,7 +144,7 @@ async def _generate_draft(
         retried = False
         if not result.sufficient_evidence and context_chunks < REFLECTION_RETRY_CAP:
             retry_limit = min(context_chunks * 2, REFLECTION_RETRY_CAP)
-            citations, context_text = await _retrieve(db, instruction, retry_limit, scope, user_id)
+            citations, context_text = await _retrieve(db, instruction, retry_limit, scope, user_id, search_language)
             messages = [
                 {"role": "system", "content": SYSTEM_PROMPT + language_instruction},
                 {"role": "user", "content": f"Context:\n{context_text}{facts_text}\n\nDrafting instruction: {instruction}"},

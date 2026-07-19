@@ -28,6 +28,7 @@ async def hybrid_search(
     *,
     owner_id: UUID,
     document_ids: set[UUID] | None = None,
+    language: str = "english",
 ) -> list[SearchHit]:
     """Search chunks belonging only to `owner_id`'s own documents.
 
@@ -39,6 +40,14 @@ async def hybrid_search(
     can never widen scope to someone else's, closing the IDOR where a
     caller (e.g. /legal/draft) could previously pass another user's
     document id and have it searched.
+
+    `language` is a Postgres text-search config name ('english'/'german'/
+    'dutch', see api.text_language) applied to the query side of the
+    keyword half only -- callers resolve it from the querying user's own
+    preferred_language, since a single search spans that user's whole
+    document set regardless of which language each individual document's
+    content_tsv was built with; semantic search (language-agnostic
+    embeddings) carries the slack for any mismatch.
     """
     candidate_pool = max(limit * 3, 20)
     rrf_k = 60
@@ -55,7 +64,7 @@ async def hybrid_search(
     semantic_result = await db.execute(semantic_query.limit(candidate_pool))
     semantic_hits = list(semantic_result.scalars().all())
 
-    tsquery = func.plainto_tsquery("english", query)
+    tsquery = func.plainto_tsquery(language, query)
     keyword_query = (
         select(DocumentChunk)
         .join(Document, DocumentChunk.document_id == Document.id)

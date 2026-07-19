@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import ARRAY, Boolean, Computed, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func, text
+from sqlalchemy import ARRAY, Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -111,6 +111,11 @@ class Document(Base):
     tags: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False, default=list)
     correspondent: Mapped[str | None] = mapped_column(String(255), nullable=True)
     classification_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Postgres text-search config name ('english'/'german'/'dutch'), detected
+    # from ocr_text at ingestion -- see api.text_language. Drives both this
+    # document's chunks' content_tsv and, indirectly via the querying user's
+    # own preferred_language, which config hybrid_search's keyword half uses.
+    language: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
@@ -124,6 +129,13 @@ class DocumentChunk(Base):
     semantic search (HNSW index) — see migration for index definitions.
     Both live on the chunk, not the parent document, so search results can
     point at the specific passage that matched.
+
+    content_tsv was originally a GENERATED column hardcoded to
+    to_tsvector('english', content) -- Postgres generated columns require
+    an IMMUTABLE expression, which rules out a per-row regconfig looked up
+    from the parent document's detected language (api.text_language), so
+    it's now a plain column the ingestion pipeline populates explicitly
+    (documents.py) with the document's own language's config instead.
     """
 
     __tablename__ = "document_chunks"
@@ -135,9 +147,7 @@ class DocumentChunk(Base):
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     embedding: Mapped[list[float]] = mapped_column(Vector(settings.embedding_dim), nullable=False)
-    content_tsv: Mapped[str] = mapped_column(
-        TSVECTOR, Computed("to_tsvector('english', content)", persisted=True), nullable=True
-    )
+    content_tsv: Mapped[str | None] = mapped_column(TSVECTOR, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     document: Mapped["Document"] = relationship(back_populates="chunks")

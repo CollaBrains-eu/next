@@ -53,6 +53,34 @@ async def test_chat_includes_preferred_language_in_system_prompt(client):
     assert "you must respond only in de" in system_message.lower()
 
 
+async def test_chat_retrieval_uses_the_users_preferred_language_ts_config(client):
+    token = await _login_as(client, "chatprefuser3")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    await client.put("/preferences/me", headers=headers, json={"preferred_language": "Nederlands"})
+
+    with (
+        patch("api.chat.hybrid_search", return_value=[]) as mock_hybrid_search,
+        patch("api.chat.chat_completion", return_value="ok"),
+    ):
+        await client.post("/chat", headers=headers, json={"message": "hallo"})
+
+    assert mock_hybrid_search.call_args.kwargs["language"] == "dutch"
+
+
+async def test_chat_retrieval_defaults_to_english_ts_config_when_no_preference_set(client):
+    token = await _login_as(client, "chatprefuser4")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    with (
+        patch("api.chat.hybrid_search", return_value=[]) as mock_hybrid_search,
+        patch("api.chat.chat_completion", return_value="ok"),
+    ):
+        await client.post("/chat", headers=headers, json={"message": "hello"})
+
+    assert mock_hybrid_search.call_args.kwargs["language"] == "english"
+
+
 async def test_chat_omits_language_instruction_when_no_preference_set(client):
     token = await _login_as(client, "chatprefuser2")
     headers = {"Authorization": f"Bearer {token}"}

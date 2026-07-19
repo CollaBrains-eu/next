@@ -21,7 +21,9 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.ai_gateway import chat_completion
+from api.preferences import get_preferences
 from api.search_service import hybrid_search
+from api.text_language import ts_config_for_preferred_language
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +50,9 @@ async def draft_communication(
         raise ValueError(f"unknown channel: {channel!r}")
 
     scope = set(document_ids) if document_ids else None
-    hits = await hybrid_search(db, instruction, limit=8, owner_id=user_id, document_ids=scope)
+    preferences = await get_preferences(db, user_id=user_id)
+    language = ts_config_for_preferred_language(preferences.preferred_language if preferences else None)
+    hits = await hybrid_search(db, instruction, limit=8, owner_id=user_id, document_ids=scope, language=language)
     context_text = (
         "\n\n".join(f"[{i}] {hit.chunk.content}" for i, hit in enumerate(hits, start=1))
         if hits else "(no relevant documents found)"

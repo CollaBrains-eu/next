@@ -41,6 +41,7 @@ from api.models import Document, User
 from api.preferences import build_language_instruction, get_preferences
 from api.reflection import ReflectionResult, log_reflection, reflect
 from api.search_service import hybrid_search
+from api.text_language import ts_config_for_preferred_language
 from api.user_facts import get_current_facts
 
 logger = logging.getLogger(__name__)
@@ -102,8 +103,10 @@ class GroundedAnswer(BaseModel):
     sufficient_evidence: bool | None = None
 
 
-async def _retrieve(db: AsyncSession, query: str, limit: int, owner_id: UUID) -> tuple[list[Citation], str]:
-    hits = await hybrid_search(db, query, limit=limit, owner_id=owner_id)
+async def _retrieve(
+    db: AsyncSession, query: str, limit: int, owner_id: UUID, language: str = "english"
+) -> tuple[list[Citation], str]:
+    hits = await hybrid_search(db, query, limit=limit, owner_id=owner_id, language=language)
 
     citations: list[Citation] = []
     context_blocks: list[str] = []
@@ -162,7 +165,17 @@ async def answer_grounded_question(
     risk of the task being garbage-collected mid-flight.
     """
     history = history or []
-    citations, context_text = await _retrieve(db, message, context_chunks, user_id)
+
+    preferred_language: str | None = None
+    try:
+        preferences = await get_preferences(db, user_id=user_id)
+        preferred_language = preferences.preferred_language if preferences else None
+    except Exception:  # noqa: BLE001 - preference lookup must never fail the answer
+        logger.exception("preference lookup failed for grounded question")
+    search_language = ts_config_for_preferred_language(preferred_language)
+    language_instruction = build_language_instruction(preferred_language)
+
+    citations, context_text = await _retrieve(db, message, context_chunks, user_id, search_language)
 
     try:
         memories = await retrieve_relevant_memories(db, user_id=user_id, query=message)
@@ -186,13 +199,6 @@ async def answer_grounded_question(
         fact_lines = "\n".join(f"- {fact.fact_type}: {fact.value.get('text', '')}" for fact in facts)
         facts_text = f"\n\nKnown facts about the user:\n{fact_lines}"
 
-    language_instruction = ""
-    try:
-        preferences = await get_preferences(db, user_id=user_id)
-        language_instruction = build_language_instruction(preferences.preferred_language if preferences else None)
-    except Exception:  # noqa: BLE001 - preference lookup must never fail the answer
-        logger.exception("preference lookup failed for grounded question")
-
     messages = _build_messages(history, context_text, message, memory_text, language_instruction, facts_text)
     answer = await chat_completion(messages, user_id=user_id, endpoint="chat")
 
@@ -202,7 +208,7 @@ async def answer_grounded_question(
         retried = False
         if not result.sufficient_evidence and context_chunks < REFLECTION_RETRY_CAP:
             retry_limit = min(context_chunks * 2, REFLECTION_RETRY_CAP)
-            citations, context_text = await _retrieve(db, message, retry_limit, user_id)
+            citations, context_text = await _retrieve(db, message, retry_limit, user_id, search_language)
             messages = _build_messages(history, context_text, message, memory_text, language_instruction, facts_text)
             answer = await chat_completion(messages, user_id=user_id, endpoint="chat")
             retried = True
