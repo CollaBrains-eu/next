@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   listDocuments,
   listCategories,
+  listWorkspacesSharedWithMe,
   search as searchApi,
   deleteDocument,
   downloadDocumentsCsv,
@@ -11,6 +12,7 @@ import {
   type DocumentOut,
   type CategoryOut,
   type SearchResult,
+  type WorkspaceMemberOut,
 } from "../lib/api";
 import UploadDialog from "../components/UploadDialog";
 import { DataTable, type Column } from "../components/ui/DataTable";
@@ -52,14 +54,21 @@ export default function Workspace() {
   const { isSelected, toggle, clear, selectedCount, selectedKeys } = useBulkSelection<DocumentOut>((doc) => doc.id);
   const { showToast } = useToast();
   const [exporting, setExporting] = useState(false);
+  const [sharedWorkspaces, setSharedWorkspaces] = useState<WorkspaceMemberOut[]>([]);
+  const [viewedOwnerId, setViewedOwnerId] = useState<string | null>(null);
   const CATEGORY_FILTER_OPTIONS = categories.map((c) => ({ id: c.id, label: t(`categories.${c.slug}`) }));
+  const viewingSharedWorkspace = viewedOwnerId !== null;
+  const activeSharedWorkspace = sharedWorkspaces.find((w) => w.owner_id === viewedOwnerId);
 
-  const refresh = useCallback((showLoading = false) => {
-    if (showLoading) setLoading(true);
-    listDocuments()
-      .then(setDocuments)
-      .finally(() => setLoading(false));
-  }, []);
+  const refresh = useCallback(
+    (showLoading = false) => {
+      if (showLoading) setLoading(true);
+      listDocuments(viewedOwnerId ?? undefined)
+        .then(setDocuments)
+        .finally(() => setLoading(false));
+    },
+    [viewedOwnerId]
+  );
 
   useEffect(() => {
     refresh(true);
@@ -69,6 +78,10 @@ export default function Workspace() {
 
   useEffect(() => {
     listCategories().then(setCategories);
+  }, []);
+
+  useEffect(() => {
+    listWorkspacesSharedWithMe().then(setSharedWorkspaces).catch(() => {});
   }, []);
 
   async function handleSearch(e: FormEvent) {
@@ -96,7 +109,7 @@ export default function Workspace() {
   async function handleExportCsv() {
     setExporting(true);
     try {
-      await downloadDocumentsCsv();
+      await downloadDocumentsCsv(viewedOwnerId ?? undefined);
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : t("documents.exportError"));
     } finally {
@@ -117,19 +130,23 @@ export default function Workspace() {
   );
 
   const columns: Column<DocumentOut>[] = [
-    {
-      key: "select",
-      header: "",
-      render: (doc) => (
-        <input
-          type="checkbox"
-          checked={isSelected(doc)}
-          onChange={() => toggle(doc)}
-          onClick={(event) => event.stopPropagation()}
-          className="h-4 w-4 accent-accent"
-        />
-      ),
-    },
+    ...(viewingSharedWorkspace
+      ? []
+      : [
+          {
+            key: "select",
+            header: "",
+            render: (doc: DocumentOut) => (
+              <input
+                type="checkbox"
+                checked={isSelected(doc)}
+                onChange={() => toggle(doc)}
+                onClick={(event) => event.stopPropagation()}
+                className="h-4 w-4 accent-accent"
+              />
+            ),
+          },
+        ]),
     {
       key: "title",
       header: t("documents.columnTitle"),
@@ -158,12 +175,31 @@ export default function Workspace() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-ink">{t("documents.title")}</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-semibold text-ink">{t("documents.title")}</h1>
+          {sharedWorkspaces.length > 0 && (
+            <select
+              value={viewedOwnerId ?? "self"}
+              onChange={(e) => setViewedOwnerId(e.target.value === "self" ? null : e.target.value)}
+              aria-label={t("documents.viewingWorkspace")}
+              className="rounded-lg border border-edge bg-surface px-2 py-1 text-xs text-ink outline-none focus:border-accent"
+            >
+              <option value="self">{t("documents.viewingMyOwn")}</option>
+              {sharedWorkspaces.map((w) => (
+                <option key={w.owner_id} value={w.owner_id}>
+                  {t("documents.viewingSharedBy", { name: w.owner_display_name })}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
         <div className="flex items-center gap-2">
-          <Button variant="secondary" onClick={handleExportCsv} disabled={exporting}>
-            {t("documents.exportCsv")}
-          </Button>
-          <UploadDialog onUploaded={refresh} />
+          {(!viewingSharedWorkspace || activeSharedWorkspace?.can_export) && (
+            <Button variant="secondary" onClick={handleExportCsv} disabled={exporting}>
+              {t("documents.exportCsv")}
+            </Button>
+          )}
+          {!viewingSharedWorkspace && <UploadDialog onUploaded={refresh} />}
         </div>
       </div>
 

@@ -111,7 +111,10 @@
     "statusFilterLabel": "Status",
     "categoryFilterLabel": "Kategorie",
     "exportCsv": "CSV exportieren",
-    "exportError": "CSV-Export fehlgeschlagen. Bitte erneut versuchen."
+    "exportError": "CSV-Export fehlgeschlagen. Bitte erneut versuchen.",
+    "viewingWorkspace": "Arbeitsbereich ansehen",
+    "viewingMyOwn": "Meine Dokumente",
+    "viewingSharedBy": "Geteilt von {{name}}"
   },
   "categories": {
     "finance": "Finanzen",
@@ -287,6 +290,32 @@
     "pendingInvites": "Ausstehende Einladungen",
     "revokeInvite": "Widerrufen",
     "removeMemberError": "Entfernen dieses Mitglieds fehlgeschlagen"
+  },
+  "workspaceSharing": {
+    "title": "Arbeitsbereich teilen",
+    "description": "Teilen Sie alle Ihre Dokumente mit bis zu 2 vertrauenswürdigen Personen.",
+    "loadError": "Arbeitsbereich-Freigabe konnte nicht geladen werden",
+    "invitationsReceived": "Einladungen",
+    "invitedBy": "{{name}} hat Sie zu ihrem Arbeitsbereich eingeladen",
+    "accept": "Annehmen",
+    "decline": "Ablehnen",
+    "myShares": "Personen, mit denen Sie geteilt haben",
+    "invitePhonePlaceholder": "Telefonnummer, z.B. +491511234567",
+    "lookupAction": "Suchen",
+    "userNotFound": "Kein Benutzer mit dieser Telefonnummer gefunden.",
+    "allowExport": "Export erlauben",
+    "inviteAction": "Einladen",
+    "lookupError": "Suche nach dieser Telefonnummer fehlgeschlagen",
+    "inviteError": "Einladen dieses Benutzers fehlgeschlagen",
+    "atCapacity": "Sie haben das Maximum von 2 geteilten Mitgliedern erreicht. Entfernen Sie eines, um jemand anderen einzuladen.",
+    "noShares": "Sie haben Ihren Arbeitsbereich noch mit niemandem geteilt.",
+    "pending": "Ausstehend",
+    "revokeError": "Entfernen dieser Person fehlgeschlagen",
+    "updateError": "Aktualisieren der Exportberechtigung fehlgeschlagen",
+    "respondError": "Antworten auf diese Einladung fehlgeschlagen",
+    "sharedWithMe": "Mit mir geteilt",
+    "sharedByName": "Geteilt von {{name}}",
+    "sharedWithMeHint": "Wechseln Sie über das Ansichtsmenü auf der Dokumentenseite zu einem geteilten Arbeitsbereich."
   },
   "entities": {
     "title": "Entitäten",

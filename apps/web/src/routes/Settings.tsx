@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { AddressHistory } from "../components/AddressHistory";
 import Card from "../components/Card";
 import { PasskeySettings } from "../components/PasskeySettings";
+import { WorkspaceSharing } from "../components/WorkspaceSharing";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Combobox, type ComboboxOption } from "../components/ui/Combobox";
@@ -182,6 +183,8 @@ export default function Settings() {
       </div>
 
       <OrganizationSection />
+
+      <WorkspaceSharing />
     </div>
   );
 }
