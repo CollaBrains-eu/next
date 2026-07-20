@@ -207,7 +207,15 @@
     "createError": "Aufgabe konnte nicht erstellt werden",
     "statsOpenLabel": "Offen",
     "statsOverdueLabel": "Überfällig",
-    "statsDueTodayLabel": "Heute fällig"
+    "statsDueTodayLabel": "Heute fällig",
+    "categoryLabel": "Kategorie",
+    "categoryNone": "Keine Kategorie",
+    "categoryPayment": "Zahlung",
+    "categoryAppointment": "Termin",
+    "categoryDeadline": "Frist",
+    "categoryNotification": "Meldung",
+    "addToCalendar": "📅 Zum Kalender hinzufügen",
+    "calendarError": "Aufgabe konnte nicht in den Kalender exportiert werden"
   },
   "calendar": {
     "title": "Kalender",

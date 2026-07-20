@@ -69,7 +69,7 @@ describe("Dashboard", () => {
 
   it("shows open tasks", async () => {
     vi.mocked(api.listTasks).mockResolvedValue([
-      { id: "t1", document_id: null, title: "Review lease", description: null, due_date: null, assignee: null, status: "open", position: 0, source: "manual", created_at: "2026-01-01T00:00:00Z", recurrence_rule: null },
+      { id: "t1", document_id: null, title: "Review lease", description: null, due_date: null, assignee: null, status: "open", position: 0, source: "manual", created_at: "2026-01-01T00:00:00Z", recurrence_rule: null, category: null },
     ]);
     renderPage();
     expect(await screen.findByText("Review lease")).toBeInTheDocument();
@@ -78,7 +78,7 @@ describe("Dashboard", () => {
 
   it("shows an overdue badge next to a task with a past due date", async () => {
     vi.mocked(api.listTasks).mockResolvedValue([
-      { id: "t1", document_id: null, title: "Review lease", description: null, due_date: "2020-01-01", assignee: null, status: "open", position: 0, source: "manual", created_at: "2026-01-01T00:00:00Z", recurrence_rule: null },
+      { id: "t1", document_id: null, title: "Review lease", description: null, due_date: "2020-01-01", assignee: null, status: "open", position: 0, source: "manual", created_at: "2026-01-01T00:00:00Z", recurrence_rule: null, category: null },
     ]);
     renderPage();
     expect(await screen.findByText("Review lease")).toBeInTheDocument();
@@ -87,7 +87,7 @@ describe("Dashboard", () => {
 
   it("shows a formatted-date badge next to a task with a far-future due date", async () => {
     vi.mocked(api.listTasks).mockResolvedValue([
-      { id: "t1", document_id: null, title: "Review lease", description: null, due_date: "2099-06-15", assignee: null, status: "open", position: 0, source: "manual", created_at: "2026-01-01T00:00:00Z", recurrence_rule: null },
+      { id: "t1", document_id: null, title: "Review lease", description: null, due_date: "2099-06-15", assignee: null, status: "open", position: 0, source: "manual", created_at: "2026-01-01T00:00:00Z", recurrence_rule: null, category: null },
     ]);
     renderPage();
     expect(await screen.findByText("Review lease")).toBeInTheDocument();
@@ -96,7 +96,7 @@ describe("Dashboard", () => {
 
   it("shows no badge next to a task with no due date", async () => {
     vi.mocked(api.listTasks).mockResolvedValue([
-      { id: "t1", document_id: null, title: "Review lease", description: null, due_date: null, assignee: null, status: "open", position: 0, source: "manual", created_at: "2026-01-01T00:00:00Z", recurrence_rule: null },
+      { id: "t1", document_id: null, title: "Review lease", description: null, due_date: null, assignee: null, status: "open", position: 0, source: "manual", created_at: "2026-01-01T00:00:00Z", recurrence_rule: null, category: null },
     ]);
     renderPage();
     const taskRow = (await screen.findByText("Review lease")).closest("li");
@@ -147,7 +147,7 @@ describe("Dashboard", () => {
 
   it("shows an overdue indicator in the My-tasks widget header when a loaded task is overdue", async () => {
     vi.mocked(api.listTasks).mockResolvedValue([
-      { id: "t1", document_id: null, title: "Review lease", description: null, due_date: "2020-01-01", assignee: null, status: "open", position: 0, source: "manual", created_at: "2026-01-01T00:00:00Z", recurrence_rule: null },
+      { id: "t1", document_id: null, title: "Review lease", description: null, due_date: "2020-01-01", assignee: null, status: "open", position: 0, source: "manual", created_at: "2026-01-01T00:00:00Z", recurrence_rule: null, category: null },
     ]);
     renderPage();
     expect(await screen.findByText("Review lease")).toBeInTheDocument();
@@ -156,7 +156,7 @@ describe("Dashboard", () => {
 
   it("hides the overdue indicator when no loaded task is overdue", async () => {
     vi.mocked(api.listTasks).mockResolvedValue([
-      { id: "t1", document_id: null, title: "Review lease", description: null, due_date: "2099-06-15", assignee: null, status: "open", position: 0, source: "manual", created_at: "2026-01-01T00:00:00Z", recurrence_rule: null },
+      { id: "t1", document_id: null, title: "Review lease", description: null, due_date: "2099-06-15", assignee: null, status: "open", position: 0, source: "manual", created_at: "2026-01-01T00:00:00Z", recurrence_rule: null, category: null },
     ]);
     renderPage();
     expect(await screen.findByText("Review lease")).toBeInTheDocument();
@@ -169,8 +169,8 @@ describe("Dashboard", () => {
       { id: "d2", title: "B", filename: "b.pdf", mime_type: "application/pdf", status: "ready", error: null, created_at: "2026-01-02T00:00:00Z", processed_at: null, category_id: null },
     ]);
     vi.mocked(api.listTasks).mockResolvedValue([
-      { id: "t1", document_id: null, title: "Overdue task", description: null, due_date: "2020-01-01", assignee: null, status: "open", position: 0, source: "manual", created_at: "2026-01-01T00:00:00Z", recurrence_rule: null },
-      { id: "t2", document_id: null, title: "Future task", description: null, due_date: "2099-01-01", assignee: null, status: "open", position: 1, source: "manual", created_at: "2026-01-01T00:00:00Z", recurrence_rule: null },
+      { id: "t1", document_id: null, title: "Overdue task", description: null, due_date: "2020-01-01", assignee: null, status: "open", position: 0, source: "manual", created_at: "2026-01-01T00:00:00Z", recurrence_rule: null, category: null },
+      { id: "t2", document_id: null, title: "Future task", description: null, due_date: "2099-01-01", assignee: null, status: "open", position: 1, source: "manual", created_at: "2026-01-01T00:00:00Z", recurrence_rule: null, category: null },
     ]);
     vi.mocked(api.listCases).mockResolvedValue([
       { id: "c1", name: "Case one", description: null, status: "open", created_at: "2026-01-01T00:00:00Z", document_count: 0, member_count: 0 },

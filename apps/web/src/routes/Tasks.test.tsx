@@ -12,6 +12,8 @@ vi.mock("../lib/api", async () => {
     createTask: vi.fn(),
     updateTaskStatus: vi.fn(),
     moveTask: vi.fn(),
+    updateTaskCategory: vi.fn(),
+    downloadTaskIcs: vi.fn(),
   };
 });
 
@@ -23,7 +25,7 @@ const OPEN_TASKS: api.TaskOut[] = [
   {
     id: "t1", document_id: "d1", title: "Review lease", description: "Check termination clause",
     due_date: "2026-08-01", assignee: "Ada", status: "open", position: 0, source: "manual",
-    created_at: "2026-01-01T00:00:00Z", recurrence_rule: null,
+    created_at: "2026-01-01T00:00:00Z", recurrence_rule: null, category: null,
   },
 ];
 
@@ -203,5 +205,52 @@ describe("Tasks", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.queryByLabelText("What needs to happen?")).not.toBeInTheDocument();
     expect(api.createTask).not.toHaveBeenCalled();
+  });
+
+  it("includes the chosen category when submitting the new-task form", async () => {
+    vi.mocked(api.createTask).mockResolvedValue({ ...OPEN_TASKS[0], id: "t2", title: "Pay rent" });
+    renderPage();
+    await screen.findByText("Review lease");
+
+    fireEvent.click(screen.getByRole("button", { name: "+ New task" }));
+    fireEvent.change(screen.getByLabelText("What needs to happen?"), { target: { value: "Pay rent" } });
+    fireEvent.change(screen.getByLabelText("Category"), { target: { value: "payment" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    await waitFor(() =>
+      expect(api.createTask).toHaveBeenCalledWith({
+        title: "Pay rent",
+        due_date: undefined,
+        recurrence_rule: undefined,
+        category: "payment",
+      })
+    );
+  });
+
+  it("changing a task row's category select calls updateTaskCategory", async () => {
+    vi.mocked(api.updateTaskCategory).mockResolvedValue({ ...OPEN_TASKS[0], category: "deadline" });
+    renderPage();
+    await screen.findByText("Review lease");
+
+    fireEvent.change(screen.getByLabelText("Category – Review lease"), { target: { value: "deadline" } });
+
+    await waitFor(() => expect(api.updateTaskCategory).toHaveBeenCalledWith("t1", "open", "deadline"));
+  });
+
+  it("clicking 'Add to calendar' on a task with a due date downloads its ics", async () => {
+    vi.mocked(api.downloadTaskIcs).mockResolvedValue(undefined);
+    renderPage();
+    await screen.findByText("Review lease");
+
+    fireEvent.click(screen.getByRole("button", { name: "📅 Add to calendar" }));
+
+    await waitFor(() => expect(api.downloadTaskIcs).toHaveBeenCalledWith("t1", "review-lease.ics"));
+  });
+
+  it("does not show the 'Add to calendar' action for a task with no due date", async () => {
+    vi.mocked(api.listTasks).mockResolvedValue([{ ...OPEN_TASKS[0], due_date: null }]);
+    renderPage();
+    await screen.findByText("Review lease");
+    expect(screen.queryByRole("button", { name: "📅 Add to calendar" })).not.toBeInTheDocument();
   });
 });

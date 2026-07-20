@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ApiError, approveEntity, clearToken, downloadAppointmentIcs, login, request, setToken } from "./api";
+import { ApiError, approveEntity, clearToken, downloadAppointmentIcs, downloadTaskIcs, login, request, setToken } from "./api";
+
+const IPHONE_UA =
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
+
+function stubUserAgent(userAgent: string) {
+  vi.spyOn(window.navigator, "userAgent", "get").mockReturnValue(userAgent);
+}
 
 describe("api request()", () => {
   beforeEach(() => {
@@ -108,6 +115,7 @@ describe("downloadAppointmentIcs", () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(new Response("BEGIN:VCALENDAR", { status: 200 }));
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
 
+    vi.useFakeTimers();
     await downloadAppointmentIcs("a1", "appointment.ics");
 
     const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
@@ -115,8 +123,14 @@ describe("downloadAppointmentIcs", () => {
     expect((init.headers as Headers).get("Authorization")).toBe("Bearer secret-token");
     expect(URL.createObjectURL).toHaveBeenCalled();
     expect(clickSpy).toHaveBeenCalled();
+
+    // Revocation is deferred (not immediate) so a same-tick `window.open` on
+    // Apple platforms has time to load the blob before its URL dies.
+    expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(10000);
     expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:mock-url");
 
+    vi.useRealTimers();
     clickSpy.mockRestore();
   });
 
@@ -124,5 +138,22 @@ describe("downloadAppointmentIcs", () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(new Response("", { status: 404, statusText: "Not Found" }));
 
     await expect(downloadAppointmentIcs("missing", "x.ics")).rejects.toBeInstanceOf(ApiError);
+  });
+
+  it("opens the blob directly (no forced download) on an Apple platform, so Safari offers its native Add-to-Calendar sheet", async () => {
+    stubUserAgent(IPHONE_UA);
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(new Response("BEGIN:VCALENDAR", { status: 200 }));
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+
+    await downloadTaskIcs("t1", "task.ics");
+
+    const [url] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toContain("/tasks/t1/ics");
+    expect(openSpy).toHaveBeenCalledWith("blob:mock-url", "_blank");
+    expect(clickSpy).not.toHaveBeenCalled();
+
+    openSpy.mockRestore();
+    clickSpy.mockRestore();
   });
 });

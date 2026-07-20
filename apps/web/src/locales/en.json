@@ -207,7 +207,15 @@
     "createError": "Failed to create task",
     "statsOpenLabel": "Open",
     "statsOverdueLabel": "Overdue",
-    "statsDueTodayLabel": "Due today"
+    "statsDueTodayLabel": "Due today",
+    "categoryLabel": "Category",
+    "categoryNone": "No category",
+    "categoryPayment": "Payment",
+    "categoryAppointment": "Appointment",
+    "categoryDeadline": "Deadline",
+    "categoryNotification": "Notification",
+    "addToCalendar": "📅 Add to calendar",
+    "calendarError": "Failed to export task to calendar"
   },
   "calendar": {
     "title": "Calendar",
