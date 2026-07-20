@@ -179,8 +179,8 @@ export interface DocumentDetailOut extends DocumentOut {
   correspondent_country: string | null;
 }
 
-export function listDocuments(): Promise<DocumentOut[]> {
-  return request<DocumentOut[]>("/documents");
+export function listDocuments(ownerId?: string): Promise<DocumentOut[]> {
+  return request<DocumentOut[]>(ownerId ? `/documents?owner_id=${encodeURIComponent(ownerId)}` : "/documents");
 }
 
 export function getDocument(id: string): Promise<DocumentDetailOut> {
@@ -499,6 +499,57 @@ export async function lookupUserByPhone(phone: string): Promise<{ id: string; us
   }
 }
 
+export interface WorkspaceMemberOut {
+  id: string;
+  owner_id: string;
+  owner_username: string;
+  owner_display_name: string;
+  member_id: string;
+  member_username: string;
+  member_display_name: string;
+  can_export: boolean;
+  status: "pending" | "accepted" | "declined";
+  created_at: string;
+}
+
+export function listMyWorkspaceMembers(): Promise<WorkspaceMemberOut[]> {
+  return request<WorkspaceMemberOut[]>("/workspace/members");
+}
+
+export function inviteWorkspaceMember(userId: string, canExport: boolean): Promise<WorkspaceMemberOut> {
+  return request<WorkspaceMemberOut>("/workspace/members", {
+    method: "POST",
+    body: JSON.stringify({ user_id: userId, can_export: canExport }),
+  });
+}
+
+export function updateWorkspaceMemberExport(memberId: string, canExport: boolean): Promise<WorkspaceMemberOut> {
+  return request<WorkspaceMemberOut>(`/workspace/members/${memberId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ can_export: canExport }),
+  });
+}
+
+export function revokeWorkspaceMember(memberId: string): Promise<void> {
+  return request<void>(`/workspace/members/${memberId}`, { method: "DELETE" });
+}
+
+export function listMyWorkspaceInvitations(): Promise<WorkspaceMemberOut[]> {
+  return request<WorkspaceMemberOut[]>("/workspace/invitations");
+}
+
+export function listWorkspacesSharedWithMe(): Promise<WorkspaceMemberOut[]> {
+  return request<WorkspaceMemberOut[]>("/workspace/shared-with-me");
+}
+
+export function acceptWorkspaceInvitation(ownerId: string): Promise<WorkspaceMemberOut> {
+  return request<WorkspaceMemberOut>(`/workspace/invitations/${ownerId}/accept`, { method: "POST" });
+}
+
+export function declineWorkspaceInvitation(ownerId: string): Promise<WorkspaceMemberOut> {
+  return request<WorkspaceMemberOut>(`/workspace/invitations/${ownerId}/decline`, { method: "POST" });
+}
+
 export function listDecisions(): Promise<DecisionListItemOut[]> {
   return request<DecisionListItemOut[]>("/decisions");
 }
@@ -655,8 +706,11 @@ async function downloadCsv(path: string, filename: string): Promise<void> {
   URL.revokeObjectURL(url);
 }
 
-export function downloadDocumentsCsv(): Promise<void> {
-  return downloadCsv("/documents/export.csv", "documents.csv");
+export function downloadDocumentsCsv(ownerId?: string): Promise<void> {
+  return downloadCsv(
+    ownerId ? `/documents/export.csv?owner_id=${encodeURIComponent(ownerId)}` : "/documents/export.csv",
+    "documents.csv",
+  );
 }
 
 export function downloadCasesCsv(): Promise<void> {

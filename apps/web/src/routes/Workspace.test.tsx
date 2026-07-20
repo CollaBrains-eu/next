@@ -11,6 +11,7 @@ vi.mock("../lib/api", async () => {
     ...actual,
     listDocuments: vi.fn(),
     listCategories: vi.fn(),
+    listWorkspacesSharedWithMe: vi.fn(),
     search: vi.fn(),
     deleteDocument: vi.fn(),
     downloadDocumentsCsv: vi.fn(),
@@ -47,6 +48,7 @@ describe("Workspace (Documents list)", () => {
     vi.clearAllMocks();
     vi.mocked(api.listDocuments).mockResolvedValue(docs);
     vi.mocked(api.listCategories).mockResolvedValue([]);
+    vi.mocked(api.listWorkspacesSharedWithMe).mockResolvedValue([]);
   });
 
   it("renders documents in a paginated DataTable (only 10 of 12 rows visible on page 1)", async () => {
@@ -158,5 +160,69 @@ describe("Workspace (Documents list)", () => {
     await screen.findByText("document-0.pdf");
     fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
     expect(await screen.findByText(/export/i)).toBeInTheDocument();
+  });
+
+  it("does not show a workspace switcher when nothing is shared with me", async () => {
+    renderPage();
+    await screen.findByText("document-0.pdf");
+    expect(screen.queryByLabelText("Viewing workspace")).not.toBeInTheDocument();
+  });
+
+  it("shows a workspace switcher and switches to a shared workspace's documents", async () => {
+    vi.mocked(api.listWorkspacesSharedWithMe).mockResolvedValue([
+      {
+        id: "wm-1", owner_id: "owner-9", owner_username: "owner9", owner_display_name: "Owner Nine",
+        member_id: "self", member_username: "self", member_display_name: "Self",
+        can_export: false, status: "accepted", created_at: "2026-01-01T00:00:00Z",
+      },
+    ]);
+    const sharedDocs: api.DocumentOut[] = [
+      { ...docs[0], id: "shared-doc-1", title: "shared-file.pdf" },
+    ];
+    vi.mocked(api.listDocuments).mockImplementation((ownerId?: string) =>
+      Promise.resolve(ownerId === "owner-9" ? sharedDocs : docs)
+    );
+
+    renderPage();
+    await screen.findByText("document-0.pdf");
+
+    const switcher = await screen.findByLabelText("Viewing workspace");
+    fireEvent.change(switcher, { target: { value: "owner-9" } });
+
+    expect(await screen.findByText("shared-file.pdf")).toBeInTheDocument();
+    expect(screen.queryByText("document-0.pdf")).not.toBeInTheDocument();
+  });
+
+  it("hides row-selection checkboxes and the upload button while viewing a shared workspace", async () => {
+    vi.mocked(api.listWorkspacesSharedWithMe).mockResolvedValue([
+      {
+        id: "wm-1", owner_id: "owner-9", owner_username: "owner9", owner_display_name: "Owner Nine",
+        member_id: "self", member_username: "self", member_display_name: "Self",
+        can_export: false, status: "accepted", created_at: "2026-01-01T00:00:00Z",
+      },
+    ]);
+    renderPage();
+    await screen.findByText("document-0.pdf");
+
+    expect(screen.getAllByRole("checkbox").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Upload document" })).toBeInTheDocument();
+
+    fireEvent.change(await screen.findByLabelText("Viewing workspace"), { target: { value: "owner-9" } });
+    await waitFor(() => expect(screen.queryAllByRole("checkbox")).toHaveLength(0));
+    expect(screen.queryByRole("button", { name: "Upload document" })).not.toBeInTheDocument();
+  });
+
+  it("hides the Export CSV button for a shared workspace without export permission", async () => {
+    vi.mocked(api.listWorkspacesSharedWithMe).mockResolvedValue([
+      {
+        id: "wm-1", owner_id: "owner-9", owner_username: "owner9", owner_display_name: "Owner Nine",
+        member_id: "self", member_username: "self", member_display_name: "Self",
+        can_export: false, status: "accepted", created_at: "2026-01-01T00:00:00Z",
+      },
+    ]);
+    renderPage();
+    await screen.findByText("document-0.pdf");
+    fireEvent.change(await screen.findByLabelText("Viewing workspace"), { target: { value: "owner-9" } });
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Export CSV" })).not.toBeInTheDocument());
   });
 });

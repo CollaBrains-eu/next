@@ -585,6 +585,28 @@ class CaseMember(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class WorkspaceMember(Base):
+    """Grants a user read access to another user's entire workspace (v2
+    parity port -- v2 called this "werkruimte delen", sharing with up to
+    2 trusted co-admins). Distinct from CaseMember, which scopes access
+    to one case; this scopes to everything an owner owns. Same
+    pending/accepted/declined invitation shape, capped at 2 active
+    (pending or accepted) memberships per owner -- v2's "maximaal 2
+    vertrouwde personen" limit, enforced in workspace_sharing.py rather
+    than at the DB level since it depends on counting sibling rows.
+    """
+
+    __tablename__ = "workspace_members"
+    __table_args__ = (UniqueConstraint("owner_id", "member_id", name="uq_workspace_members_owner_member"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    owner_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    member_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    can_export: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")  # "pending" | "accepted" | "declined"
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class OnboardingToken(Base):
     """A single-use link sent by email to get a user started (Phase 27,
     v2 port). Narrower than v2's version -- no PocketID one-time-token

@@ -38,6 +38,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.ai_gateway import chat_completion
 from api.auth import get_effective_user
 from api.cases import is_case_member
+from api.workspace_sharing import can_export_workspace, is_workspace_member
 from api.chunking import chunk_text
 from api.config import settings
 from api.db import async_session, get_db
@@ -338,28 +339,56 @@ async def upload_document(
     return document
 
 
+async def _resolve_viewed_owner_id(
+    db: AsyncSession, *, owner_id: UUID | None, current_user: User, require_export: bool = False
+) -> UUID:
+    """Resolves the "?owner_id=" query param used to view a workspace
+    shared with the current user (v2 parity: "werkruimte delen").
+    Defaults to the current user's own workspace. `require_export` gates
+    CSV export behind the sharing invite's own can_export flag, distinct
+    from ordinary read access."""
+    if owner_id is None or owner_id == current_user.id:
+        return current_user.id
+    if current_user.role == "admin":
+        return owner_id
+    has_access = (
+        await can_export_workspace(db, owner_id=owner_id, member_id=current_user.id)
+        if require_export
+        else await is_workspace_member(db, owner_id=owner_id, member_id=current_user.id)
+    )
+    if not has_access:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to view this workspace")
+    return owner_id
+
+
 @router.get("", response_model=list[DocumentOut])
 async def list_documents(
+    owner_id: UUID | None = Query(None),
     limit: int = Query(50, le=200),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_effective_user),
 ) -> list[Document]:
+    viewed_owner_id = await _resolve_viewed_owner_id(db, owner_id=owner_id, current_user=current_user)
     query = select(Document).order_by(Document.created_at.desc()).limit(limit).offset(offset)
-    if current_user.role != "admin":
-        query = query.where(Document.owner_id == current_user.id)
+    if not (current_user.role == "admin" and owner_id is None):
+        query = query.where(Document.owner_id == viewed_owner_id)
     result = await db.execute(query)
     return list(result.scalars().all())
 
 
 @router.get("/export.csv")
 async def export_documents_csv(
+    owner_id: UUID | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_effective_user),
 ) -> Response:
+    viewed_owner_id = await _resolve_viewed_owner_id(
+        db, owner_id=owner_id, current_user=current_user, require_export=True
+    )
     query = select(Document).order_by(Document.created_at.desc())
-    if current_user.role != "admin":
-        query = query.where(Document.owner_id == current_user.id)
+    if not (current_user.role == "admin" and owner_id is None):
+        query = query.where(Document.owner_id == viewed_owner_id)
     result = await db.execute(query)
     documents = result.scalars().all()
 
@@ -390,13 +419,14 @@ async def export_documents_csv(
 
 async def _can_read_document(db: AsyncSession, document: Document, current_user: User) -> bool:
     """Owner and admin always can; an accepted member of the document's
-    case can too (case-member document sharing, Phase 1) -- delete stays
-    owner/admin-only, this only widens read/download access."""
+    case can too (case-member document sharing, Phase 1), and so can an
+    accepted member of the owner's whole shared workspace (v2 parity) --
+    delete stays owner/admin-only, this only widens read/download access."""
     if document.owner_id == current_user.id or current_user.role == "admin":
         return True
-    if document.case_id is not None:
-        return await is_case_member(db, case_id=document.case_id, user_id=current_user.id)
-    return False
+    if document.case_id is not None and await is_case_member(db, case_id=document.case_id, user_id=current_user.id):
+        return True
+    return await is_workspace_member(db, owner_id=document.owner_id, member_id=current_user.id)
 
 
 @router.get("/{document_id}", response_model=DocumentDetailOut)

@@ -111,7 +111,10 @@
     "statusFilterLabel": "Status",
     "categoryFilterLabel": "Category",
     "exportCsv": "Export CSV",
-    "exportError": "Couldn't export the CSV. Please try again."
+    "exportError": "Couldn't export the CSV. Please try again.",
+    "viewingWorkspace": "Viewing workspace",
+    "viewingMyOwn": "My documents",
+    "viewingSharedBy": "Shared by {{name}}"
   },
   "categories": {
     "finance": "Finance",
@@ -287,6 +290,32 @@
     "pendingInvites": "Pending invites",
     "revokeInvite": "Revoke",
     "removeMemberError": "Failed to remove that member"
+  },
+  "workspaceSharing": {
+    "title": "Share your workspace",
+    "description": "Share all of your documents with up to 2 trusted people.",
+    "loadError": "Failed to load workspace sharing",
+    "invitationsReceived": "Invitations",
+    "invitedBy": "{{name}} invited you to their workspace",
+    "accept": "Accept",
+    "decline": "Decline",
+    "myShares": "People you've shared with",
+    "invitePhonePlaceholder": "Phone number, e.g. +491511234567",
+    "lookupAction": "Look up",
+    "userNotFound": "No user found with that phone number.",
+    "allowExport": "Allow export",
+    "inviteAction": "Invite",
+    "lookupError": "Failed to look up that phone number",
+    "inviteError": "Failed to invite that user",
+    "atCapacity": "You've reached the maximum of 2 shared members. Remove one to invite someone else.",
+    "noShares": "You haven't shared your workspace with anyone yet.",
+    "pending": "Pending",
+    "revokeError": "Failed to remove that person",
+    "updateError": "Failed to update export permission",
+    "respondError": "Failed to respond to that invitation",
+    "sharedWithMe": "Shared with me",
+    "sharedByName": "Shared by {{name}}",
+    "sharedWithMeHint": "Switch to a shared workspace from the viewing menu on the Documents page."
   },
   "entities": {
     "title": "Entities",

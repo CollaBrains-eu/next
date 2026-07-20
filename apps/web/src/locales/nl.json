@@ -111,7 +111,10 @@
     "statusFilterLabel": "Status",
     "categoryFilterLabel": "Categorie",
     "exportCsv": "Exporteer CSV",
-    "exportError": "CSV exporteren is mislukt. Probeer het opnieuw."
+    "exportError": "CSV exporteren is mislukt. Probeer het opnieuw.",
+    "viewingWorkspace": "Werkruimte bekijken",
+    "viewingMyOwn": "Mijn documenten",
+    "viewingSharedBy": "Gedeeld door {{name}}"
   },
   "categories": {
     "finance": "Financiën",
@@ -287,6 +290,32 @@
     "pendingInvites": "Openstaande uitnodigingen",
     "revokeInvite": "Intrekken",
     "removeMemberError": "Verwijderen van dat lid is mislukt"
+  },
+  "workspaceSharing": {
+    "title": "Werkruimte delen",
+    "description": "Deel al uw documenten met maximaal 2 vertrouwde personen.",
+    "loadError": "Kon werkruimte delen niet laden",
+    "invitationsReceived": "Uitnodigingen",
+    "invitedBy": "{{name}} heeft u uitgenodigd voor hun werkruimte",
+    "accept": "Accepteren",
+    "decline": "Afwijzen",
+    "myShares": "Personen met wie u heeft gedeeld",
+    "invitePhonePlaceholder": "Telefoonnummer, bijv. +491511234567",
+    "lookupAction": "Opzoeken",
+    "userNotFound": "Geen gebruiker gevonden met dat telefoonnummer.",
+    "allowExport": "Exporteren toestaan",
+    "inviteAction": "Uitnodigen",
+    "lookupError": "Opzoeken van dat telefoonnummer is mislukt",
+    "inviteError": "Uitnodigen van die gebruiker is mislukt",
+    "atCapacity": "U heeft het maximum van 2 gedeelde leden bereikt. Verwijder er een om iemand anders uit te nodigen.",
+    "noShares": "U heeft uw werkruimte nog met niemand gedeeld.",
+    "pending": "In afwachting",
+    "revokeError": "Verwijderen van die persoon is mislukt",
+    "updateError": "Bijwerken van exportrechten is mislukt",
+    "respondError": "Reageren op die uitnodiging is mislukt",
+    "sharedWithMe": "Met mij gedeeld",
+    "sharedByName": "Gedeeld door {{name}}",
+    "sharedWithMeHint": "Wissel naar een gedeelde werkruimte via het weergavemenu op de documentenpagina."
   },
   "entities": {
     "title": "Entiteiten",
