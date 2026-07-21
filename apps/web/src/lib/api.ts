@@ -1,3 +1,5 @@
+import { isApplePlatform } from "./maps";
+
 // Default to same-origin (relative paths) -- correct for the production build,
 // where Caddy reverse-proxies API paths on the same domain the SPA is served
 // from. Local dev overrides this via apps/web/.env.development.
@@ -286,6 +288,7 @@ export function legalDraft(instruction: string, documentIds: string[]): Promise<
 
 export type TaskStatus = "open" | "in_progress" | "done";
 export type RecurrenceRule = "daily" | "weekly" | "monthly";
+export type TaskCategory = "payment" | "appointment" | "deadline" | "notification";
 
 export interface TaskOut {
   id: string;
@@ -299,6 +302,7 @@ export interface TaskOut {
   source: string;
   created_at: string;
   recurrence_rule: RecurrenceRule | null;
+  category: TaskCategory | null;
 }
 
 export function listTasks(statusFilter?: string): Promise<TaskOut[]> {
@@ -312,6 +316,7 @@ export function createTask(input: {
   due_date?: string;
   assignee?: string;
   recurrence_rule?: RecurrenceRule;
+  category?: TaskCategory;
 }): Promise<TaskOut> {
   return request<TaskOut>("/tasks", {
     method: "POST",
@@ -331,6 +336,17 @@ export function moveTask(id: string, status: TaskStatus, position: number): Prom
     method: "PATCH",
     body: JSON.stringify({ status, position }),
   });
+}
+
+export function updateTaskCategory(id: string, status: TaskStatus, category: TaskCategory): Promise<TaskOut> {
+  return request<TaskOut>(`/tasks/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status, category }),
+  });
+}
+
+export async function downloadTaskIcs(id: string, filename: string): Promise<void> {
+  await fetchAndOpenIcs(`/tasks/${id}/ics`, filename);
 }
 
 export interface EntityOut {
@@ -645,21 +661,35 @@ export function deleteAppointment(id: string): Promise<void> {
   return request<void>(`/appointments/${id}`, { method: "DELETE" });
 }
 
-export async function downloadAppointmentIcs(id: string, filename: string): Promise<void> {
+// iOS Safari doesn't offer its native "Add to Calendar" sheet for a
+// forced file download (an <a download> click) -- it just saves the raw
+// .ics to Files. Opening the blob URL directly, without `download` set,
+// lets Safari recognize the text/calendar type and hand it to Calendar
+// instead. Desktop browsers get the named-file download as before, since
+// they don't have an equivalent inline handler.
+async function fetchAndOpenIcs(path: string, filename: string): Promise<void> {
   const headers = new Headers();
   const token = getToken();
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  const response = await fetch(`${API_URL}/appointments/${id}/ics`, { headers });
+  const response = await fetch(`${API_URL}${path}`, { headers });
   if (!response.ok) throw new ApiError(response.status, response.statusText);
 
   const blob = await response.blob();
   const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
+  if (isApplePlatform()) {
+    window.open(url, "_blank");
+  } else {
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+export async function downloadAppointmentIcs(id: string, filename: string): Promise<void> {
+  await fetchAndOpenIcs(`/appointments/${id}/ics`, filename);
 }
 
 async function fetchDocumentFileBlob(id: string, disposition: "attachment" | "inline"): Promise<Blob> {

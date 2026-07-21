@@ -12,6 +12,7 @@ import {
   type CaseOut,
 } from "../lib/api";
 import { fromDatetimeLocalValue, getMonthGridDates, toDateKey, toDatetimeLocalValue } from "../lib/calendarGrid";
+import { buildMapsUrl } from "../lib/maps";
 import { Button } from "../components/ui/Button";
 import { CalendarGrid } from "../components/ui/CalendarGrid";
 import { Modal } from "../components/ui/Modal";
@@ -196,7 +197,7 @@ export default function Calendar() {
                 <div className="mt-1 flex flex-wrap gap-2">
                   {appointment.location && (
                     <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(appointment.location)}`}
+                      href={buildMapsUrl(appointment.location)}
                       target="_blank"
                       rel="noreferrer"
                       className="text-xs text-accent hover:underline"

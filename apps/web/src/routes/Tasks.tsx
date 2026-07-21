@@ -4,10 +4,13 @@ import { useTranslation } from "react-i18next";
 import {
   ApiError,
   createTask,
+  downloadTaskIcs,
   listTasks,
   moveTask,
+  updateTaskCategory,
   updateTaskStatus,
   type RecurrenceRule,
+  type TaskCategory,
   type TaskOut,
   type TaskStatus,
 } from "../lib/api";
@@ -23,6 +26,9 @@ import { SkeletonLines } from "../components/ui/Skeleton";
 type Filter = "open" | "done" | "all";
 type View = "list" | "board";
 type Cadence = "once" | RecurrenceRule;
+type CategoryChoice = "" | TaskCategory;
+
+const CATEGORIES: TaskCategory[] = ["payment", "appointment", "deadline", "notification"];
 
 export default function Tasks() {
   const { t } = useTranslation();
@@ -38,6 +44,7 @@ export default function Tasks() {
   const [newTitle, setNewTitle] = useState("");
   const [newDueDate, setNewDueDate] = useState("");
   const [newCadence, setNewCadence] = useState<Cadence>("once");
+  const [newCategory, setNewCategory] = useState<CategoryChoice>("");
   const [creating, setCreating] = useState(false);
 
   const FILTER_LABELS: Record<Filter, string> = {
@@ -51,6 +58,13 @@ export default function Tasks() {
     daily: t("tasks.cadenceDaily"),
     weekly: t("tasks.cadenceWeekly"),
     monthly: t("tasks.cadenceMonthly"),
+  };
+
+  const CATEGORY_LABELS: Record<TaskCategory, string> = {
+    payment: t("tasks.categoryPayment"),
+    appointment: t("tasks.categoryAppointment"),
+    deadline: t("tasks.categoryDeadline"),
+    notification: t("tasks.categoryNotification"),
   };
 
   const refresh = useCallback((currentView: View, currentFilter: Filter) => {
@@ -93,6 +107,7 @@ export default function Tasks() {
     setNewTitle("");
     setNewDueDate("");
     setNewCadence("once");
+    setNewCategory("");
     setShowNewTask(false);
   }
 
@@ -104,6 +119,7 @@ export default function Tasks() {
         title: newTitle.trim(),
         due_date: newDueDate || undefined,
         recurrence_rule: newCadence !== "once" && newDueDate ? newCadence : undefined,
+        category: newCategory || undefined,
       });
       resetNewTaskForm();
       refresh(view, filter);
@@ -111,6 +127,24 @@ export default function Tasks() {
       setError(err instanceof ApiError ? err.message : t("tasks.createError"));
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function handleSetCategory(task: TaskOut, category: TaskCategory) {
+    try {
+      await updateTaskCategory(task.id, task.status as TaskStatus, category);
+      refresh(view, filter);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("tasks.updateError"));
+    }
+  }
+
+  async function handleDownloadIcs(task: TaskOut) {
+    const slug = task.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "task";
+    try {
+      await downloadTaskIcs(task.id, `${slug}.ics`);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("tasks.calendarError"));
     }
   }
 
@@ -208,6 +242,24 @@ export default function Tasks() {
                 ))}
               </div>
             </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-ink-2" htmlFor="new-task-category">
+                {t("tasks.categoryLabel")}
+              </label>
+              <select
+                id="new-task-category"
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value as CategoryChoice)}
+                className="rounded-lg border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+              >
+                <option value="">{t("tasks.categoryNone")}</option>
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {CATEGORY_LABELS[c]}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className="flex justify-end gap-2">
             <Button size="sm" variant="ghost" onClick={resetNewTaskForm}>
@@ -264,6 +316,30 @@ export default function Tasks() {
                         {t("tasks.sourceDocument")}
                       </Link>
                     )}
+                    {task.due_date && (
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadIcs(task)}
+                        className="hover:text-accent hover:underline"
+                      >
+                        {t("tasks.addToCalendar")}
+                      </button>
+                    )}
+                    <select
+                      aria-label={`${t("tasks.categoryLabel")} – ${task.title}`}
+                      value={task.category ?? ""}
+                      onChange={(e) => handleSetCategory(task, e.target.value as TaskCategory)}
+                      className="rounded border border-edge bg-surface px-1 py-0.5 text-xs text-ink-3 outline-none focus:border-accent"
+                    >
+                      <option value="" disabled>
+                        {t("tasks.categoryLabel")}
+                      </option>
+                      {CATEGORIES.map((c) => (
+                        <option key={c} value={c}>
+                          {CATEGORY_LABELS[c]}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </div>

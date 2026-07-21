@@ -281,6 +281,7 @@ class Task(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     recurrence_rule: Mapped[str | None] = mapped_column(String(20), nullable=True)
     notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    category: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
 
 class Entity(Base):

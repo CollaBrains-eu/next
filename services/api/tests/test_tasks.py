@@ -456,3 +456,150 @@ async def test_non_member_cannot_see_or_modify_document_linked_task_of_others_ca
 
     response = await client.patch(f"/tasks/{task_id}", headers=outsider_headers, json={"status": "done"})
     assert response.status_code == 403
+
+
+async def test_create_task_with_category(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = await client.post(
+        "/tasks", headers=headers, json={"title": "Pay invoice", "category": "payment"}
+    )
+
+    assert response.status_code == 201
+    assert response.json()["category"] == "payment"
+
+
+async def test_create_task_defaults_category_to_null(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = await client.post("/tasks", headers=headers, json={"title": "No category task"})
+
+    assert response.status_code == 201
+    assert response.json()["category"] is None
+
+
+async def test_create_task_rejects_invalid_category(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = await client.post(
+        "/tasks", headers=headers, json={"title": "Bad category task", "category": "not-a-category"}
+    )
+
+    assert response.status_code == 400
+
+
+async def test_update_task_sets_category(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    created = await client.post("/tasks", headers=headers, json={"title": "Untyped task"})
+    task_id = created.json()["id"]
+
+    response = await client.patch(
+        f"/tasks/{task_id}", headers=headers, json={"status": "open", "category": "deadline"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["category"] == "deadline"
+
+
+async def test_update_task_rejects_invalid_category(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    created = await client.post("/tasks", headers=headers, json={"title": "Untyped task 2"})
+    task_id = created.json()["id"]
+
+    response = await client.patch(
+        f"/tasks/{task_id}", headers=headers, json={"status": "open", "category": "bogus"}
+    )
+
+    assert response.status_code == 400
+
+
+async def test_completing_a_recurring_task_copies_category_to_next_occurrence(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    created = await client.post(
+        "/tasks",
+        headers=headers,
+        json={
+            "title": "Recurring payment stu999",
+            "due_date": "2026-07-06",
+            "recurrence_rule": "weekly",
+            "category": "payment",
+        },
+    )
+    task_id = created.json()["id"]
+
+    await client.patch(f"/tasks/{task_id}", headers=headers, json={"status": "done"})
+
+    all_open = await client.get("/tasks", params={"status": "open", "limit": 200}, headers=headers)
+    next_occurrence = [
+        t for t in all_open.json() if t["title"] == "Recurring payment stu999" and t["id"] != task_id
+    ]
+    assert len(next_occurrence) == 1
+    assert next_occurrence[0]["category"] == "payment"
+
+
+async def test_export_task_ics_returns_well_formed_all_day_vevent(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    created = await client.post(
+        "/tasks", headers=headers, json={"title": "Renew passport", "due_date": "2026-08-01"}
+    )
+    task_id = created.json()["id"]
+
+    response = await client.get(f"/tasks/{task_id}/ics", headers=headers)
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/calendar")
+    assert 'filename="renew-passport.ics"' in response.headers["content-disposition"]
+    body = response.text
+    assert "BEGIN:VEVENT" in body
+    assert "SUMMARY:Renew passport" in body
+    assert "DTSTART;VALUE=DATE:20260801" in body
+
+
+async def test_export_task_ics_rejects_task_without_due_date(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    created = await client.post("/tasks", headers=headers, json={"title": "No due date task"})
+    task_id = created.json()["id"]
+
+    response = await client.get(f"/tasks/{task_id}/ics", headers=headers)
+    assert response.status_code == 409
+
+
+async def test_export_task_ics_rejects_unknown_id(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = await client.get(
+        "/tasks/00000000-0000-0000-0000-000000000000/ics", headers=headers
+    )
+    assert response.status_code == 404
+
+
+async def test_export_task_ics_rejects_non_owner(client):
+    owner_headers = {"Authorization": f"Bearer {await _login_as(client, 'icstaskowner1')}"}
+    outsider_headers = {"Authorization": f"Bearer {await _login_as(client, 'icstaskoutsider1')}"}
+
+    created = await client.post(
+        "/tasks", headers=owner_headers, json={"title": "Private deadline task", "due_date": "2026-08-01"}
+    )
+    task_id = created.json()["id"]
+
+    response = await client.get(f"/tasks/{task_id}/ics", headers=outsider_headers)
+    assert response.status_code == 403
+
+
+async def test_export_task_ics_requires_auth(client):
+    response = await client.get("/tasks/00000000-0000-0000-0000-000000000000/ics")
+    assert response.status_code == 401

@@ -207,7 +207,15 @@
     "createError": "Kon taak niet aanmaken",
     "statsOpenLabel": "Open",
     "statsOverdueLabel": "Te laat",
-    "statsDueTodayLabel": "Vandaag"
+    "statsDueTodayLabel": "Vandaag",
+    "categoryLabel": "Categorie",
+    "categoryNone": "Geen categorie",
+    "categoryPayment": "Betaling",
+    "categoryAppointment": "Afspraak",
+    "categoryDeadline": "Deadline",
+    "categoryNotification": "Melding",
+    "addToCalendar": "📅 Toevoegen aan agenda",
+    "calendarError": "Kon taak niet exporteren naar agenda"
   },
   "calendar": {
     "title": "Kalender",
