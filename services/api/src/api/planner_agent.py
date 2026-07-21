@@ -16,13 +16,17 @@ from api.models import Task
 logger = logging.getLogger(__name__)
 
 EXTRACTION_PROMPT = """Extract actionable tasks from the following document. \
+This includes explicit to-dos AND any scheduled appointment, deadline, or date \
+the reader needs to act on or attend -- e.g. a line saying an appointment has \
+been booked for a given date counts as a task like "Attend appointment on \
+[date]", even if the document never phrases it as an instruction. \
 Return ONLY a JSON array (no prose, no markdown fences), where each item has:
 - "title": short imperative description (required)
 - "description": one sentence of extra context, or null
 - "due_date": an ISO date "YYYY-MM-DD" if a concrete date is mentioned, otherwise null
 - "assignee": a person or role name if mentioned, otherwise null
 
-If there are no actionable tasks, return an empty array: []
+If there are truly no actionable tasks or dates to act on, return an empty array: []
 
 Document:
 {text}"""
