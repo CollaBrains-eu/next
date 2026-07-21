@@ -175,6 +175,31 @@ async def test_summarize_caches_result_and_skips_second_llm_call(client):
     mock_completion.assert_called_once()
 
 
+async def test_summarize_includes_preferred_language_in_system_prompt(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    await client.put("/preferences/me", headers=headers, json={"preferred_language": "de"})
+
+    with (
+        patch("api.documents.submit_document", return_value="task-lang"),
+        patch("api.documents.wait_for_paperless_id", return_value=4),
+        patch("api.documents.fetch_document_text", return_value="Some long policy text to summarize."),
+        patch("api.documents.embed_text", return_value=FAKE_EMBEDDING),
+    ):
+        upload = await client.post(
+            "/documents", headers=headers, files={"file": ("policy.txt", b"policy", "text/plain")}
+        )
+    document_id = upload.json()["id"]
+
+    with patch("api.documents.chat_completion", return_value="Eine kurze Zusammenfassung.") as mock_completion:
+        await client.post(f"/documents/{document_id}/summarize", headers=headers)
+
+    sent_messages = mock_completion.call_args.args[0]
+    system_message = sent_messages[0]["content"]
+    assert "you must respond only in de" in system_message.lower()
+
+
 async def test_process_document_notifies_owner_on_ready_when_phone_linked(client):
     token = await _login(client)
     headers = {"Authorization": f"Bearer {token}"}
