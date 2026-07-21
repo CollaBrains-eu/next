@@ -74,6 +74,8 @@
     "openMenu": "Open menu",
     "search": "Search",
     "signOut": "Sign out",
+    "expandSidebar": "Expand sidebar",
+    "collapseSidebar": "Collapse sidebar",
     "lightMode": "☀️ Light mode",
     "darkMode": "🌙 Dark mode",
     "loading": "Loading…",

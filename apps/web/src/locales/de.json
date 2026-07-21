@@ -74,6 +74,8 @@
     "openMenu": "Menü öffnen",
     "search": "Suchen",
     "signOut": "Abmelden",
+    "expandSidebar": "Seitenleiste erweitern",
+    "collapseSidebar": "Seitenleiste einklappen",
     "lightMode": "☀️ Heller Modus",
     "darkMode": "🌙 Dunkler Modus",
     "loading": "Lädt…",

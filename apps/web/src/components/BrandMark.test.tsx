@@ -3,20 +3,16 @@ import { render, screen } from "@testing-library/react";
 import { BrandMark } from "./BrandMark";
 
 describe("BrandMark", () => {
-  it("renders an accessible svg mark", () => {
+  it("renders an accessible badge with the logo as its background", () => {
     render(<BrandMark />);
-    expect(screen.getByRole("img", { name: "CollaBrains" })).toBeInTheDocument();
+    const badge = screen.getByRole("img", { name: "CollaBrains" });
+    expect(badge).toBeInTheDocument();
+    expect(badge.style.backgroundImage).toContain("collabrains-logo");
   });
 
-  it("gives each instance a unique gradient id so multiple marks on one page don't collide", () => {
-    render(
-      <>
-        <BrandMark />
-        <BrandMark />
-      </>
-    );
-    const gradientIds = Array.from(document.querySelectorAll("linearGradient")).map((el) => el.id);
-    expect(gradientIds).toHaveLength(2);
-    expect(new Set(gradientIds).size).toBe(2);
+  it("sizes the badge to the size prop", () => {
+    render(<BrandMark size={40} />);
+    const badge = screen.getByRole("img", { name: "CollaBrains" });
+    expect(badge).toHaveStyle({ width: "40px", height: "40px" });
   });
 });

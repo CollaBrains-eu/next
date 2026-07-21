@@ -37,6 +37,7 @@ function renderAt(
 describe("Sidebar", () => {
   beforeEach(() => {
     vi.mocked(api.listEntities).mockResolvedValue([]);
+    localStorage.clear();
   });
 
   it("renders every nav item as a link to the right route", () => {
@@ -56,6 +57,17 @@ describe("Sidebar", () => {
   it("renders a sliding pill element behind the nav list", () => {
     renderAt("/");
     expect(document.querySelector("[data-testid=\"nav-pill\"]")).toBeInTheDocument();
+  });
+
+  it("renders an icon inside every nav link", () => {
+    renderAt("/");
+    expect(screen.getByRole("link", { name: "Dashboard" }).querySelector("svg")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Cases" }).querySelector("svg")).toBeInTheDocument();
+  });
+
+  it("renders the brand mark", () => {
+    renderAt("/");
+    expect(screen.getByRole("img", { name: "CollaBrains" })).toBeInTheDocument();
   });
 
   it("renders the AlertsBell", async () => {
@@ -99,6 +111,35 @@ describe("Sidebar", () => {
     renderAt("/", { mobileOpen: true, onCloseMobile });
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onCloseMobile).toHaveBeenCalledOnce();
+  });
+
+  describe("collapse", () => {
+    it("defaults to expanded", () => {
+      renderAt("/");
+      expect(document.querySelector("aside")).toHaveClass("md:w-56");
+      expect(screen.getByRole("button", { name: "Collapse sidebar" })).toBeInTheDocument();
+    });
+
+    it("collapses and persists the preference when the toggle is clicked", () => {
+      renderAt("/");
+      fireEvent.click(screen.getByRole("button", { name: "Collapse sidebar" }));
+      expect(document.querySelector("aside")).toHaveClass("md:w-16");
+      expect(localStorage.getItem("collabrains_sidebar_collapsed")).toBe("true");
+      expect(screen.getByRole("button", { name: "Expand sidebar" })).toBeInTheDocument();
+    });
+
+    it("restores a persisted collapsed state on mount", () => {
+      localStorage.setItem("collabrains_sidebar_collapsed", "true");
+      renderAt("/");
+      expect(document.querySelector("aside")).toHaveClass("md:w-16");
+    });
+
+    it("keeps nav labels in the accessible tree (visually-hidden at desktop widths) when collapsed", () => {
+      localStorage.setItem("collabrains_sidebar_collapsed", "true");
+      renderAt("/");
+      const dashboardLink = screen.getByRole("link", { name: "Dashboard" });
+      expect(dashboardLink.querySelector("span")).toHaveClass("md:sr-only");
+    });
   });
 
   describe("language switching", () => {

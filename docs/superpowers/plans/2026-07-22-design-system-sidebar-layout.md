@@ -348,6 +348,22 @@ git commit -m "feat(sidebar): add useSidebarCollapsed persisted-preference hook"
 
 ### Task 3: `BrandMark` component
 
+**Superseded mid-implementation, as actually built:** this task originally
+shipped the abstract inline-SVG placeholder described below (and it was
+committed). Partway through Task 6, the user supplied a real logo (the
+"collabrAIns" mascot + wordmark, PNG, flat white background, no alpha
+channel). `BrandMark.tsx` was rewritten to render that real asset —
+`apps/web/src/assets/brand/collabrains-logo.png` (downscaled to 500×250)
+as a CSS `background-image` inside a fixed-size white rounded badge,
+oversized (`background-size`) and shifted (`background-position`) so only
+the mascot region is visible. See the spec's "Brand mark" section for the
+full reasoning (no alpha to preserve, no image-editing tool available
+beyond `sips`' basic crop, and any imprecision blends into the badge's own
+white background since the source background is also flat white). The
+`useId()`/gradient-fill SVG approach below is kept here only as a record of
+what Task 3 originally shipped before the real asset arrived — do not
+resurrect it.
+
 **Files:**
 - Create: `apps/web/src/components/BrandMark.tsx`
 - Test: `apps/web/src/components/BrandMark.test.tsx`
@@ -1074,6 +1090,11 @@ unit tests missed — do a real check before calling this done:
   (not just the icon+label's own content width) in both expanded and
   collapsed states — a visual sanity check on the `key`/wrapper structure in
   Task 6.
+- Confirm the `BrandMark` badge actually shows the mascot cleanly (not an
+  awkward crop, not mostly blank) — its `background-size`/`background-position`
+  multipliers were tuned by eye against the source image, not measured
+  precisely; nudge `RENDERED_WIDTH_MULTIPLIER`/`CROP_LEFT_MULTIPLIER`/
+  `CROP_TOP_MULTIPLIER` in `BrandMark.tsx` if the framing looks off.
 
 **Do not push to `origin/main` or deploy to the live server as part of this
 task.** Once everything above is verified, tell the user it's ready and ask

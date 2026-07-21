@@ -110,14 +110,25 @@ Additive changes only:
 
 ## Brand mark
 
-New `apps/web/src/components/BrandMark.tsx`: a small inline SVG (viewBox
-~24×24), abstract geometric mark (not a literal "brain" cliché — two
-overlapping rounded shapes suggesting connection/collaboration), single
-color fill using `--gradient-brand` via an inline `<linearGradient>` def so
-it adapts automatically between light/dark. No external asset, no build
-step — a plain React component. Placed to the left of the "CollaBrains"
-wordmark in the sidebar's expanded state; shown alone (wordmark hidden) in
-collapsed/icon-rail state.
+**Superseded mid-implementation**: this section originally specified an
+abstract inline-SVG placeholder mark, since no logo asset existed at
+brainstorming time. The user supplied a real logo (the "collabrAIns"
+mascot + wordmark lockup, PNG, flat white background, no alpha) partway
+through Task 6's implementation. `apps/web/src/components/BrandMark.tsx`
+now renders that real asset (`src/assets/brand/collabrains-logo.png`,
+downscaled from the original to 500×250px) as a CSS `background-image`
+inside a fixed-size white rounded badge, oversized and positioned so only
+the mascot region shows — chosen over a literal file-crop because there's
+no alpha channel to preserve and no image-editing tool in this environment
+beyond `sips`' basic centered crop, and because any imprecision in the
+oversized/repositioned background blends into the badge's own white
+background seamlessly (the source's background is also flat white). The
+wordmark span in the sidebar keeps its original plain-text treatment but
+now highlights "AI" with `--gradient-brand` (`Collabr`+gradient `AI`+`ns`)
+to match the real logo's own styling, cheaply, without needing a pixel-exact
+text crop from the source image. Placed to the left of the wordmark in the
+sidebar's expanded state; shown alone (wordmark hidden) in collapsed/icon-
+rail state — this part of the original design is unchanged.
 
 ## Sidebar / Layout
 
