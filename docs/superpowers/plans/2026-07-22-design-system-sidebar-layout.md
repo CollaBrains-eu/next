@@ -92,7 +92,7 @@ string path built from `path.join(import.meta.dirname, ...)` — `import.meta.di
 alone (not wrapped in `new URL(...)`) isn't pattern-matched by Vite's asset
 rewriter, so it resolves to a real filesystem path.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `apps/web/src/styles/designTokens.test.js`:
 
@@ -156,12 +156,12 @@ describe("tailwind config", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `cd apps/web && pnpm exec vitest run src/styles/designTokens.test.js`
 Expected: FAIL (tokens/utilities don't exist yet — `toContain` assertions fail).
 
-- [ ] **Step 3: Add the tokens to `tokens.css`**
+- [x] **Step 3: Add the tokens to `tokens.css`**
 
 In `apps/web/src/styles/tokens.css`, add to the existing `:root` block (after
 `--shadow-modal`, before the closing `}`):
@@ -188,7 +188,7 @@ closing `}`) — no radius lines here, radius is theme-independent and stays in
   --bg-card-glass: rgba(19, 17, 42, 0.72);
 ```
 
-- [ ] **Step 4: Add the `.glass-surface` utility to `index.css`**
+- [x] **Step 4: Add the `.glass-surface` utility to `index.css`**
 
 In `apps/web/src/index.css`, add after the existing `.card-tilt` rule block:
 
@@ -200,7 +200,7 @@ In `apps/web/src/index.css`, add after the existing `.card-tilt` rule block:
 }
 ```
 
-- [ ] **Step 5: Extend `tailwind.config.js`**
+- [x] **Step 5: Extend `tailwind.config.js`**
 
 In `apps/web/tailwind.config.js`, inside `theme.extend` (alongside the
 existing `colors`/`boxShadow`/`fontFamily` keys), add:
@@ -217,12 +217,12 @@ existing `colors`/`boxShadow`/`fontFamily` keys), add:
       },
 ```
 
-- [ ] **Step 6: Run the test to verify it passes**
+- [x] **Step 6: Run the test to verify it passes**
 
 Run: `cd apps/web && pnpm exec vitest run src/styles/designTokens.test.js`
 Expected: PASS (all assertions green).
 
-- [ ] **Step 7: Run the full frontend suite and a production build as a regression check**
+- [x] **Step 7: Run the full frontend suite and a production build as a regression check**
 
 Run: `cd apps/web && pnpm exec vitest run && pnpm exec vite build`
 
@@ -240,7 +240,7 @@ Expected: all existing tests still pass; `vite build` succeeds (this task
 touches no `.ts`/`.tsx` files, only `.css`/`.js`, so no new build errors are
 possible from this task itself).
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add apps/web/src/styles/tokens.css apps/web/src/index.css apps/web/tailwind.config.js apps/web/src/styles/designTokens.test.js
@@ -261,7 +261,7 @@ git commit -m "feat(design-system): add brand gradient, glass-surface utility, n
   (string `"true"`/`"false"`). Task 6 (Sidebar integration) consumes this
   hook directly.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `apps/web/src/hooks/useSidebarCollapsed.test.ts`:
 
@@ -303,12 +303,12 @@ describe("useSidebarCollapsed", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd apps/web && pnpm exec vitest run src/hooks/useSidebarCollapsed.test.ts`
 Expected: FAIL with "Cannot find module './useSidebarCollapsed'".
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `apps/web/src/hooks/useSidebarCollapsed.ts`:
 
@@ -332,12 +332,12 @@ export function useSidebarCollapsed(): { collapsed: boolean; toggle: () => void 
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd apps/web && pnpm exec vitest run src/hooks/useSidebarCollapsed.test.ts`
 Expected: PASS (4/4).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/web/src/hooks/useSidebarCollapsed.ts apps/web/src/hooks/useSidebarCollapsed.test.ts
@@ -377,7 +377,7 @@ resurrect it.
   same page (e.g. sidebar + a future mobile header usage) never collide.
   Task 6 (Sidebar integration) consumes this directly.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `apps/web/src/components/BrandMark.test.tsx`:
 
@@ -406,12 +406,12 @@ describe("BrandMark", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd apps/web && pnpm exec vitest run src/components/BrandMark.test.tsx`
 Expected: FAIL with "Cannot find module './BrandMark'".
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `apps/web/src/components/BrandMark.tsx`:
 
@@ -436,12 +436,12 @@ export function BrandMark({ size = 28 }: { size?: number }) {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd apps/web && pnpm exec vitest run src/components/BrandMark.test.tsx`
 Expected: PASS (2/2).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/web/src/components/BrandMark.tsx apps/web/src/components/BrandMark.test.tsx
@@ -466,7 +466,7 @@ git commit -m "feat(brand): add inline SVG BrandMark component"
   icon width (the wrapper is `inline-flex`, which sizes to content by
   default).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `apps/web/src/components/ui/Tooltip.test.tsx` (inside the existing
 `describe("Tooltip", ...)` block):
@@ -483,13 +483,13 @@ Add to `apps/web/src/components/ui/Tooltip.test.tsx` (inside the existing
   });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd apps/web && pnpm exec vitest run src/components/ui/Tooltip.test.tsx`
 Expected: FAIL (`wrapper` lacks the `w-full` class — the prop doesn't exist
 yet on the current component signature, so passing it is currently a no-op).
 
-- [ ] **Step 3: Update the implementation**
+- [x] **Step 3: Update the implementation**
 
 Replace the contents of `apps/web/src/components/ui/Tooltip.tsx`:
 
@@ -508,12 +508,12 @@ export function Tooltip({ label, children, className = "" }: { label: string; ch
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd apps/web && pnpm exec vitest run src/components/ui/Tooltip.test.tsx`
 Expected: PASS (3/3 — the 2 pre-existing tests plus the new one).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/web/src/components/ui/Tooltip.tsx apps/web/src/components/ui/Tooltip.test.tsx
@@ -534,7 +534,7 @@ git commit -m "feat(ui): let Tooltip accept an optional wrapper className"
   — same shape as before plus `icon`. Task 6 (Sidebar integration) reads
   `item.icon` and renders it as `<Icon .../>`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `apps/web/src/lib/navigation.test.ts`:
 
@@ -561,13 +561,13 @@ describe("navigation", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd apps/web && pnpm exec vitest run src/lib/navigation.test.ts`
 Expected: FAIL — `item.icon` is `undefined` for every item (field doesn't
 exist yet).
 
-- [ ] **Step 3: Update the implementation**
+- [x] **Step 3: Update the implementation**
 
 Replace the contents of `apps/web/src/lib/navigation.ts`:
 
@@ -608,18 +608,18 @@ export function navItemsForRole(role: string | undefined): { to: string; labelKe
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd apps/web && pnpm exec vitest run src/lib/navigation.test.ts`
 Expected: PASS (2/2).
 
-- [ ] **Step 5: Run `Layout.test.tsx` as a regression check** (it imports `NAV_ITEMS`)
+- [x] **Step 5: Run `Layout.test.tsx` as a regression check** (it imports `NAV_ITEMS`)
 
 Run: `cd apps/web && pnpm exec vitest run src/components/Layout.test.tsx`
 Expected: PASS, unchanged — `Layout.tsx` only reads `.to`/`.labelKey`, the
 extra `icon` field is inert there.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/web/src/lib/navigation.ts apps/web/src/lib/navigation.test.ts
@@ -665,7 +665,7 @@ implement them):**
   unknown prop would fail `tsc -b`. Tests locate icons via
   `linkElement.querySelector("svg")` instead.
 
-- [ ] **Step 1: Write the failing/updated tests**
+- [x] **Step 1: Write the failing/updated tests**
 
 Replace the contents of `apps/web/src/components/Sidebar.test.tsx`:
 
@@ -836,14 +836,14 @@ describe("Sidebar", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify the new/changed ones fail**
+- [x] **Step 2: Run tests to verify the new/changed ones fail**
 
 Run: `cd apps/web && pnpm exec vitest run src/components/Sidebar.test.tsx`
 Expected: the pre-existing tests still pass; the new "renders an icon...",
 "renders the brand mark", and all `describe("collapse", ...)` tests fail
 (no icons/brand mark/toggle exist yet).
 
-- [ ] **Step 3: Add the i18n keys**
+- [x] **Step 3: Add the i18n keys**
 
 In `apps/web/src/locales/en.json`, inside the `"common"` object (after
 `"signOut": "Sign out",`):
@@ -867,7 +867,7 @@ In `apps/web/src/locales/de.json`, same position:
     "collapseSidebar": "Seitenleiste einklappen",
 ```
 
-- [ ] **Step 4: Rewrite `Sidebar.tsx`**
+- [x] **Step 4: Rewrite `Sidebar.tsx`**
 
 Replace the contents of `apps/web/src/components/Sidebar.tsx`:
 
@@ -1028,18 +1028,18 @@ element that isn't the outermost node `.map()` returns, so having it on
 warning, no behavior change, and it means only one place sets the key
 instead of two.
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `cd apps/web && pnpm exec vitest run src/components/Sidebar.test.tsx`
 Expected: PASS (all tests, including the new collapse/icon/brand-mark ones).
 
-- [ ] **Step 6: Run the full frontend suite and a production build as a regression check**
+- [x] **Step 6: Run the full frontend suite and a production build as a regression check**
 
 Run: `cd apps/web && pnpm exec vitest run && pnpm exec vite build`
 Expected: all tests pass app-wide; build succeeds. (Not `tsc -b` — see
 Task 1's note on its pre-existing, unrelated 106 errors.)
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add apps/web/src/components/Sidebar.tsx apps/web/src/components/Sidebar.test.tsx apps/web/src/locales/en.json apps/web/src/locales/nl.json apps/web/src/locales/de.json
@@ -1052,24 +1052,28 @@ git commit -m "feat(sidebar): collapsible desktop rail with icons and brand mark
 
 **Files:** none (verification only).
 
-- [ ] **Step 1: Run the full test suite**
+- [x] **Step 1: Run the full test suite**
 
 Run: `cd apps/web && pnpm exec vitest run`
 Expected: 100% pass, no regressions from any of Tasks 1-6.
 
-- [ ] **Step 2: Lint**
+- [x] **Step 2: Lint (skip — confirmed unrunnable, pre-existing)**
 
-Run: `cd apps/web && pnpm exec eslint .`
-Expected: clean. (Not `tsc -b` — pre-existing, unrelated failure documented
-in Task 1; `vite build` in Step 3 is this project's actual type/build gate.)
+`pnpm exec eslint .` fails with `eslint: command not found` — `eslint` is
+referenced in `apps/web/package.json`'s `lint` script but isn't listed as a
+dependency anywhere in this checkout (not in `apps/web/package.json`, not
+at the workspace root), and there's no `eslint.config.*` file either. This
+predates this plan entirely; skip this step. `vite build` in Step 3 is this
+project's actual, working build gate (see Task 1's note on `tsc -b` for the
+same pattern).
 
-- [ ] **Step 3: Production build smoke test**
+- [x] **Step 3: Production build smoke test**
 
 Run: `cd apps/web && pnpm exec vite build`
 Expected: build succeeds (catches any Tailwind/PostCSS config mistake from
 Task 1 that `vitest` alone wouldn't, e.g. a malformed `tailwind.config.js`).
 
-- [ ] **Step 4: Live-browser check**
+- [x] **Step 4: Live-browser check**
 
 This project's own history (see `docs/superpowers/specs/2026-07-22-design-system-sidebar-layout-design.md`
 "Context"/"Testing" sections) has repeatedly found real bugs that typecheck +
@@ -1095,6 +1099,26 @@ unit tests missed — do a real check before calling this done:
   multipliers were tuned by eye against the source image, not measured
   precisely; nudge `RENDERED_WIDTH_MULTIPLIER`/`CROP_LEFT_MULTIPLIER`/
   `CROP_TOP_MULTIPLIER` in `BrandMark.tsx` if the framing looks off.
+
+**Actually done, real bug found and fixed:** verified live via a temporary
+standalone preview (no backend available locally — `useAuth` was briefly
+overridden in-place to return a fixed fake user so `RootRoute`'s `Layout` +
+`Sidebar` would render without a real login; fully reverted via `git
+checkout` afterward, never committed). At 1440px, **the expanded header row
+clipped the wordmark** — "CollabrAIns" got cut down to "Collab" — because
+`BrandMark` + wordmark + search/alerts/collapse-toggle were all fighting for
+the same ~192px row (`w-56` minus `px-4` padding), and the arithmetic doesn't
+fit regardless of icon sizing (confirmed: ~28+8+100+104 ≈ 240px needed vs
+192px available). This reproduced in **expanded** mode, not just collapsed —
+broader than the spec anticipated. Fixed by splitting the header into two
+stacked rows (brand+wordmark on its own row, the icon cluster on its own row
+below) instead of one `justify-between` row — both rows comfortably fit
+192px independently. Re-verified: full wordmark renders correctly at both
+1440px (desktop, expanded and collapsed) and 390px (mobile drawer); dark
+mode confirmed too (`BrandMark`'s white badge reads as an intentional chip
+against the dark sidebar surface, not a rendering bug). Collapsed rail,
+active-pill repositioning after collapse toggle, and full-row nav-item width
+all confirmed visually correct with no further changes needed.
 
 **Do not push to `origin/main` or deploy to the live server as part of this
 task.** Once everything above is verified, tell the user it's ready and ask

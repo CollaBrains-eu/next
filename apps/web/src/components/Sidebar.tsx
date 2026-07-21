@@ -55,8 +55,8 @@ export default function Sidebar({
         } ${collapsed ? "md:w-16" : "md:w-56"}`}
       >
         <div className="flex flex-col gap-6">
-          <div className={`flex items-center justify-between ${collapsed ? "md:flex-col md:justify-center md:gap-3" : ""}`}>
-            <div className={`flex items-center gap-2 overflow-hidden ${collapsed ? "md:justify-center" : ""}`}>
+          <div className="flex flex-col gap-3">
+            <div className={`flex items-center gap-2 ${collapsed ? "md:justify-center" : ""}`}>
               <BrandMark size={28} />
               <span className={`whitespace-nowrap text-lg font-semibold text-ink ${collapsed ? "md:hidden" : ""}`}>
                 Collabr
@@ -69,7 +69,7 @@ export default function Sidebar({
                 ns
               </span>
             </div>
-            <div className={`flex items-center gap-1 ${collapsed ? "md:flex-col md:gap-2" : ""}`}>
+            <div className={`flex items-center gap-1 ${collapsed ? "md:flex-col md:gap-2" : "justify-between"}`}>
               <Tooltip label={t("common.search")} className={collapsed ? "md:hidden" : ""}>
                 <button
                   type="button"
