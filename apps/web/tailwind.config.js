@@ -29,6 +29,15 @@ export default {
         overlay: "var(--shadow-overlay)",
         modal: "var(--shadow-modal)",
       },
+      backgroundImage: {
+        "gradient-brand": "var(--gradient-brand)",
+      },
+      borderRadius: {
+        "ds-sm": "var(--radius-sm)",
+        "ds-md": "var(--radius-md)",
+        "ds-lg": "var(--radius-lg)",
+        "ds-xl": "var(--radius-xl)",
+      },
       fontFamily: {
         sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
         mono: ["IBM Plex Mono", "SF Mono", "ui-monospace", "monospace"],

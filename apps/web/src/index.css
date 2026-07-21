@@ -30,6 +30,12 @@ body {
   box-shadow: var(--shadow-overlay);
 }
 
+.glass-surface {
+  background: var(--bg-card-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
 /* iOS Safari zooms the whole page on focus when a form control's font-size is
    under 16px -- our text-sm/text-[13px] inputs all trip this. Force 16px on
    mobile widths only, so desktop keeps the smaller design-system type scale. */
