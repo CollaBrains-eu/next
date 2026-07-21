@@ -1,4 +1,4 @@
-v78281.1blu.de {
+collabrains.eu {
 	encode gzip
 
 	# Responses on this site differ by the Accept header (see @api below),

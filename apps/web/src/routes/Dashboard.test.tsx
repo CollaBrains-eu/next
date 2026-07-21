@@ -53,8 +53,8 @@ describe("Dashboard", () => {
 
   it("shows the most recent documents, newest first", async () => {
     vi.mocked(api.listDocuments).mockResolvedValue([
-      { id: "d1", title: "Older lease", filename: "a.pdf", mime_type: "application/pdf", status: "ready", error: null, created_at: "2026-01-01T00:00:00Z", processed_at: null, category_id: null },
-      { id: "d2", title: "Newer invoice", filename: "b.pdf", mime_type: "application/pdf", status: "ready", error: null, created_at: "2026-02-01T00:00:00Z", processed_at: null, category_id: null },
+      { id: "d1", title: "Older lease", filename: "a.pdf", mime_type: "application/pdf", status: "ready", error: null, created_at: "2026-01-01T00:00:00Z", processed_at: null, category_id: null, doc_type: null, tags: [], correspondent: null },
+      { id: "d2", title: "Newer invoice", filename: "b.pdf", mime_type: "application/pdf", status: "ready", error: null, created_at: "2026-02-01T00:00:00Z", processed_at: null, category_id: null, doc_type: null, tags: [], correspondent: null },
     ]);
     renderPage();
     const links = await screen.findAllByRole("link", { name: /Older lease|Newer invoice/ });
@@ -165,8 +165,8 @@ describe("Dashboard", () => {
 
   it("shows stat cards with counts for documents, open tasks, overdue tasks, and cases", async () => {
     vi.mocked(api.listDocuments).mockResolvedValue([
-      { id: "d1", title: "A", filename: "a.pdf", mime_type: "application/pdf", status: "ready", error: null, created_at: "2026-01-01T00:00:00Z", processed_at: null, category_id: null },
-      { id: "d2", title: "B", filename: "b.pdf", mime_type: "application/pdf", status: "ready", error: null, created_at: "2026-01-02T00:00:00Z", processed_at: null, category_id: null },
+      { id: "d1", title: "A", filename: "a.pdf", mime_type: "application/pdf", status: "ready", error: null, created_at: "2026-01-01T00:00:00Z", processed_at: null, category_id: null, doc_type: null, tags: [], correspondent: null },
+      { id: "d2", title: "B", filename: "b.pdf", mime_type: "application/pdf", status: "ready", error: null, created_at: "2026-01-02T00:00:00Z", processed_at: null, category_id: null, doc_type: null, tags: [], correspondent: null },
     ]);
     vi.mocked(api.listTasks).mockResolvedValue([
       { id: "t1", document_id: null, title: "Overdue task", description: null, due_date: "2020-01-01", assignee: null, status: "open", position: 0, source: "manual", created_at: "2026-01-01T00:00:00Z", recurrence_rule: null },
