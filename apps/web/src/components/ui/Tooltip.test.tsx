@@ -20,4 +20,14 @@ describe("Tooltip", () => {
     );
     expect(screen.getByText("Owner-only action")).toBeInTheDocument();
   });
+
+  it("merges an optional className onto the wrapper without dropping the default classes", () => {
+    render(
+      <Tooltip label="Owner-only action" className="w-full">
+        <button>Hover me</button>
+      </Tooltip>
+    );
+    const wrapper = screen.getByRole("button", { name: "Hover me" }).parentElement;
+    expect(wrapper).toHaveClass("group", "relative", "inline-flex", "w-full");
+  });
 });
