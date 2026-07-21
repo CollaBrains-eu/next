@@ -26,6 +26,7 @@ plain function, not inlined in the endpoint, so the Planning Engine
 """
 import csv
 import io
+import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -50,12 +51,14 @@ from api.models import Document, DocumentChunk, User
 from api.paperless_client import delete_document as paperless_delete, fetch_document_file, \
     fetch_document_text, submit_document, wait_for_paperless_id
 from api.planner_agent import extract_tasks
-from api.preferences import get_preferences
+from api.preferences import build_language_instruction, get_preferences
 from api.search_service import hybrid_search
 from api.signal_client import send_signal_message
 from api.text_language import detect_document_language, ts_config_for_preferred_language
 from api.user_facts import extract_facts_from_document
 from api.vehicle_agent import detect_and_link_vehicles
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -525,6 +528,8 @@ class SummaryOut(BaseModel):
     summary: str
 
 
+SUMMARY_SYSTEM_PROMPT = "You summarize documents factually and concisely."
+
 SUMMARY_PROMPT = (
     "Summarize the following document in 3-5 sentences. Be factual and concise, "
     "and do not add information that isn't in the text.\n\nDocument:\n{text}"
@@ -541,9 +546,19 @@ async def _generate_summary(db: AsyncSession, document: Document, *, user_id: UU
     if document.summary and not force:
         return document.summary
 
+    language_instruction = ""
+    try:
+        preferences = await get_preferences(db, user_id=user_id)
+        language_instruction = build_language_instruction(preferences.preferred_language if preferences else None)
+    except Exception:  # noqa: BLE001 - preference lookup must never fail the summary
+        logger.exception("preference lookup failed for document summary request")
+
     prompt = SUMMARY_PROMPT.format(text=document.ocr_text[:8000])
     summary = await chat_completion(
-        [{"role": "user", "content": prompt}],
+        [
+            {"role": "system", "content": SUMMARY_SYSTEM_PROMPT + language_instruction},
+            {"role": "user", "content": prompt},
+        ],
         user_id=user_id,
         endpoint="documents.summarize",
     )
