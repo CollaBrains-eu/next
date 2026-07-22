@@ -190,6 +190,8 @@ def build_maps_url(
     """Google Maps universal search link -- works with or without the app
     installed, no API key needed. Returns None if there isn't enough data
     to build a meaningful query (callers must not show/send a link then)."""
+    if not any([street, postal_code, city]):
+        return None
     parts = [
         " ".join(p for p in (street, house_number) if p) or None,
         postal_code,
@@ -197,8 +199,6 @@ def build_maps_url(
         country,
     ]
     query = ", ".join(p for p in parts if p)
-    if not query.strip():
-        return None
     return f"https://www.google.com/maps/search/?api=1&query={quote(query)}"
 ```
 
