@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.activity import log_activity
 from api.auth import get_current_user
 from api.cases import (
     add_case_member,
@@ -155,6 +156,7 @@ async def create_case_endpoint(
     current_user: User = Depends(get_current_user),
 ) -> CaseOut:
     case = await create_case(db, user_id=current_user.id, name=request.name, description=request.description)
+    await log_activity(db, entity_type="case", entity_id=case.id, action="created", actor_user_id=current_user.id)
     return CaseOut(
         id=case.id, name=case.name, description=case.description, status=case.status, created_at=case.created_at,
         document_count=0, member_count=0,
@@ -211,18 +213,16 @@ async def export_cases_csv(
     )
 
 
-@router.get("/cases/{case_id}", response_model=CaseDashboardOut)
-async def get_case_endpoint(
-    case_id: UUID,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-) -> CaseDashboardOut:
+async def _build_case_dashboard_out(db: AsyncSession, case_id: UUID, current_user: User) -> CaseDashboardOut:
+    """Builds the dashboard DTO for an already-access-checked case. Callers
+    are responsible for their own access check first (either the normal
+    `_require_case_access`, or a share-link token that deliberately grants
+    read access without case membership -- see api/sharing_router.py)."""
     result: dict[str, Any] | None = await get_case_dashboard(db, case_id)
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
 
     case = result["case"]
-    await _require_case_access(db, case, current_user)
     document_count, member_count = await get_case_counts(db, case_id=case_id)
     owner = await db.get(User, case.user_id)
 
@@ -244,6 +244,19 @@ async def get_case_endpoint(
     )
 
 
+@router.get("/cases/{case_id}", response_model=CaseDashboardOut)
+async def get_case_endpoint(
+    case_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> CaseDashboardOut:
+    case = await db.get(Case, case_id)
+    if case is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+    await _require_case_access(db, case, current_user)
+    return await _build_case_dashboard_out(db, case_id, current_user)
+
+
 @router.patch("/cases/{case_id}", response_model=CaseOut)
 async def update_case_endpoint(
     case_id: UUID,
@@ -259,9 +272,15 @@ async def update_case_endpoint(
     if request.status is not None and request.status not in ("open", "closed"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="status must be 'open' or 'closed'")
 
+    old_status = existing.status
     updated = await update_case(
         db, case_id=case_id, name=request.name, description=request.description, status_value=request.status,
     )
+    if request.status is not None and request.status != old_status:
+        await log_activity(
+            db, entity_type="case", entity_id=case_id, action="status_changed",
+            actor_user_id=current_user.id, detail={"from": old_status, "to": request.status},
+        )
     document_count, member_count = await get_case_counts(db, case_id=case_id)
     return CaseOut(
         id=updated.id, name=updated.name, description=updated.description, status=updated.status,
@@ -279,6 +298,10 @@ async def delete_case_endpoint(
     if existing is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
     _require_case_owner(existing, current_user)
+    await log_activity(
+        db, entity_type="case", entity_id=case_id, action="deleted",
+        actor_user_id=current_user.id, detail={"name": existing.name},
+    )
     await delete_case(db, case_id=case_id)
 
 
@@ -302,6 +325,11 @@ async def set_document_case_endpoint(
         await _require_case_access(db, case, current_user)
 
     updated = await attach_document_to_case(db, document_id=document_id, case_id=request.case_id)
+    if request.case_id is not None:
+        await log_activity(
+            db, entity_type="case", entity_id=request.case_id, action="document_attached",
+            actor_user_id=current_user.id, detail={"document_id": str(updated.id), "document_title": updated.title},
+        )
     return CaseDocumentOut(id=updated.id, title=updated.title)
 
 
@@ -324,6 +352,10 @@ async def link_task_endpoint(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to link this task")
 
     await link_task_to_case(db, case_id=case_id, task_id=task_id)
+    await log_activity(
+        db, entity_type="case", entity_id=case_id, action="task_attached",
+        actor_user_id=current_user.id, detail={"task_id": str(task.id), "task_title": task.title},
+    )
 
 
 @router.post("/cases/{case_id}/decisions/{decision_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -345,6 +377,10 @@ async def link_decision_endpoint(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to link this decision")
 
     await link_decision_to_case(db, case_id=case_id, decision_id=decision_id)
+    await log_activity(
+        db, entity_type="case", entity_id=case_id, action="decision_attached",
+        actor_user_id=current_user.id, detail={"decision_id": str(decision.id), "summary": decision.summary[:200]},
+    )
 
 
 @router.post("/cases/{case_id}/vehicles/{vehicle_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -367,6 +403,10 @@ async def link_vehicle_endpoint(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to link this vehicle")
 
     await link_vehicle_to_case(db, case_id=case_id, vehicle_id=vehicle_id)
+    await log_activity(
+        db, entity_type="case", entity_id=case_id, action="vehicle_attached",
+        actor_user_id=current_user.id, detail={"vehicle_id": str(vehicle.id), "kenteken": vehicle.kenteken},
+    )
 
 
 @router.get("/cases/{case_id}/members", response_model=list[CaseMemberOut])
@@ -400,6 +440,11 @@ async def add_case_member_endpoint(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     member = await add_case_member(db, case_id=case_id, user_id=request.user_id, role=request.role)
+    await log_activity(
+        db, entity_type="case", entity_id=case_id, action="member_invited",
+        actor_user_id=current_user.id,
+        detail={"user_id": str(request.user_id), "display_name": member_user.display_name, "role": request.role},
+    )
     return await _case_member_out(db, member)
 
 
@@ -415,9 +460,15 @@ async def remove_case_member_endpoint(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
     _require_case_owner(case, current_user)
 
+    member_user = await db.get(User, user_id)
     removed = await remove_case_member(db, case_id=case_id, user_id=user_id)
     if not removed:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Membership not found")
+    await log_activity(
+        db, entity_type="case", entity_id=case_id, action="member_removed",
+        actor_user_id=current_user.id,
+        detail={"user_id": str(user_id), "display_name": member_user.display_name if member_user else ""},
+    )
 
 
 def _require_invited_user(user_id: UUID, current_user: User) -> None:

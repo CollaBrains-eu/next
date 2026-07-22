@@ -760,6 +760,56 @@ class UserFact(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class ActivityLogEntry(Base):
+    """Append-only audit trail of meaningful lifecycle events on a
+    Document/Case/Task (Phase 29). Same "separate, independently growable/
+    prunable audit table" rationale as AiCallLog.
+
+    `entity_id` is a plain column, not a FK -- an entry must survive its
+    subject's deletion (e.g. a "deleted" entry itself), same reasoning as
+    EntityMergeLog.source_entity_id. `entity_type` is a plain string (not a
+    DB enum), the same choice ADR 0008 made for Entity.entity_type.
+
+    Deliberately distinct from api/dashboard.py's derived "recent items"
+    widget: that's a recency-sorted view over existing tables' created_at,
+    not a persisted record of what happened -- this table is the real thing.
+    """
+
+    __tablename__ = "activity_log"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    entity_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    action: Mapped[str] = mapped_column(String(50), nullable=False)
+    actor_user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    detail: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ShareLink(Base):
+    """A token-gated shareable link to a Document/Case/Task's detail view
+    (Phase 29). One live token per (entity_type, entity_id) -- creating a
+    new one for an entity that already has one rotates it in place, the
+    same upsert shape as `add_case_member`'s re-invite.
+
+    Resolving a token still requires an authenticated CollaBrains login
+    (see api/sharing_router.py's `GET /share/{token}`) -- this bypasses the
+    entity's own ownership check for whoever holds the link, it is not
+    anonymous access.
+    """
+
+    __tablename__ = "share_links"
+    __table_args__ = (UniqueConstraint("entity_type", "entity_id", name="uq_share_links_entity"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    entity_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    token: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    created_by_user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class WebauthnCredential(Base):
     """A passkey registered by a user (Phase 25, v2 port). Additive
     alongside LDAP password login (auth.py) -- registering a passkey never

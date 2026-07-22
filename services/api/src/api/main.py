@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from api import tools as _tools  # noqa: F401 - import side effect: registers built-in tools (ADR 0021)
+from api.activity_router import router as activity_router
 from api.admin_router import router as admin_router
 from api.appointments import router as appointments_router
 from api.auth import router as auth_router
@@ -26,6 +27,7 @@ from api.organizations_router import router as organizations_router
 from api.plans import router as plans_router
 from api.preferences_router import router as preferences_router
 from api.residencies_router import router as residencies_router
+from api.sharing_router import router as sharing_router
 from api.tasks import router as tasks_router
 from api.tools_router import router as tools_router
 from api.users_router import router as users_router
@@ -72,6 +74,8 @@ app.include_router(appointments_router)
 app.include_router(dashboard_router)
 app.include_router(users_router)
 app.include_router(workspace_router)
+app.include_router(activity_router)
+app.include_router(sharing_router)
 
 
 @app.get("/health")

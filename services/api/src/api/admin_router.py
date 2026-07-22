@@ -44,6 +44,7 @@ from api.admin_service import (
     run_analyze_all,
     update_bug_report_status,
 )
+from api.activity import log_activity
 from api.auth import get_current_user, validate_phone_number
 from api.onboarding_service import send_welcome
 from api.config import settings
@@ -419,6 +420,10 @@ async def admin_reprocess_document(
     if document.status == "ready":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Document already processed successfully")
 
+    await log_activity(
+        db, entity_type="document", entity_id=document.id, action="reprocessed",
+        actor_user_id=current_user.id, detail={},
+    )
     await publish(EventType.DOCUMENT_REPROCESS_REQUESTED, {"document_id": document_id})
     return DocumentReprocessOut(status="reprocess_queued")
 

@@ -36,6 +36,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.activity import log_activity
 from api.ai_gateway import chat_completion
 from api.auth import get_effective_user
 from api.cases import is_case_member
@@ -285,6 +286,11 @@ async def _handle_classify_document(event: Event) -> None:
         document = await classify_and_persist(
             db, document_id=document_id, text=event.payload["text"], user_id=event.payload["owner_id"]
         )
+        if document is not None and document.doc_type is not None:
+            await log_activity(
+                db, entity_type="document", entity_id=document.id, action="classified",
+                actor_user_id=document.owner_id, detail={"doc_type": document.doc_type},
+            )
     if document is not None and document.doc_type is not None:
         await publish(EventType.DOCUMENT_CLASSIFIED, {"document_id": document_id, "doc_type": document.doc_type})
 
@@ -346,6 +352,10 @@ async def upload_document(
     db.add(document)
     await db.commit()
     await db.refresh(document)
+    await log_activity(
+        db, entity_type="document", entity_id=document.id, action="uploaded",
+        actor_user_id=current_user.id, detail={"filename": document.filename},
+    )
 
     background_tasks.add_task(
         publish,
@@ -450,20 +460,9 @@ async def _can_read_document(db: AsyncSession, document: Document, current_user:
     return await is_workspace_member(db, owner_id=document.owner_id, member_id=current_user.id)
 
 
-@router.get("/{document_id}", response_model=DocumentDetailOut)
-async def get_document(
-    document_id: UUID,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_effective_user),
-) -> DocumentDetailOut:
-    document = await db.get(Document, document_id)
-    if document is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
-    if not await _can_read_document(db, document, current_user):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to view this document")
-
+async def _build_document_detail_out(db: AsyncSession, document: Document) -> DocumentDetailOut:
     count_result = await db.execute(
-        select(func.count()).select_from(DocumentChunk).where(DocumentChunk.document_id == document_id)
+        select(func.count()).select_from(DocumentChunk).where(DocumentChunk.document_id == document.id)
     )
     return DocumentDetailOut(
         id=document.id,
@@ -489,6 +488,26 @@ async def get_document(
         correspondent_country=document.correspondent_country,
         metafields=document.metafields,
     )
+
+
+def _require_document_owner(document: Document, current_user: User) -> None:
+    if document.owner_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to manage this document")
+
+
+@router.get("/{document_id}", response_model=DocumentDetailOut)
+async def get_document(
+    document_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_effective_user),
+) -> DocumentDetailOut:
+    document = await db.get(Document, document_id)
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    if not await _can_read_document(db, document, current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to view this document")
+
+    return await _build_document_detail_out(db, document)
 
 
 @router.get("/{document_id}/metafields/{field_key}/ics")
@@ -575,8 +594,12 @@ async def delete_document(
     document = await db.get(Document, document_id)
     if document is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
-    if document.owner_id != current_user.id and current_user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to delete this document")
+    _require_document_owner(document, current_user)
+
+    await log_activity(
+        db, entity_type="document", entity_id=document.id, action="deleted",
+        actor_user_id=current_user.id, detail={"title": document.title},
+    )
 
     if document.paperless_id is not None:
         await paperless_delete(document.paperless_id)
@@ -646,6 +669,10 @@ async def summarize_document(
         )
 
     summary = await _generate_summary(db, document, user_id=current_user.id, force=force)
+    await log_activity(
+        db, entity_type="document", entity_id=document.id, action="summarized",
+        actor_user_id=current_user.id, detail={},
+    )
     return SummaryOut(summary=summary)
 
 

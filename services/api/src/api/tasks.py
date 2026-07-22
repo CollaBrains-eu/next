@@ -8,15 +8,16 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel
-from sqlalchemy import exists, or_, select
+from sqlalchemy import delete, exists, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.activity import log_activity
 from api.auth import get_current_user
 from api.calendar_sync import sync_appointment_for_task
 from api.db import get_db
 from api.documents import _can_read_document
 from api.ics_utils import build_vevent_calendar, format_ics_date, ics_slug
-from api.models import CaseMember, Document, Task, TASK_CATEGORIES, User
+from api.models import CaseMember, Document, GraphEdge, Task, TASK_CATEGORIES, User
 from api.planner_agent import extract_tasks
 
 router = APIRouter(tags=["tasks"])
@@ -131,6 +132,20 @@ async def list_tasks(
     return list(result.scalars().all())
 
 
+@router.get("/tasks/{task_id}", response_model=TaskOut)
+async def get_task(
+    task_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Task:
+    task = await db.get(Task, task_id)
+    if task is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+    if not await _can_access_task(db, task, current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to view this task")
+    return task
+
+
 class TaskCreate(BaseModel):
     title: str
     description: str | None = None
@@ -172,6 +187,7 @@ async def create_task(
     db.add(task)
     await db.commit()
     await db.refresh(task)
+    await log_activity(db, entity_type="task", entity_id=task.id, action="created", actor_user_id=current_user.id)
     await sync_appointment_for_task(db, task=task, user_id=current_user.id)
     return task
 
@@ -182,6 +198,8 @@ class TaskUpdate(BaseModel):
     due_date: date | None = None
     recurrence_rule: str | None = None
     category: str | None = None
+    title: str | None = None
+    description: str | None = None
 
 
 @router.patch("/tasks/{task_id}", response_model=TaskOut)
@@ -212,6 +230,9 @@ async def update_task(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
     if not await _can_access_task(db, task, current_user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to modify this task")
+
+    old_status = task.status
+    old_category = task.category
 
     siblings_result = await db.execute(
         select(Task).where(Task.status == update.status, Task.id != task.id).order_by(Task.position)
@@ -256,10 +277,31 @@ async def update_task(
         task.recurrence_rule = update.recurrence_rule
     if update.category is not None:
         task.category = update.category
+    if update.title is not None:
+        task.title = update.title
+    if update.description is not None:
+        task.description = update.description
 
     task.status = update.status
     await db.commit()
     await db.refresh(task)
+
+    if update.status != old_status:
+        await log_activity(
+            db, entity_type="task", entity_id=task.id, action="status_changed",
+            actor_user_id=current_user.id, detail={"from": old_status, "to": update.status},
+        )
+    elif update.position is not None:
+        await log_activity(
+            db, entity_type="task", entity_id=task.id, action="moved",
+            actor_user_id=current_user.id, detail={"position": update.position},
+        )
+    if update.category is not None and update.category != old_category:
+        await log_activity(
+            db, entity_type="task", entity_id=task.id, action="category_changed",
+            actor_user_id=current_user.id, detail={"from": old_category, "to": update.category},
+        )
+
     await sync_appointment_for_task(db, task=task, user_id=current_user.id)
     if spawned_task is not None:
         await db.refresh(spawned_task)
@@ -298,3 +340,28 @@ async def export_task_ics(
         media_type="text/calendar",
         headers={"Content-Disposition": f'attachment; filename="{slug}.ics"'},
     )
+
+
+@router.delete("/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_task(
+    task_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    task = await db.get(Task, task_id)
+    if task is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+    if not await _can_access_task(db, task, current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to delete this task")
+
+    await log_activity(
+        db, entity_type="task", entity_id=task.id, action="deleted",
+        actor_user_id=current_user.id, detail={"title": task.title},
+    )
+
+    # Unlink from any case (GraphEdge, no FK) before deleting -- same
+    # "unlink, don't cascade" rule cases.delete_case follows. Appointment.
+    # source_task_id already has ondelete="SET NULL", no explicit cleanup needed.
+    await db.execute(delete(GraphEdge).where(GraphEdge.source_type == "task", GraphEdge.source_id == task.id))
+    await db.delete(task)
+    await db.commit()

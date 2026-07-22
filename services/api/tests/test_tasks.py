@@ -701,6 +701,107 @@ async def test_setting_a_tasks_category_to_appointment_via_patch_creates_a_linke
     assert len(matching) == 1
 
 
+async def test_get_task_returns_the_task(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    created = await client.post("/tasks", headers=headers, json={"title": "Fetchable task"})
+    task_id = created.json()["id"]
+
+    response = await client.get(f"/tasks/{task_id}", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["title"] == "Fetchable task"
+
+
+async def test_get_task_returns_404_for_unknown_id(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    response = await client.get("/tasks/00000000-0000-0000-0000-000000000000", headers=headers)
+    assert response.status_code == 404
+
+
+async def test_get_task_rejects_non_owner(client):
+    owner_headers = {"Authorization": f"Bearer {await _login_as(client, 'getowner1')}"}
+    intruder_headers = {"Authorization": f"Bearer {await _login_as(client, 'getintruder1')}"}
+
+    task_id = (
+        await client.post("/tasks", headers=owner_headers, json={"title": "Private task"})
+    ).json()["id"]
+
+    response = await client.get(f"/tasks/{task_id}", headers=intruder_headers)
+    assert response.status_code == 403
+
+
+async def test_get_task_requires_auth(client):
+    response = await client.get("/tasks/00000000-0000-0000-0000-000000000000")
+    assert response.status_code == 401
+
+
+async def test_delete_task_removes_it(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    created = await client.post("/tasks", headers=headers, json={"title": "Task to delete"})
+    task_id = created.json()["id"]
+
+    delete_response = await client.delete(f"/tasks/{task_id}", headers=headers)
+    assert delete_response.status_code == 204
+
+    get_response = await client.get(f"/tasks/{task_id}", headers=headers)
+    assert get_response.status_code == 404
+
+
+async def test_delete_task_unlinks_from_case_without_deleting_case(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    task_id = (await client.post("/tasks", headers=headers, json={"title": "Linked task"})).json()["id"]
+    case_id = (await client.post("/cases", headers=headers, json={"name": "Case with linked task"})).json()["id"]
+    await client.post(f"/cases/{case_id}/tasks/{task_id}", headers=headers)
+
+    delete_response = await client.delete(f"/tasks/{task_id}", headers=headers)
+    assert delete_response.status_code == 204
+
+    case_response = await client.get(f"/cases/{case_id}", headers=headers)
+    assert case_response.status_code == 200
+    assert case_response.json()["tasks"] == []
+
+
+async def test_delete_task_rejects_non_owner(client):
+    owner_headers = {"Authorization": f"Bearer {await _login_as(client, 'delowner1')}"}
+    intruder_headers = {"Authorization": f"Bearer {await _login_as(client, 'delintruder1')}"}
+
+    task_id = (
+        await client.post("/tasks", headers=owner_headers, json={"title": "Protected from deletion"})
+    ).json()["id"]
+
+    response = await client.delete(f"/tasks/{task_id}", headers=intruder_headers)
+    assert response.status_code == 403
+
+
+async def test_delete_task_requires_auth(client):
+    response = await client.delete("/tasks/00000000-0000-0000-0000-000000000000")
+    assert response.status_code == 401
+
+
+async def test_update_task_title_and_description(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    created = await client.post("/tasks", headers=headers, json={"title": "Original title"})
+    task_id = created.json()["id"]
+
+    response = await client.patch(
+        f"/tasks/{task_id}",
+        headers=headers,
+        json={"status": "open", "title": "Renamed title", "description": "New description"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["title"] == "Renamed title"
+    assert response.json()["description"] == "New description"
+
+
 async def test_patching_a_task_twice_does_not_create_duplicate_appointments(client):
     token = await _login(client)
     headers = {"Authorization": f"Bearer {token}"}
