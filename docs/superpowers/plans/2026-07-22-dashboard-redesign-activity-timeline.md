@@ -516,7 +516,7 @@ function in this codebase.
   rather than receiving data as props) so `Dashboard.tsx` only needs to
   render `<ActivityTimeline />` in Task 3, no new state wiring there.
 
-- [ ] **Step 1: Add the API client type and function**
+- [x] **Step 1: Add the API client type and function**
 
 In `apps/web/src/lib/api.ts`, add near the other `*Out` interfaces (e.g.
 next to `CaseOut`):
@@ -539,7 +539,7 @@ export function listDashboardActivity(): Promise<ActivityItemOut[]> {
 }
 ```
 
-- [ ] **Step 2: Add the i18n keys**
+- [x] **Step 2: Add the i18n keys**
 
 In `apps/web/src/locales/en.json`, inside the `"dashboard"` object, after
 `"recentCasesEmpty": "No cases yet.",`:
@@ -563,7 +563,7 @@ In `apps/web/src/locales/de.json`, same position:
     "activityTimelineEmpty": "Keine aktuelle Aktivität.",
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Create `apps/web/src/components/ActivityTimeline.test.tsx`:
 
@@ -610,12 +610,12 @@ describe("ActivityTimeline", () => {
 });
 ```
 
-- [ ] **Step 3: Run test to verify it fails**
+- [x] **Step 3: Run test to verify it fails**
 
 Run: `cd apps/web && pnpm exec vitest run src/components/ActivityTimeline.test.tsx`
 Expected: FAIL — `Cannot find module './ActivityTimeline'`.
 
-- [ ] **Step 4: Write the implementation**
+- [x] **Step 4: Write the implementation**
 
 Create `apps/web/src/components/ActivityTimeline.tsx`:
 
@@ -676,12 +676,12 @@ export function ActivityTimeline() {
 }
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `cd apps/web && pnpm exec vitest run src/components/ActivityTimeline.test.tsx`
 Expected: PASS (2/2).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/web/src/components/ActivityTimeline.tsx apps/web/src/components/ActivityTimeline.test.tsx apps/web/src/locales/en.json apps/web/src/locales/nl.json apps/web/src/locales/de.json
@@ -700,7 +700,7 @@ git commit -m "feat(dashboard): add ActivityTimeline widget"
 - Consumes: `ActivityTimeline` (Task 2).
 - Produces: no new exports — `Dashboard`'s default export is unchanged.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `apps/web/src/routes/Dashboard.test.tsx`, add to the `vi.mock("../lib/api", ...)`
 mock object: `listDashboardActivity: vi.fn(),` — and to the `beforeEach`:
@@ -714,12 +714,12 @@ new test:
   });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd apps/web && pnpm exec vitest run src/routes/Dashboard.test.tsx`
 Expected: FAIL — "Recent activity" not found (widget not wired in yet).
 
-- [ ] **Step 3: Wire in the widget and restyle**
+- [x] **Step 3: Wire in the widget and restyle**
 
 In `apps/web/src/routes/Dashboard.tsx`:
 
@@ -738,12 +738,12 @@ In `apps/web/src/routes/Dashboard.tsx`:
    16px, so this is visually identical, just named consistently with the
    sidebar's chrome from sub-project 1).
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd apps/web && pnpm exec vitest run src/routes/Dashboard.test.tsx`
 Expected: PASS (all tests, including the new one).
 
-- [ ] **Step 5: Run the full frontend suite and a production build as a regression check**
+- [x] **Step 5: Run the full frontend suite and a production build as a regression check**
 
 Run: `cd apps/web && pnpm exec vitest run && pnpm exec vite build`
 Expected: all tests pass app-wide; build succeeds. (Not `tsc -b` — see
@@ -752,7 +752,7 @@ sub-project 1's plan for the pre-existing, unrelated 106-error finding;
 `pnpm exec eslint .` is confirmed unrunnable here — `eslint` isn't
 installed anywhere in this checkout — skip it.)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/web/src/routes/Dashboard.tsx apps/web/src/routes/Dashboard.test.tsx
@@ -765,41 +765,62 @@ git commit -m "feat(dashboard): wire in ActivityTimeline, restyle hero/stat tile
 
 **Files:** none (verification only).
 
-- [ ] **Step 1: Full backend suite on the server**
+- [x] **Step 1: Full backend suite on the server**
 
 ```bash
-ssh root@178.254.22.178 "cd /opt/collabrains && docker compose exec -T api pytest"
+ssh root@178.254.22.178 "cd /opt/collabrains && docker compose exec -T api uv run pytest"
 ```
 
-Expected: no new failures beyond any pre-existing baseline (see Task 1
-Step 7's note).
+**Already run in Task 1 Step 7** (966s, 646 passed, 4 failed — all 4
+pre-existing and unrelated, see that step's note). Not re-run here since
+Tasks 2-3 were frontend-only and can't affect that result.
 
-- [ ] **Step 2: Full frontend suite + build, locally**
+- [x] **Step 2: Full frontend suite + build, locally**
 
 Run: `cd apps/web && pnpm exec vitest run && pnpm exec vite build`
-Expected: 100% pass; build succeeds.
 
-- [ ] **Step 3: Live-browser check**
+**Run in Task 3 Step 5: 505 passed, 0 failed, build succeeded.** One
+unrelated `Unhandled Error` was flagged (a stray `setTimeout` ripple-
+cleanup in `Button.tsx`, an existing shared UI component this plan never
+touches, surfaced via `Calendar.test.tsx` — also untouched; pre-existing
+test-cleanup noise, not a regression).
 
-Same standing convention as sub-project 1 (this project's history has
-repeatedly found real bugs that automated checks alone missed — e.g. the
-header-clipping bug found live-checking the sidebar). Since this touches
-authenticated pages, use the same standalone-preview technique from
-sub-project 1's Task 7 if no other logged-in path is available locally
-(temporarily override `useAuth` in `apps/web/src/lib/auth.tsx` to return a
-fixed fake user, `git checkout` it back immediately after — never commit
-that override). Check:
-- The Activity Timeline widget renders real items with correct icons,
-  titles, links, and relative dates (needs real seeded data — e.g. the
-  disposable users/documents/tasks/cases from Task 1's tests, or your own
-  account's real data).
+- [x] **Step 3: Live-browser check**
+
+**Actually done, with a real scope limitation worth recording:** same
+standalone-preview technique as sub-project 1 (temporarily override
+`useAuth` in `apps/web/src/lib/auth.tsx` to return a fixed fake user,
+`git checkout` it back immediately after — never committed). Verified at
+1440px in both light and dark mode: the hero banner and stat tiles render
+correctly with the new tokens (visually identical to before, as expected
+from a same-pixel-value token swap), and the new "Recent activity" widget
+renders in the correct grid position with a clean empty state matching
+every other widget's style.
+
+**Not verified live: real (non-empty) activity items with real
+icons/titles/links/dates.** This local environment has no backend to log
+into or seed real data through — the widget correctly degrades to its
+empty state with no server to call. That specific rendering path (icons,
+titles, links, dates for real items) is covered by
+`ActivityTimeline.test.tsx`'s first test (mocked data, already passing),
+which is arguably the more precise tool for it anyway — but it hasn't been
+seen rendering with real server data in an actual browser. Worth a look
+once this is deployed and you're logged in for real.
+
+Also not verified: mobile viewport (the browser tool's resize didn't take
+effect on this tab for an unknown reason, not investigated further since
+this plan didn't touch any responsive/mobile-specific code — only added
+one item to an existing responsive grid and restyled two elements with
+equivalent pixel values).
+
+Checked but effectively a non-issue given the above:
 - Clicking an activity item's link navigates to the right page for each
-  type (document/task/case/entity).
-- The hero banner and stat tiles still look correct in both light and dark
-  mode — the token swap should be visually identical to before, confirm
-  it actually is.
+  type (document/task/case/entity) — not exercised (no real items to
+  click), but the `link` field is plain server-built href text rendered
+  through the same `<Link>` pattern every other widget already uses
+  correctly.
 - Empty state (a fresh user with no activity) shows the empty message, not
-  a broken/blank widget.
+  a broken/blank widget — confirmed above.
 
 **Do not push to `origin/main` or deploy to the live server as part of
 this task** — tell the user it's ready and ask whether to push/deploy,
