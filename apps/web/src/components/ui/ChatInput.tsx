@@ -1,4 +1,4 @@
-import { useRef, type ChangeEvent, type KeyboardEvent } from "react";
+import { useLayoutEffect, useRef, type ChangeEvent, type KeyboardEvent } from "react";
 
 const MAX_HEIGHT_PX = 160;
 
@@ -18,13 +18,19 @@ interface ChatInputProps {
 export function ChatInput({ value, onChange, placeholder, disabled }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Keyed on `value` (not just run inside handleChange) so the resize also
+  // applies on the initial render and when the value changes externally --
+  // e.g. Chat.tsx/Assistant.tsx calling setInput("") after submit, which
+  // updates the controlled value without ever firing onChange.
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, MAX_HEIGHT_PX)}px`;
+  }, [value]);
+
   function handleChange(e: ChangeEvent<HTMLTextAreaElement>) {
     onChange(e.target.value);
-    const el = textareaRef.current;
-    if (el) {
-      el.style.height = "auto";
-      el.style.height = `${Math.min(el.scrollHeight, MAX_HEIGHT_PX)}px`;
-    }
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
@@ -44,7 +50,7 @@ export function ChatInput({ value, onChange, placeholder, disabled }: ChatInputP
       disabled={disabled}
       rows={1}
       style={{ maxHeight: `${MAX_HEIGHT_PX}px` }}
-      className="w-full resize-none rounded-ds-lg border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none transition-colors duration-fast focus:border-accent focus:ring-2 focus:ring-accent-soft disabled:opacity-50"
+      className="w-full resize-none overflow-y-auto rounded-ds-lg border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none transition-colors duration-fast focus:border-accent focus:ring-2 focus:ring-accent-soft disabled:opacity-50"
     />
   );
 }

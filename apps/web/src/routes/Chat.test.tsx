@@ -56,6 +56,15 @@ describe("Chat", () => {
     expect(screen.getByRole("link", { name: "[1] Lease Agreement" })).toHaveAttribute("href", "/documents/d1");
   });
 
+  it("sends a message and renders the assistant reply when submitted via Enter in the textarea", async () => {
+    renderPage();
+    const input = screen.getByPlaceholderText("Ask a question…");
+    fireEvent.change(input, { target: { value: "When does it expire?" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(await screen.findByText("The contract expires in 2027.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "[1] Lease Agreement" })).toHaveAttribute("href", "/documents/d1");
+  });
+
   it("shows an error message when the request fails", async () => {
     vi.mocked(api.chat).mockRejectedValue(new api.ApiError(500, "Chat boom"));
     renderPage();

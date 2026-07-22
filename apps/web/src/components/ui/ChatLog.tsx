@@ -62,7 +62,13 @@ export function ChatLog({
   }, [turns.length, sending]);
 
   if (turns.length === 0) {
-    return hint ? <p className="text-sm text-ink-2">{hint}</p> : null;
+    return hint ? (
+      <div className="flex min-h-0 flex-1 flex-col">
+        <p className="text-sm text-ink-2">{hint}</p>
+      </div>
+    ) : (
+      <div className="min-h-0 flex-1" />
+    );
   }
 
   return (

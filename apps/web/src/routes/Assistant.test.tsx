@@ -39,6 +39,15 @@ describe("Assistant", () => {
     expect(screen.getByText("via: create_case")).toBeInTheDocument();
   });
 
+  it("sends a message and renders the assistant reply when submitted via Enter in the textarea", async () => {
+    renderPage();
+    const input = screen.getByPlaceholderText("Ask the assistant…");
+    fireEvent.change(input, { target: { value: "Create a case for Smith" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(await screen.findByText("I created the case.")).toBeInTheDocument();
+    expect(screen.getByText("via: create_case")).toBeInTheDocument();
+  });
+
   it("shows an error message when the request fails", async () => {
     vi.mocked(api.askManager).mockRejectedValue(new api.ApiError(500, "Assistant boom"));
     renderPage();
