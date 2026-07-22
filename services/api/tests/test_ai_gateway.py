@@ -253,6 +253,160 @@ async def test_chat_completion_without_tools_omits_tools_key_from_request(monkey
     assert "tools" not in captured_request["json"]
 
 
+async def test_chat_completion_sends_default_num_predict_cap(monkeypatch):
+    import httpx
+    from sqlalchemy import select
+
+    from api.ai_gateway import chat_completion
+    from api.config import settings
+    from api.db import async_session
+    from api.models import User
+
+    username = f"num-predict-test-user-{uuid.uuid4().hex[:8]}"
+    async with async_session() as db:
+        db.add(User(username=username, display_name="x", role="member"))
+        await db.commit()
+        result = await db.execute(select(User).where(User.username == username))
+        real_user_id = result.scalar_one().id
+
+    captured_request = {}
+
+    class FakeResponse:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"message": {"content": "hi"}, "prompt_eval_count": 1, "eval_count": 1}
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        async def post(self, url, json):
+            captured_request["json"] = json
+            return FakeResponse()
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+
+    await chat_completion([{"role": "user", "content": "hi"}], user_id=real_user_id, endpoint="test.num_predict")
+
+    assert captured_request["json"]["options"]["num_predict"] == settings.chat_num_predict
+    assert captured_request["json"]["think"] is False
+
+
+async def test_execute_complex_reasoning_splits_think_block_from_solution(monkeypatch):
+    import httpx
+    from sqlalchemy import select
+
+    from api.ai_gateway import execute_complex_reasoning
+    from api.config import settings
+    from api.db import async_session
+    from api.models import User
+
+    username = f"reasoning-test-user-{uuid.uuid4().hex[:8]}"
+    async with async_session() as db:
+        db.add(User(username=username, display_name="x", role="member"))
+        await db.commit()
+        result = await db.execute(select(User).where(User.username == username))
+        real_user_id = result.scalar_one().id
+
+    captured_request = {}
+
+    class FakeResponse:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {
+                "message": {"content": "<think>let me work through this</think>The answer is 42."},
+                "prompt_eval_count": 1,
+                "eval_count": 1,
+            }
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        async def post(self, url, json):
+            captured_request["json"] = json
+            return FakeResponse()
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+
+    result = await execute_complex_reasoning(
+        "what is 6*7?", user_id=real_user_id, endpoint="test.reasoning",
+    )
+
+    assert result == {"thinking": "let me work through this", "solution": "The answer is 42."}
+    sent = captured_request["json"]
+    assert sent["model"] == settings.reasoning_model
+    assert sent["think"] is True
+    assert sent["options"]["temperature"] == 0.4
+    assert sent["options"]["num_predict"] == settings.reasoning_num_predict
+
+
+async def test_execute_complex_reasoning_falls_back_when_no_think_block_present(monkeypatch):
+    import httpx
+    from sqlalchemy import select
+
+    from api.ai_gateway import execute_complex_reasoning
+    from api.db import async_session
+    from api.models import User
+
+    username = f"reasoning-fallback-test-user-{uuid.uuid4().hex[:8]}"
+    async with async_session() as db:
+        db.add(User(username=username, display_name="x", role="member"))
+        await db.commit()
+        result = await db.execute(select(User).where(User.username == username))
+        real_user_id = result.scalar_one().id
+
+    class FakeResponse:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"message": {"content": "The answer is 42."}, "prompt_eval_count": 1, "eval_count": 1}
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        async def post(self, url, json):
+            return FakeResponse()
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+
+    result = await execute_complex_reasoning(
+        "what is 6*7?", user_id=real_user_id, endpoint="test.reasoning_fallback",
+    )
+
+    assert result == {"thinking": "", "solution": "The answer is 42."}
+
+
 async def test_concurrent_calls_to_ollama_are_serialized(monkeypatch):
     """This deployment's Ollama host runs OLLAMA_NUM_PARALLEL=1: it can only
     process one /api/chat request at a time. When multiple event handlers

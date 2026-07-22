@@ -10,8 +10,14 @@ rate-limit/call/audit-log machinery via _call_ollama, but returns the
 raw response message (content + optional tool_calls) instead of just
 the content string -- chat_completion's contract is unchanged for its
 many existing callers.
+
+execute_complex_reasoning (see docs/deployment/ai-optimization.md) also
+shares _call_ollama, but targets settings.reasoning_model (deepseek-r1)
+with thinking enabled and splits the chain-of-thought out of the final
+answer.
 """
 import asyncio
+import re
 import time
 from typing import Any
 from uuid import UUID
@@ -61,6 +67,8 @@ async def _call_ollama(
     json_mode: bool,
     schema: dict[str, Any] | None,
     tools: list[dict[str, Any]] | None,
+    think: bool = False,
+    options: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     await _check_rate_limit(user_id)
 
@@ -68,12 +76,20 @@ async def _call_ollama(
     start = time.monotonic()
     async with _ollama_semaphore:
         async with httpx.AsyncClient(base_url=settings.ollama_url, timeout=120.0) as client:
-            # think=False: qwen3 (the default chat_model) is a reasoning model that
-            # otherwise emits a full chain-of-thought before every answer -- ~30s for
-            # a trivial prompt on this CPU-only host vs ~1.8s with thinking off.
-            # Harmless no-op for non-thinking models (confirmed against qwen2.5).
+            # think=False (the default): qwen2.5-coder/qwen3-family models otherwise
+            # emit a full chain-of-thought before every answer -- ~30s for a trivial
+            # prompt on this CPU-only host vs ~1.8s with thinking off. Harmless no-op
+            # for non-thinking models. execute_complex_reasoning explicitly overrides
+            # this to True since its whole point is capturing that chain-of-thought.
+            #
+            # num_predict caps every response to bound worst-case generation time and
+            # memory on this 4-vCPU/8GB host with no swap (see
+            # docs/deployment/ai-optimization.md) -- unset previously, so a runaway
+            # generation had no hard stop. Caller-supplied `options` (e.g.
+            # execute_complex_reasoning's temperature/num_predict) take precedence.
             request_body: dict[str, Any] = {
-                "model": chosen_model, "messages": messages, "stream": False, "think": False,
+                "model": chosen_model, "messages": messages, "stream": False, "think": think,
+                "options": {"num_predict": settings.chat_num_predict, **(options or {})},
             }
             if schema is not None:
                 # Structured outputs (Ollama >=0.5): a real JSON schema, not just
@@ -162,3 +178,56 @@ async def chat_completion_with_tools(
     return await _call_ollama(
         messages, user_id=user_id, endpoint=endpoint, model=model, json_mode=False, schema=None, tools=tools,
     )
+
+
+_THINK_BLOCK_RE = re.compile(r"<think>(.*?)</think>", re.DOTALL)
+
+
+def _split_thinking(content: str, message: dict[str, Any]) -> tuple[str, str]:
+    """Split a reasoning model's raw output into (thinking, solution).
+
+    deepseek-r1 (via Ollama) emits its chain-of-thought inline as a
+    <think>...</think> block at the start of message.content by default.
+    Some Ollama versions instead return it in a separate message.thinking
+    field when think=True is requested -- checked as a fallback since
+    which shape a given Ollama version returns isn't controlled by this app.
+    Falls back to an empty thinking string (not an error) if neither shape
+    is present, since a reasoning model can still answer directly.
+    """
+    match = _THINK_BLOCK_RE.search(content)
+    if match:
+        thinking = match.group(1).strip()
+        solution = _THINK_BLOCK_RE.sub("", content).strip()
+        return thinking, solution
+
+    thinking = (message.get("thinking") or "").strip()
+    return thinking, content.strip()
+
+
+async def execute_complex_reasoning(prompt: str, *, user_id: UUID, endpoint: str) -> dict[str, str]:
+    """Run a prompt through settings.reasoning_model (deepseek-r1) with thinking
+    enabled, and separate its chain-of-thought from the final answer.
+
+    `thinking` is for logging/admin visibility only -- never shown to end users
+    unvetted, since a reasoning model's intermediate steps carry the same
+    hallucination risk chat_completion's docstring warns about, just not yet
+    cleaned up into a final answer. `solution` is what callers should show users.
+    temperature=0.4 (vs. the Ollama default of 0.8) favors consistency over
+    creativity for reasoning/logic tasks; num_predict=reasoning_num_predict
+    (1024, double chat's 512) gives the chain-of-thought room to finish before
+    the hard cutoff, since truncating mid-thought would otherwise strip the
+    final answer entirely.
+    """
+    message = await _call_ollama(
+        [{"role": "user", "content": prompt}],
+        user_id=user_id,
+        endpoint=endpoint,
+        model=settings.reasoning_model,
+        json_mode=False,
+        schema=None,
+        tools=None,
+        think=True,
+        options={"temperature": 0.4, "num_predict": settings.reasoning_num_predict},
+    )
+    thinking, solution = _split_thinking(message.get("content", ""), message)
+    return {"thinking": thinking, "solution": solution}

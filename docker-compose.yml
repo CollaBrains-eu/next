@@ -102,6 +102,12 @@ services:
     # environment means `docker compose exec web pnpm exec vite build`
     # (the established production-deploy pattern -- see ADR 0039) doesn't
     # inherit a dev-only value into the production bundle (see ADR 0049).
+    # mem_limit: this host has no swap (OpenVZ, see the ollama service
+    # comment above), so a 2GB cap keeps a runaway `vite build`/`tsc -b`
+    # from starving Ollama/Postgres instead of crashing the whole host.
+    mem_limit: 2g
+    environment:
+      NODE_OPTIONS: "--max-old-space-size=2048"
     ports:
       - "127.0.0.1:5173:5173"
     volumes:
@@ -150,6 +156,18 @@ services:
     image: ollama/ollama:latest
     restart: unless-stopped
     profiles: ["full"]
+    # Resource caps for this project's 4-vCPU/8GB CPU-only OpenVZ host (docs/deployment/ai-optimization.md):
+    # 1 core stays free for the OS/api/postgres, and swap is unavailable here (OpenVZ guests can't
+    # swapon -- confirmed, see the memory doc), so mem_limit is the only backstop against Ollama
+    # ballooning and starving everything else, as it did while running qwen3:8b (5.7GB/377% CPU
+    # observed live -- see ai-optimization.md).
+    mem_limit: 1536m
+    mem_reservation: 512m
+    cpus: "3.0"
+    environment:
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      OMP_NUM_THREADS: "3"
     volumes:
       - ollama_data:/root/.ollama
     ports:

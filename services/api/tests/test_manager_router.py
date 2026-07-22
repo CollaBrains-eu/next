@@ -126,6 +126,28 @@ async def test_ask_on_behalf_of_header_rejects_unlinked_phone_number(client):
     assert response.status_code == 403
 
 
+async def test_reason_returns_thinking_and_solution(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    with patch(
+        "api.manager_router.execute_complex_reasoning",
+        return_value={"thinking": "step 1, step 2", "solution": "42"},
+    ) as mock_reason:
+        response = await client.post("/manager/reason", headers=headers, json={"prompt": "what is 6*7?"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["thinking"] == "step 1, step 2"
+    assert body["solution"] == "42"
+    assert mock_reason.call_args.kwargs["endpoint"] == "manager_reason"
+
+
+async def test_reason_rejects_missing_token(client):
+    response = await client.post("/manager/reason", json={"prompt": "hello"})
+    assert response.status_code == 401
+
+
 async def test_ask_ignores_on_behalf_of_header_from_non_service_caller(client):
     """A regular authenticated user cannot impersonate anyone via the header (ADR 0006)."""
     await _link_phone(client, "manageruser-linked2", "+15559991002")

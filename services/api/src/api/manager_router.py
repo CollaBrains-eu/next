@@ -1,4 +1,5 @@
-"""POST /manager/ask (Phase 11, ADR 0026).
+"""POST /manager/ask (Phase 11, ADR 0026) and POST /manager/reason
+(docs/deployment/ai-optimization.md).
 
 Uses get_effective_user, same as /chat (ADR 0006) -- this lets the
 signal-bot service account act on behalf of a linked phone number via
@@ -9,6 +10,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.ai_gateway import execute_complex_reasoning
 from api.auth import get_effective_user
 from api.chat import Citation
 from api.db import get_db
@@ -30,6 +32,15 @@ class AskResponse(BaseModel):
     legal_draft: DraftResponse | None = None
 
 
+class ReasonRequest(BaseModel):
+    prompt: str
+
+
+class ReasonResponse(BaseModel):
+    thinking: str
+    solution: str
+
+
 @router.post("/ask", response_model=AskResponse)
 async def ask(
     request: AskRequest,
@@ -38,3 +49,17 @@ async def ask(
 ) -> AskResponse:
     result = await handle_request(db, user_id=current_user.id, role=current_user.role, message=request.message)
     return AskResponse(**result)
+
+
+@router.post("/reason", response_model=ReasonResponse)
+async def reason(
+    request: ReasonRequest,
+    current_user: User = Depends(get_effective_user),
+) -> ReasonResponse:
+    """Complex-reasoning path (deepseek-r1, settings.reasoning_model) -- deliberately
+    bypasses manager_agent's tool-calling loop, since this is for logic/reasoning
+    prompts, not document-grounded or tool-driven requests. `thinking` is included
+    for admin/debug visibility only; frontend callers should show `solution`.
+    """
+    result = await execute_complex_reasoning(request.prompt, user_id=current_user.id, endpoint="manager_reason")
+    return ReasonResponse(**result)
