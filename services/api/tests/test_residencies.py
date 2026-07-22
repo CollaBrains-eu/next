@@ -417,3 +417,57 @@ async def test_list_residencies_survives_a_residency_with_no_address_detail_row(
     assert len(body) == 1
     assert body[0]["address"]["street"] is None
     assert body[0]["address"]["postal_code"] is None
+
+
+async def test_extracting_address_from_correspondence_document_creates_residency(client):
+    """Real production evidence: zero documents were ever classified into the
+    original RESIDENCE_CATEGORY_SLUGS, but 'correspondence' and 'other_documents'
+    both held genuine home-address extractions -- see
+    docs/superpowers/specs/2026-07-23-reliable-entity-extraction-maps-design.md."""
+    username = _unique("residencyuser-correspondence")
+    await _login(client, username)
+    user = await _user(username)
+    document_id = await _create_document(user.id, category_slug="correspondence")
+    street = _unique_street()
+
+    async with async_session() as db:
+        with patch("api.entity_agent.chat_completion", return_value=_address_extraction(street)):
+            persisted = await extract_entities(db, document_id=document_id, text="letter", user_id=user.id)
+
+    assert len(persisted) == 1
+    residency = await _current_residency(user.id)
+    assert residency is not None
+    assert residency.address_entity_id == persisted[0].id
+
+
+async def test_extracting_address_from_other_documents_creates_residency(client):
+    username = _unique("residencyuser-otherdocs")
+    await _login(client, username)
+    user = await _user(username)
+    document_id = await _create_document(user.id, category_slug="other_documents")
+    street = _unique_street()
+
+    async with async_session() as db:
+        with patch("api.entity_agent.chat_completion", return_value=_address_extraction(street)):
+            persisted = await extract_entities(db, document_id=document_id, text="doc", user_id=user.id)
+
+    assert len(persisted) == 1
+    residency = await _current_residency(user.id)
+    assert residency is not None
+
+
+async def test_extracting_address_from_employment_contract_does_not_create_residency(client):
+    """Unchanged behavior: an employer's address on an employment contract is not
+    residency evidence -- employment_contract stays out of the trigger set."""
+    username = _unique("residencyuser-employment")
+    await _login(client, username)
+    user = await _user(username)
+    document_id = await _create_document(user.id, category_slug="employment_contract")
+    street = _unique_street()
+
+    async with async_session() as db:
+        with patch("api.entity_agent.chat_completion", return_value=_address_extraction(street)):
+            await extract_entities(db, document_id=document_id, text="contract", user_id=user.id)
+
+    residency = await _current_residency(user.id)
+    assert residency is None

@@ -37,7 +37,18 @@ AUTO_EXTRACTED_ENTITY_TYPES = {"organization", "address"}
 # address, not a third party's (e.g. a landlord on a rental contract, or a
 # store on an invoice) -- residency detection only fires for these, contract
 # documents get linked to the resulting residency period once it exists.
-RESIDENCE_CATEGORY_SLUGS = {"identity_document", "mortgage_housing", "rental_contract", "government"}
+#
+# "correspondence" and "other_documents" were added 2026-07-23 after live
+# production data showed zero real documents were ever classified into the
+# original four slugs, while both of these held genuine home-address
+# extractions -- document_classification.py's classifier currently defaults
+# to "other_documents" for 66% of all documents, so excluding it left this
+# feature permanently dark. See
+# docs/superpowers/specs/2026-07-23-reliable-entity-extraction-maps-design.md.
+RESIDENCE_CATEGORY_SLUGS = {
+    "identity_document", "mortgage_housing", "rental_contract", "government",
+    "correspondence", "other_documents",
+}
 CONTRACT_CATEGORY_SLUGS = {"rental_contract", "mortgage_housing", "employment_contract"}
 
 # Code-level guardrail, not prompt-only -- this project's own established lesson
@@ -301,11 +312,18 @@ async def extract_entities(db: AsyncSession, *, document_id: UUID, text: str, us
         if existing.scalar_one_or_none() is None:
             db.add(EntityMention(entity_id=entity.id, document_id=document_id))
 
-    if address_entity_ids and category_slug in RESIDENCE_CATEGORY_SLUGS:
-        # Ambiguous which address is the user's own if several were found
-        # (e.g. landlord + property on one rental contract) -- take the
-        # first, still `pending_review` so a human can correct it.
-        await _update_residency(db, user_id=user_id, address_entity_id=address_entity_ids[0], document_id=document_id)
+    if address_entity_ids:
+        if category_slug in RESIDENCE_CATEGORY_SLUGS:
+            # Ambiguous which address is the user's own if several were found
+            # (e.g. landlord + property on one rental contract) -- take the
+            # first, still `pending_review` so a human can correct it.
+            await _update_residency(db, user_id=user_id, address_entity_id=address_entity_ids[0], document_id=document_id)
+        else:
+            logger.info(
+                "entity_agent: address extracted from document %s (category=%r) did not "
+                "trigger residency detection -- category not in RESIDENCE_CATEGORY_SLUGS",
+                document_id, category_slug,
+            )
 
     await _maybe_link_contract(db, document_id=document_id, user_id=user_id, category_slug=category_slug)
 
