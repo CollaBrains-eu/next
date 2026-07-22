@@ -42,10 +42,11 @@ async def test_chat_completion_sends_json_format_when_json_mode_enabled(monkeypa
     from api.db import async_session
     from api.models import User
 
+    username = f"json-mode-test-user-{uuid.uuid4().hex[:8]}"
     async with async_session() as db:
-        db.add(User(username="json-mode-test-user", display_name="x", role="member"))
+        db.add(User(username=username, display_name="x", role="member"))
         await db.commit()
-        result = await db.execute(select(User).where(User.username == "json-mode-test-user"))
+        result = await db.execute(select(User).where(User.username == username))
         real_user_id = result.scalar_one().id
 
     captured_request = {}
@@ -250,3 +251,73 @@ async def test_chat_completion_without_tools_omits_tools_key_from_request(monkey
 
     assert answer == "hello"
     assert "tools" not in captured_request["json"]
+
+
+async def test_concurrent_calls_to_ollama_are_serialized(monkeypatch):
+    """This deployment's Ollama host runs OLLAMA_NUM_PARALLEL=1: it can only
+    process one /api/chat request at a time. When multiple event handlers
+    (task/entity/classification/fact extraction) fire off the same
+    EMBEDDINGS_CREATED event concurrently, unserialized calls queue up
+    *inside Ollama* instead of at the client, so a caller near the back of
+    that queue can exceed its own httpx timeout and fail with a ReadTimeout
+    or 500 -- confirmed live in production after switching to qwen3:8b
+    (5.9GB, much slower than the previous 3B model). Serializing calls
+    client-side bounds each call's own wait to "however many callers are
+    ahead of it in our own queue", not an opaque server-side one."""
+    import asyncio
+    import httpx
+    from sqlalchemy import select
+
+    from api.ai_gateway import chat_completion
+    from api.db import async_session
+    from api.models import User
+
+    username = f"concurrency-test-user-{uuid.uuid4().hex[:8]}"
+    async with async_session() as db:
+        db.add(User(username=username, display_name="x", role="member"))
+        await db.commit()
+        result = await db.execute(select(User).where(User.username == username))
+        real_user_id = result.scalar_one().id
+
+    in_flight = 0
+    max_in_flight = 0
+
+    class FakeResponse:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"message": {"content": "ok"}, "prompt_eval_count": 1, "eval_count": 1}
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        async def post(self, url, json):
+            nonlocal in_flight, max_in_flight
+            in_flight += 1
+            max_in_flight = max(max_in_flight, in_flight)
+            await asyncio.sleep(0.05)
+            in_flight -= 1
+            return FakeResponse()
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+
+    await asyncio.gather(
+        *[
+            chat_completion(
+                [{"role": "user", "content": "hi"}], user_id=real_user_id, endpoint=f"test.concurrency.{i}"
+            )
+            for i in range(5)
+        ]
+    )
+
+    assert max_in_flight == 1

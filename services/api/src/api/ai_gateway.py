@@ -11,6 +11,7 @@ raw response message (content + optional tool_calls) instead of just
 the content string -- chat_completion's contract is unchanged for its
 many existing callers.
 """
+import asyncio
 import time
 from typing import Any
 from uuid import UUID
@@ -24,6 +25,19 @@ from api.db import async_session
 from api.models import AiCallLog
 
 _redis = Redis.from_url(settings.redis_url)
+
+# This deployment's Ollama host serves one /api/chat request at a time
+# (OLLAMA_NUM_PARALLEL=1, confirmed in its own startup log -- a resource
+# constraint of the CPU-only host, not something this app configures).
+# Multiple event handlers fire off the same EMBEDDINGS_CREATED event
+# concurrently (task/entity/classification/fact extraction); without this,
+# their calls queue up *inside Ollama* instead of at the client, so a
+# caller near the back of that queue can exceed its own httpx timeout and
+# fail with a ReadTimeout or 500 -- confirmed live after switching to
+# qwen3:8b, a much slower model than the one this was originally tuned
+# against. Serializing client-side bounds each call's wait to "how many
+# callers this process itself has ahead of it," not an opaque server queue.
+_ollama_semaphore = asyncio.Semaphore(1)
 
 
 async def _check_rate_limit(user_id: UUID) -> None:
@@ -52,30 +66,31 @@ async def _call_ollama(
 
     chosen_model = model or settings.chat_model
     start = time.monotonic()
-    async with httpx.AsyncClient(base_url=settings.ollama_url, timeout=120.0) as client:
-        # think=False: qwen3 (the default chat_model) is a reasoning model that
-        # otherwise emits a full chain-of-thought before every answer -- ~30s for
-        # a trivial prompt on this CPU-only host vs ~1.8s with thinking off.
-        # Harmless no-op for non-thinking models (confirmed against qwen2.5).
-        request_body: dict[str, Any] = {
-            "model": chosen_model, "messages": messages, "stream": False, "think": False,
-        }
-        if schema is not None:
-            # Structured outputs (Ollama >=0.5): a real JSON schema, not just
-            # "some JSON" -- format="json" alone lets a model return a bare
-            # object where an array was asked for (or vice versa), which then
-            # fails an isinstance() check downstream and gets silently
-            # discarded. Confirmed live against this deployment's own models:
-            # both qwen2.5:3b-instruct and qwen3:8b did exactly this on an
-            # array-shaped prompt when only given format="json".
-            request_body["format"] = schema
-        elif json_mode:
-            request_body["format"] = "json"
-        if tools:
-            request_body["tools"] = tools
-        response = await client.post("/api/chat", json=request_body)
-        response.raise_for_status()
-        payload = response.json()
+    async with _ollama_semaphore:
+        async with httpx.AsyncClient(base_url=settings.ollama_url, timeout=120.0) as client:
+            # think=False: qwen3 (the default chat_model) is a reasoning model that
+            # otherwise emits a full chain-of-thought before every answer -- ~30s for
+            # a trivial prompt on this CPU-only host vs ~1.8s with thinking off.
+            # Harmless no-op for non-thinking models (confirmed against qwen2.5).
+            request_body: dict[str, Any] = {
+                "model": chosen_model, "messages": messages, "stream": False, "think": False,
+            }
+            if schema is not None:
+                # Structured outputs (Ollama >=0.5): a real JSON schema, not just
+                # "some JSON" -- format="json" alone lets a model return a bare
+                # object where an array was asked for (or vice versa), which then
+                # fails an isinstance() check downstream and gets silently
+                # discarded. Confirmed live against this deployment's own models:
+                # both qwen2.5:3b-instruct and qwen3:8b did exactly this on an
+                # array-shaped prompt when only given format="json".
+                request_body["format"] = schema
+            elif json_mode:
+                request_body["format"] = "json"
+            if tools:
+                request_body["tools"] = tools
+            response = await client.post("/api/chat", json=request_body)
+            response.raise_for_status()
+            payload = response.json()
 
     duration_ms = int((time.monotonic() - start) * 1000)
 
