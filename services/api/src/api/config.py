@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     auto_extract_vehicles_on_ready: bool = True
     auto_classify_on_ready: bool = True
     auto_extract_facts_on_ready: bool = True
+    auto_extract_metafields_on_ready: bool = True
     rdw_app_token: str = ""
 
     signal_cli_url: str = ""

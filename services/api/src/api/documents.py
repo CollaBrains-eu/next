@@ -27,7 +27,7 @@ plain function, not inlined in the endpoint, so the Planning Engine
 import csv
 import io
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response, UploadFile, status
@@ -44,9 +44,11 @@ from api.chunking import chunk_text
 from api.config import settings
 from api.db import async_session, get_db
 from api.document_classification import classify_and_persist
+from api.document_metafields import extract_and_persist_metafields, is_date_field
 from api.embeddings import embed_text
 from api.entity_agent import extract_entities
 from api.events import Event, EventType, publish, subscribe
+from api.ics_utils import build_vevent_calendar, format_ics_date, ics_slug
 from api.models import Document, DocumentChunk, User
 from api.paperless_client import delete_document as paperless_delete, fetch_document_file, \
     fetch_document_text, submit_document, wait_for_paperless_id
@@ -88,6 +90,7 @@ class DocumentDetailOut(DocumentOut):
     correspondent_postal_code: str | None
     correspondent_city: str | None
     correspondent_country: str | None
+    metafields: dict | None
 
 
 async def _notify_owner(db: AsyncSession, document: Document) -> None:
@@ -286,6 +289,21 @@ async def _handle_classify_document(event: Event) -> None:
         await publish(EventType.DOCUMENT_CLASSIFIED, {"document_id": document_id, "doc_type": document.doc_type})
 
 
+@subscribe(EventType.DOCUMENT_CLASSIFIED)
+async def _handle_extract_metafields(event: Event) -> None:
+    if not settings.auto_extract_metafields_on_ready:
+        return
+    document_id = event.payload["document_id"]
+    doc_type = event.payload["doc_type"]
+    async with async_session() as db:
+        document = await db.get(Document, document_id)
+        if document is None or not document.ocr_text:
+            return
+        await extract_and_persist_metafields(
+            db, document_id=document_id, doc_type=doc_type, text=document.ocr_text, user_id=document.owner_id
+        )
+
+
 @subscribe(EventType.EMBEDDINGS_CREATED)
 async def _handle_extract_facts(event: Event) -> None:
     if not settings.auto_extract_facts_on_ready:
@@ -469,6 +487,49 @@ async def get_document(
         correspondent_postal_code=document.correspondent_postal_code,
         correspondent_city=document.correspondent_city,
         correspondent_country=document.correspondent_country,
+        metafields=document.metafields,
+    )
+
+
+@router.get("/{document_id}/metafields/{field_key}/ics")
+async def export_metafield_ics(
+    document_id: UUID,
+    field_key: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_effective_user),
+) -> Response:
+    """All-day VEVENT built from a single extracted metafield's date value.
+    Stateless, like tasks.py's export_task_ics -- no Appointment row is created;
+    full document-to-calendar auto-sync is a separate, later sub-project."""
+    document = await db.get(Document, document_id)
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    if not await _can_read_document(db, document, current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to view this document")
+    if document.doc_type is None or not is_date_field(document.doc_type, field_key):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Field is not a date field for this document's type"
+        )
+    raw_value = (document.metafields or {}).get(field_key)
+    if not raw_value:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Field has no value to export")
+    try:
+        parsed_date = date.fromisoformat(raw_value)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Field value is not a valid date")
+
+    ics_text = build_vevent_calendar(
+        uid=f"{document.id}-{field_key}",
+        summary=f"{document.title}: {field_key.replace('_', ' ').title()}",
+        dtstart=format_ics_date(parsed_date),
+        all_day=True,
+        prodid="-//CollaBrains//Documents//EN",
+    )
+    slug = ics_slug(f"{document.title}-{field_key}")
+    return Response(
+        content=ics_text,
+        media_type="text/calendar",
+        headers={"Content-Disposition": f'attachment; filename="{slug}.ics"'},
     )
 
 
