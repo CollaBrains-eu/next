@@ -61,7 +61,6 @@ function AppShell() {
   return (
     <Layout>
       <Routes>
-        <Route path="/login" element={<Login />} />
         <Route path="/onboard" element={<Onboard />} />
         <Route
           path="/documents"
@@ -201,6 +200,7 @@ export default function App() {
               <RouteChangeLoadingBar />
               <Routes>
                 <Route path="/" element={<RootRoute />} />
+                <Route path="/login" element={<Login />} />
                 <Route path="/*" element={<AppShell />} />
               </Routes>
             </CommandCenterStateProvider>
