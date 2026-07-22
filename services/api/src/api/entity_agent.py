@@ -155,22 +155,61 @@ async def _get_or_create_entity(db: AsyncSession, name: str, entity_type: str, o
     return entity
 
 
+async def _find_matching_address_entity(db: AsyncSession, filled_item: dict, owner_id: UUID) -> Entity | None:
+    """Priority-ordered partial match, most-reliable signal first. Returns the
+    first entity found whose AddressDetail matches on the given fields -- both
+    rows must have non-empty values for the fields being compared (an empty
+    field never counts as a match)."""
+    postal = (filled_item.get("postal_code") or "").strip().lower()
+    house = (filled_item.get("house_number") or "").strip().lower()
+    street = (filled_item.get("street") or "").strip().lower()
+
+    if postal and house:
+        result = await db.execute(
+            select(Entity).join(AddressDetail, AddressDetail.entity_id == Entity.id).where(
+                func.lower(AddressDetail.postal_code) == postal,
+                func.lower(AddressDetail.house_number) == house,
+                Entity.owner_id == owner_id,
+            )
+        )
+        entity = result.scalar_one_or_none()
+        if entity is not None:
+            return entity
+
+    if street and house:
+        result = await db.execute(
+            select(Entity).join(AddressDetail, AddressDetail.entity_id == Entity.id).where(
+                func.lower(AddressDetail.street) == street,
+                func.lower(AddressDetail.house_number) == house,
+                Entity.owner_id == owner_id,
+            )
+        )
+        entity = result.scalar_one_or_none()
+        if entity is not None:
+            return entity
+
+    normalized_key = _normalize_address_key(filled_item)
+    result = await db.execute(
+        select(Entity).join(AddressDetail, AddressDetail.entity_id == Entity.id).where(
+            AddressDetail.normalized_key == normalized_key, Entity.owner_id == owner_id
+        )
+    )
+    return result.scalar_one_or_none()
+
+
 async def _get_or_create_address_entity(db: AsyncSession, item: dict, owner_id: UUID) -> Entity | None:
     """Same contract as `_get_or_create_entity`, but dedups address entities by
-    normalized structured fields (still scoped to `owner_id`) instead of exact name
-    match -- two LLM extractions of the same real address rarely render as identical
-    text. Rejects candidates that look like an email/URL/person-salutation before
-    ever creating an Entity row (see _looks_like_garbage_address)."""
+    structured-field matching (priority-ordered, see _find_matching_address_entity)
+    instead of exact name match. On a partial match, fills any gap on the existing
+    row from the new extraction rather than creating a fragment -- never overwrites
+    an already-populated field. Rejects candidates that look like an email/URL/
+    person-salutation before ever creating an Entity row."""
     raw_name = str(item.get("name") or "").strip()
     if _looks_like_garbage_address(raw_name):
         logger.info("entity_agent: rejected garbage address candidate %r", raw_name)
         return None
 
     parsed = parse_address(raw_name)
-    # Prefer the LLM's own structured fields when present (schema-constrained, so
-    # at least well-typed when given), fall back to the deterministic parser for
-    # whatever it left null -- live data showed the LLM leaves these null far more
-    # often than it fills them.
     filled_item = {
         "name": raw_name,
         "street": item.get("street") or parsed["street"],
@@ -180,18 +219,22 @@ async def _get_or_create_address_entity(db: AsyncSession, item: dict, owner_id: 
         "country": item.get("country") or parsed["country"],
     }
 
-    normalized_key = _normalize_address_key(filled_item)
-    result = await db.execute(
-        select(Entity).join(AddressDetail, AddressDetail.entity_id == Entity.id).where(
-            AddressDetail.normalized_key == normalized_key, Entity.owner_id == owner_id
-        )
-    )
-    entity = result.scalar_one_or_none()
+    entity = await _find_matching_address_entity(db, filled_item, owner_id)
     if entity is not None:
         if entity.status == "rejected":
             return None
+        detail = await db.get(AddressDetail, entity.id)
+        if detail is not None:
+            changed = False
+            for field in ("street", "house_number", "postal_code", "city", "country"):
+                if getattr(detail, field) is None and filled_item[field] is not None:
+                    setattr(detail, field, filled_item[field])
+                    changed = True
+            if changed:
+                detail.normalized_key = _normalize_address_key(filled_item)
         return entity
 
+    normalized_key = _normalize_address_key(filled_item)
     entity = Entity(name=raw_name or normalized_key, entity_type="address", owner_id=owner_id)
     db.add(entity)
     await db.flush()

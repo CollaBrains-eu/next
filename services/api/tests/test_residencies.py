@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from unittest.mock import patch
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from api.db import async_session
 from api.entity_agent import extract_entities
@@ -471,3 +471,52 @@ async def test_extracting_address_from_employment_contract_does_not_create_resid
 
     residency = await _current_residency(user.id)
     assert residency is None
+
+
+async def test_partial_and_full_extraction_of_same_address_merge_not_fragment(client):
+    """Regression test for the live 'two Gaslaan 16 rows' bug: a postal_code+
+    house_number match should fill in missing fields on the existing row, not
+    create a second Entity for the same real address."""
+    username = _unique("residencyuser-mergegap")
+    await _login(client, username)
+    user = await _user(username)
+    street = _unique_street()
+
+    doc1 = await _create_document(user.id, category_slug="correspondence")
+    # First extraction: only postal_code + house_number known (street/city missing --
+    # simulates the LLM leaving fields null, before address_parser had anything to work
+    # with in the raw name).
+    fake_partial = json.dumps({
+        "entities": [{
+            "name": f"12, 1012AB", "type": "address",
+            "street": None, "house_number": "12", "postal_code": "1012AB", "city": None, "country": None,
+        }],
+        "relationships": [],
+    })
+    async with async_session() as db:
+        with patch("api.entity_agent.chat_completion", return_value=fake_partial):
+            first = await extract_entities(db, document_id=doc1, text="letter one", user_id=user.id)
+    assert len(first) == 1
+
+    doc2 = await _create_document(user.id, category_slug="correspondence")
+    # Second extraction: full details for the same real address.
+    async with async_session() as db:
+        with patch("api.entity_agent.chat_completion", return_value=_address_extraction(street, house_number="12", postal_code="1012AB")):
+            second = await extract_entities(db, document_id=doc2, text="letter two", user_id=user.id)
+    assert len(second) == 1
+
+    # Must be the SAME entity, not a second fragment.
+    assert second[0].id == first[0].id
+
+    async with async_session() as db:
+        result = await db.execute(select(AddressDetail).where(AddressDetail.entity_id == first[0].id))
+        detail = result.scalar_one()
+    assert detail.street == street
+    assert detail.city == "Amsterdam"
+
+    # Only one Entity total for this real address.
+    async with async_session() as db:
+        count_result = await db.execute(
+            select(func.count()).select_from(AddressDetail).where(AddressDetail.entity_id == first[0].id)
+        )
+    assert count_result.scalar_one() == 1
