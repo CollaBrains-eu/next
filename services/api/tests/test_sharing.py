@@ -48,16 +48,17 @@ async def test_create_or_rotate_share_link_creates_then_rotates(client):
 async def test_get_valid_share_link_returns_none_for_expired_token(client):
     await _login(client, "sharesvcuser2")
     user_id = await _user_id_for("sharesvcuser2")
+    token = f"expired-token-{uuid4().hex}"
 
     async with async_session() as db:
         link = ShareLink(
-            entity_type="task", entity_id=uuid4(), token="expired-token-xyz",
+            entity_type="task", entity_id=uuid4(), token=token,
             created_by_user_id=user_id, expires_at=datetime.now(timezone.utc) - timedelta(days=1),
         )
         db.add(link)
         await db.commit()
 
-        found = await get_valid_share_link(db, token="expired-token-xyz")
+        found = await get_valid_share_link(db, token=token)
 
     assert found is None
 
