@@ -2,7 +2,12 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 from api.db import async_session
-from api.document_metafields import extract_and_persist_metafields, extract_metafields, is_date_field
+from api.document_metafields import (
+    DOC_TYPE_METAFIELD_SCHEMA,
+    extract_and_persist_metafields,
+    extract_metafields,
+    is_date_field,
+)
 from api.models import Document, User
 
 FAKE_INVOICE_METAFIELDS = '{"amount": "500.00", "due_date": "2026-08-15", "invoice_number": "INV-123"}'
@@ -120,3 +125,36 @@ def test_is_date_field_identifies_declared_date_fields():
     assert is_date_field("invoice", "amount") is False
     assert is_date_field("invoice", "not_a_real_field") is False
     assert is_date_field("other", "anything") is False
+
+
+NEW_DOC_TYPE_FIELDS = {
+    "receipt": {"vendor", "amount", "purchase_date"},
+    "subscription": {"provider", "monthly_amount", "renewal_date"},
+    "prescription": {"medication", "dosage", "prescribing_doctor", "issue_date"},
+    "lab_result": {"test_name", "result_summary", "test_date"},
+    "warranty": {"product", "vendor", "warranty_expiry_date"},
+}
+
+
+def test_new_doc_types_have_the_declared_metafield_schema():
+    for doc_type, expected_fields in NEW_DOC_TYPE_FIELDS.items():
+        actual_fields = {name for name, _ in DOC_TYPE_METAFIELD_SCHEMA[doc_type]}
+        assert actual_fields == expected_fields
+
+
+async def test_extract_metafields_parses_a_new_doc_type_receipt():
+    user = await _create_user(_unique("metafieldreceiptuser"))
+    fake = '{"vendor": "Albert Heijn", "amount": "23.40", "purchase_date": "2026-07-20"}'
+    with patch("api.document_metafields.chat_completion", AsyncMock(return_value=fake)):
+        result = await extract_metafields(doc_type="receipt", text="receipt text", user_id=user.id)
+
+    assert result == {"vendor": "Albert Heijn", "amount": "23.40", "purchase_date": "2026-07-20"}
+
+
+def test_is_date_field_identifies_new_doc_type_date_fields():
+    assert is_date_field("receipt", "purchase_date") is True
+    assert is_date_field("subscription", "renewal_date") is True
+    assert is_date_field("prescription", "issue_date") is True
+    assert is_date_field("lab_result", "test_date") is True
+    assert is_date_field("warranty", "warranty_expiry_date") is True
+    assert is_date_field("receipt", "vendor") is False

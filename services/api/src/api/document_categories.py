@@ -19,7 +19,8 @@ DOCUMENT_CATEGORIES: list[dict] = [
      "doc_types": ["pension", "benefits"]},
     {"slug": "bank_statement", "icon": "Building2", "color": "#34AADC", "parent": "finance",
      "doc_types": ["bank_statement", "bank"]},
-    {"slug": "invoice", "icon": "Receipt", "color": "#FF3B30", "parent": "finance", "doc_types": ["invoice"]},
+    {"slug": "invoice", "icon": "Receipt", "color": "#FF3B30", "parent": "finance",
+     "doc_types": ["invoice", "receipt", "subscription"]},
     {"slug": "guardianship", "icon": "Gavel", "color": "#FF9500", "parent": "finance",
      "doc_types": ["guardianship"]},
 
@@ -35,7 +36,7 @@ DOCUMENT_CATEGORIES: list[dict] = [
     {"slug": "insurance", "icon": "Shield", "color": "#4CD964", "parent": "insurance_care",
      "doc_types": ["policy", "insurance"]},
     {"slug": "medical_care", "icon": "HeartPulse", "color": "#5AC8FA", "parent": "insurance_care",
-     "doc_types": ["medical", "care"]},
+     "doc_types": ["medical", "care", "prescription", "lab_result"]},
 
     # -- Work & Education --
     {"slug": "work_education", "icon": "Briefcase", "color": "#5856D6", "parent": None, "doc_types": []},
@@ -58,7 +59,7 @@ DOCUMENT_CATEGORIES: list[dict] = [
     {"slug": "correspondence", "icon": "Mail", "color": "#8E8E93", "parent": "other_group",
      "doc_types": ["correspondence"]},
     {"slug": "other_documents", "icon": "File", "color": "#8E8E93", "parent": "other_group",
-     "doc_types": ["other", "legal"]},
+     "doc_types": ["other", "legal", "warranty"]},
 ]
 
 DOC_TYPE_TO_CATEGORY_SLUG: dict[str, str] = {

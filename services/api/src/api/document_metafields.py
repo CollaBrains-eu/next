@@ -28,6 +28,8 @@ DOC_TYPE_METAFIELD_SCHEMA: dict[str, list[tuple[str, str]]] = {
     "bank_statement": [("account_number", "string"), ("period", "string"), ("closing_balance", "string")],
     "bank": [("account_number", "string"), ("period", "string"), ("closing_balance", "string")],
     "invoice": [("amount", "string"), ("due_date", "date"), ("invoice_number", "string")],
+    "receipt": [("vendor", "string"), ("amount", "string"), ("purchase_date", "date")],
+    "subscription": [("provider", "string"), ("monthly_amount", "string"), ("renewal_date", "date")],
     "guardianship": [("case_number", "string"), ("court", "string"), ("effective_date", "date")],
     "mortgage": [("loan_amount", "string"), ("interest_rate", "string"), ("property_address", "string")],
     "housing": [("monthly_rent", "string"), ("start_date", "date"), ("property_address", "string")],
@@ -37,6 +39,10 @@ DOC_TYPE_METAFIELD_SCHEMA: dict[str, list[tuple[str, str]]] = {
     "insurance": [("policy_number", "string"), ("provider", "string"), ("premium", "string")],
     "medical": [("provider", "string"), ("visit_date", "date")],
     "care": [("provider", "string"), ("visit_date", "date")],
+    "prescription": [
+        ("medication", "string"), ("dosage", "string"), ("prescribing_doctor", "string"), ("issue_date", "date"),
+    ],
+    "lab_result": [("test_name", "string"), ("result_summary", "string"), ("test_date", "date")],
     "contract": [("counterparty", "string"), ("start_date", "date"), ("end_date", "date")],
     "education": [("institution", "string"), ("program", "string"), ("graduation_date", "date")],
     "cv": [("full_name", "string"), ("most_recent_role", "string")],
@@ -46,6 +52,7 @@ DOC_TYPE_METAFIELD_SCHEMA: dict[str, list[tuple[str, str]]] = {
     ],
     "correspondence": [("subject", "string"), ("reply_by_date", "date")],
     "legal": [("case_number", "string"), ("court", "string"), ("hearing_date", "date")],
+    "warranty": [("product", "string"), ("vendor", "string"), ("warranty_expiry_date", "date")],
 }
 
 METAFIELD_PROMPT = """Extract the following fields from this document, if present. Return \
