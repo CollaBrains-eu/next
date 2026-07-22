@@ -420,6 +420,18 @@ export function getEntityGraph(id: string): Promise<EntityGraphOut> {
   return request<EntityGraphOut>(`/entities/${id}/graph`);
 }
 
+export interface ActivityItemOut {
+  type: "document" | "task" | "case" | "entity";
+  id: string;
+  title: string;
+  created_at: string;
+  link: string;
+}
+
+export function listDashboardActivity(): Promise<ActivityItemOut[]> {
+  return request<ActivityItemOut[]>("/dashboard/activity");
+}
+
 export interface CaseOut {
   id: string;
   name: string;

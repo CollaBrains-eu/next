@@ -51,6 +51,8 @@
     "pendingReviewsCount_other": "{{count}} entiteiten wachten op beoordeling",
     "recentCasesTitle": "Recente zaken",
     "recentCasesEmpty": "Nog geen zaken.",
+    "activityTimelineTitle": "Recente activiteit",
+    "activityTimelineEmpty": "Geen recente activiteit.",
     "systemStatusTitle": "Systeemstatus",
     "systemStatusEmpty": "Alle systemen operationeel.",
     "viewAll": "Alles bekijken →",

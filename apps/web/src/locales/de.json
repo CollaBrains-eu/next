@@ -51,6 +51,8 @@
     "pendingReviewsCount_other": "{{count}} Entitäten warten auf Prüfung",
     "recentCasesTitle": "Neueste Fälle",
     "recentCasesEmpty": "Noch keine Fälle.",
+    "activityTimelineTitle": "Letzte Aktivität",
+    "activityTimelineEmpty": "Keine aktuelle Aktivität.",
     "systemStatusTitle": "Systemstatus",
     "systemStatusEmpty": "Alle Systeme funktionsfähig.",
     "viewAll": "Alle anzeigen →",

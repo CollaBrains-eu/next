@@ -51,6 +51,8 @@
     "pendingReviewsCount_other": "{{count}} entities waiting for review",
     "recentCasesTitle": "Recent cases",
     "recentCasesEmpty": "No cases yet.",
+    "activityTimelineTitle": "Recent activity",
+    "activityTimelineEmpty": "No recent activity.",
     "systemStatusTitle": "System status",
     "systemStatusEmpty": "All systems nominal.",
     "viewAll": "View all →",
