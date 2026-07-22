@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.address_parser import build_maps_url
 from api.auth import get_current_user
 from api.db import get_db
 from api.models import AddressDetail, Document, Entity, Residency, User
@@ -34,6 +35,7 @@ class AddressOut(BaseModel):
     postal_code: str | None
     city: str | None
     country: str | None
+    maps_url: str | None
 
 
 class ResidencyOut(BaseModel):
@@ -72,6 +74,13 @@ async def _to_out(db: AsyncSession, residency: Residency) -> ResidencyOut:
             postal_code=detail.postal_code if detail else None,
             city=detail.city if detail else None,
             country=detail.country if detail else None,
+            maps_url=build_maps_url(
+                street=detail.street if detail else None,
+                house_number=detail.house_number if detail else None,
+                postal_code=detail.postal_code if detail else None,
+                city=detail.city if detail else None,
+                country=detail.country if detail else None,
+            ) if detail else None,
         ),
         valid_from=residency.valid_from,
         valid_to=residency.valid_to,

@@ -520,3 +520,23 @@ async def test_partial_and_full_extraction_of_same_address_merge_not_fragment(cl
             select(func.count()).select_from(AddressDetail).where(AddressDetail.entity_id == first[0].id)
         )
     assert count_result.scalar_one() == 1
+
+
+async def test_residency_out_includes_maps_url_for_complete_address(client):
+    username = _unique("residencyuser-mapsurl")
+    await _login(client, username)
+    user = await _user(username)
+    document_id = await _create_document(user.id, category_slug="correspondence")
+    street = _unique_street()
+
+    async with async_session() as db:
+        with patch("api.entity_agent.chat_completion", return_value=_address_extraction(street)):
+            await extract_entities(db, document_id=document_id, text="letter", user_id=user.id)
+
+    token = await _login(client, username)
+    response = await client.get("/users/me/residencies", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["address"]["maps_url"] is not None
+    assert body[0]["address"]["maps_url"].startswith("https://www.google.com/maps/search/?api=1&query=")

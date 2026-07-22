@@ -16,6 +16,7 @@ import {
   rejectResidency,
   type ResidencyOut,
 } from "../lib/api";
+import { buildMapsUrl } from "../lib/maps";
 
 function formatAddressLine(residency: ResidencyOut): string {
   const { address } = residency;
@@ -98,7 +99,26 @@ export function AddressHistory({ userId }: { userId?: string }) {
         <Card key={residency.id} className="flex flex-col gap-2">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="font-medium text-ink">{formatAddressLine(residency)}</p>
+              <p className="font-medium text-ink">
+                {residency.address.maps_url ? (
+                  // residency.address.maps_url (backend) is the "is this address
+                  // complete enough to be worth a link" signal; the actual href uses
+                  // the frontend's own buildMapsUrl (lib/maps.ts, already used by
+                  // Calendar.tsx for appointment locations) for platform-aware Apple
+                  // Maps/Google Maps selection, rather than the backend's fixed
+                  // Google-only link.
+                  <a
+                    href={buildMapsUrl(formatAddressLine(residency))}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-accent hover:underline"
+                  >
+                    {formatAddressLine(residency)}
+                  </a>
+                ) : (
+                  formatAddressLine(residency)
+                )}
+              </p>
               <p className="text-xs text-ink-3">
                 {residency.valid_from ? formatDate(residency.valid_from) : "?"} &rarr;{" "}
                 {residency.valid_to ? formatDate(residency.valid_to) : t("addressHistory.current")}

@@ -378,6 +378,7 @@ export interface EntityOut {
   entity_type: string;
   status: string;
   created_at: string;
+  maps_url: string | null;
 }
 
 export function listEntities(q?: string, entityType?: string, status?: string): Promise<EntityOut[]> {
@@ -1051,6 +1052,7 @@ export interface AddressOut {
   postal_code: string | null;
   city: string | null;
   country: string | null;
+  maps_url: string | null;
 }
 
 export interface ResidencyOut {

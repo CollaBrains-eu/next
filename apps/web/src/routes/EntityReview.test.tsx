@@ -16,8 +16,8 @@ vi.mock("../lib/api", async () => {
 });
 
 const PENDING: api.EntityOut[] = [
-  { id: "p1", name: "Nadia Petrov", entity_type: "person", status: "pending_review", created_at: "2026-01-01T00:00:00Z" },
-  { id: "p2", name: "Fenwick LLC", entity_type: "organization", status: "pending_review", created_at: "2026-01-02T00:00:00Z" },
+  { id: "p1", name: "Nadia Petrov", entity_type: "person", status: "pending_review", created_at: "2026-01-01T00:00:00Z", maps_url: null },
+  { id: "p2", name: "Fenwick LLC", entity_type: "organization", status: "pending_review", created_at: "2026-01-02T00:00:00Z", maps_url: null },
 ];
 
 function renderPage() {

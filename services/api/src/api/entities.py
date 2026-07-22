@@ -7,10 +7,11 @@ from pydantic import BaseModel
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.address_parser import build_maps_url
 from api.auth import get_effective_user
 from api.db import get_db
 from api.entity_agent import VALID_ENTITY_TYPES, extract_entities
-from api.models import Document, Entity, EntityMention, EntityMergeLog, EntityRelationship, User
+from api.models import AddressDetail, Document, Entity, EntityMention, EntityMergeLog, EntityRelationship, User
 
 # Types a user can pick when manually creating an entity -- "other" is an auto-extraction
 # fallback bucket, not a meaningful manual choice, and vehicles have their own dedicated
@@ -26,6 +27,22 @@ class EntityOut(BaseModel):
     entity_type: str
     status: str
     created_at: datetime
+    maps_url: str | None = None
+
+    @classmethod
+    async def from_entity(cls, db: AsyncSession, entity: Entity) -> "EntityOut":
+        maps_url = None
+        if entity.entity_type == "address":
+            detail = await db.get(AddressDetail, entity.id)
+            if detail is not None:
+                maps_url = build_maps_url(
+                    street=detail.street, house_number=detail.house_number,
+                    postal_code=detail.postal_code, city=detail.city, country=detail.country,
+                )
+        return cls(
+            id=entity.id, name=entity.name, entity_type=entity.entity_type,
+            status=entity.status, created_at=entity.created_at, maps_url=maps_url,
+        )
 
 
 @router.post("/documents/{document_id}/extract-entities", response_model=list[EntityOut])
@@ -33,7 +50,7 @@ async def extract_entities_from_document(
     document_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_effective_user),
-) -> list[Entity]:
+) -> list[EntityOut]:
     document = await db.get(Document, document_id)
     if document is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
@@ -44,7 +61,8 @@ async def extract_entities_from_document(
             status_code=status.HTTP_409_CONFLICT, detail=f"Document is not ready yet (status: {document.status})"
         )
 
-    return await extract_entities(db, document_id=document.id, text=document.ocr_text, user_id=document.owner_id)
+    entities = await extract_entities(db, document_id=document.id, text=document.ocr_text, user_id=document.owner_id)
+    return [await EntityOut.from_entity(db, e) for e in entities]
 
 
 @router.get("/entities", response_model=list[EntityOut])
@@ -56,7 +74,7 @@ async def list_entities(
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_effective_user),
-) -> list[Entity]:
+) -> list[EntityOut]:
     query = select(Entity).order_by(Entity.name).limit(limit).offset(offset)
     if current_user.role != "admin":
         query = query.where(Entity.owner_id == current_user.id)
@@ -67,7 +85,7 @@ async def list_entities(
     if status != "all":
         query = query.where(Entity.status == status)
     result = await db.execute(query)
-    return list(result.scalars().all())
+    return [await EntityOut.from_entity(db, e) for e in result.scalars().all()]
 
 
 @router.get("/entities/pending-review-count")
@@ -92,7 +110,7 @@ async def create_entity(
     payload: EntityCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_effective_user),
-) -> Entity:
+) -> EntityOut:
     """Manually create a person/organization/location/address entity.
 
     Person and location entities are no longer auto-extracted from documents (see
@@ -119,13 +137,13 @@ async def create_entity(
             entity.status = "confirmed"
             await db.commit()
             await db.refresh(entity)
-        return entity
+        return await EntityOut.from_entity(db, entity)
 
     entity = Entity(name=name, entity_type=payload.entity_type, status="confirmed", owner_id=current_user.id)
     db.add(entity)
     await db.commit()
     await db.refresh(entity)
-    return entity
+    return await EntityOut.from_entity(db, entity)
 
 
 class BulkReviewItem(BaseModel):
@@ -155,8 +173,9 @@ async def approve_entity(
     entity_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_effective_user),
-) -> Entity:
-    return await _transition_entity(db, entity_id, "confirmed", current_user)
+) -> EntityOut:
+    entity = await _transition_entity(db, entity_id, "confirmed", current_user)
+    return await EntityOut.from_entity(db, entity)
 
 
 @router.post("/entities/{entity_id}/reject", response_model=EntityOut)
@@ -164,8 +183,9 @@ async def reject_entity(
     entity_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_effective_user),
-) -> Entity:
-    return await _transition_entity(db, entity_id, "rejected", current_user)
+) -> EntityOut:
+    entity = await _transition_entity(db, entity_id, "rejected", current_user)
+    return await EntityOut.from_entity(db, entity)
 
 
 @router.post("/entities/bulk-review", response_model=list[EntityOut])
@@ -173,12 +193,12 @@ async def bulk_review_entities(
     items: list[BulkReviewItem],
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_effective_user),
-) -> list[Entity]:
+) -> list[EntityOut]:
     results: list[Entity] = []
     for item in items:
         new_status = "confirmed" if item.action == "approve" else "rejected"
         results.append(await _transition_entity(db, item.entity_id, new_status, current_user))
-    return results
+    return [await EntityOut.from_entity(db, e) for e in results]
 
 
 class GraphNode(BaseModel):
@@ -319,7 +339,7 @@ async def merge_entity(
     request: MergeRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_effective_user),
-) -> Entity:
+) -> EntityOut:
     if target_id == request.source_entity_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot merge an entity into itself")
     if current_user.role != "admin":
@@ -330,8 +350,9 @@ async def merge_entity(
         ):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to merge these entities")
     try:
-        return await merge_entities(
+        merged = await merge_entities(
             db, target_id=target_id, source_id=request.source_entity_id, merged_by=current_user.id
         )
+        return await EntityOut.from_entity(db, merged)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))

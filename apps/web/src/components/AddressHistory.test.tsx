@@ -22,6 +22,7 @@ const RESIDENCY: api.ResidencyOut = {
   address: {
     id: "addr-1", name: "Kerkstraat 12, Amsterdam", street: "Kerkstraat", house_number: "12",
     postal_code: "1012AB", city: "Amsterdam", country: "NL",
+    maps_url: "https://www.google.com/maps/search/?api=1&query=Kerkstraat%2012%2C%201012AB%2C%20Amsterdam%2C%20NL",
   },
   valid_from: "2026-01-01",
   valid_to: null,
