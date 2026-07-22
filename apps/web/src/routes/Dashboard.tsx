@@ -246,7 +246,9 @@ export default function Dashboard() {
           <ul className="flex flex-col gap-2">
             {recentTasks.map((task) => (
               <li key={task.id} className="flex items-center justify-between gap-2 text-sm">
-                <span className="text-ink">{task.title}</span>
+                <Link to={`/tasks/${task.id}`} className="truncate text-ink hover:text-accent">
+                  {task.title}
+                </Link>
                 {task.due_date && (
                   <Badge variant={taskUrgency(task.due_date).variant}>
                     {taskUrgency(task.due_date).variant === "danger"

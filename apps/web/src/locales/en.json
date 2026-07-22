@@ -87,7 +87,39 @@
     "thinking": "Thinking…",
     "addFilter": "+ Add filter",
     "profile": "My profile",
-    "remove": "Remove"
+    "remove": "Remove",
+    "share": "Share"
+  },
+  "drawer": {
+    "details": "Details",
+    "activity": "Activity"
+  },
+  "activity": {
+    "empty": "No activity yet.",
+    "actionUploaded": "uploaded this",
+    "actionClassified": "classified this",
+    "actionSummarized": "summarized this",
+    "actionReprocessed": "reprocessed this",
+    "actionDeleted": "deleted this",
+    "actionCreated": "created this",
+    "actionStatusChanged": "changed the status",
+    "actionCategoryChanged": "changed the category",
+    "actionMoved": "reordered this",
+    "actionDocumentAttached": "attached a document",
+    "actionTaskAttached": "attached a task",
+    "actionDecisionAttached": "attached a decision",
+    "actionVehicleAttached": "attached a vehicle",
+    "actionMemberInvited": "invited a member",
+    "actionMemberRemoved": "removed a member",
+    "actionUnknown": "{{action}}"
+  },
+  "share": {
+    "modalTitle": "Share this link",
+    "copyLink": "Copy link",
+    "expiresAt": "Expires {{date}}",
+    "createError": "Failed to create a share link",
+    "resolveError": "This link is no longer valid",
+    "viewingSharedTitle": "Shared with you"
   },
   "documents": {
     "title": "Documents",
@@ -218,7 +250,14 @@
     "categoryDeadline": "Deadline",
     "categoryNotification": "Notification",
     "addToCalendar": "📅 Add to calendar",
-    "calendarError": "Failed to export task to calendar"
+    "calendarError": "Failed to export task to calendar",
+    "statusInProgress": "in progress",
+    "statusLabel": "Toggle task status",
+    "deleteModalTitle": "Delete \"{{title}}\"?",
+    "deleteModalBody": "This cannot be undone.",
+    "deleteConfirm": "Delete task",
+    "deletedToast": "\"{{title}}\" deleted",
+    "deleteError": "Delete failed"
   },
   "calendar": {
     "title": "Calendar",
@@ -302,7 +341,12 @@
     "noMembers": "No members yet.",
     "pendingInvites": "Pending invites",
     "revokeInvite": "Revoke",
-    "removeMemberError": "Failed to remove that member"
+    "removeMemberError": "Failed to remove that member",
+    "deleteModalTitle": "Delete \"{{name}}\"?",
+    "deleteModalBody": "Linked documents, tasks, and vehicles will be unlinked, not deleted.",
+    "deleteConfirm": "Delete case",
+    "deletedToast": "\"{{name}}\" deleted",
+    "deleteError": "Delete failed"
   },
   "workspaceSharing": {
     "title": "Share your workspace",

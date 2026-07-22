@@ -87,7 +87,39 @@
     "thinking": "Denkt nach…",
     "addFilter": "+ Filter hinzufügen",
     "profile": "Mein Profil",
-    "remove": "Entfernen"
+    "remove": "Entfernen",
+    "share": "Teilen"
+  },
+  "drawer": {
+    "details": "Details",
+    "activity": "Aktivität"
+  },
+  "activity": {
+    "empty": "Noch keine Aktivität.",
+    "actionUploaded": "hat dies hochgeladen",
+    "actionClassified": "hat dies klassifiziert",
+    "actionSummarized": "hat dies zusammengefasst",
+    "actionReprocessed": "hat dies erneut verarbeitet",
+    "actionDeleted": "hat dies gelöscht",
+    "actionCreated": "hat dies erstellt",
+    "actionStatusChanged": "hat den Status geändert",
+    "actionCategoryChanged": "hat die Kategorie geändert",
+    "actionMoved": "hat dies verschoben",
+    "actionDocumentAttached": "hat ein Dokument verknüpft",
+    "actionTaskAttached": "hat eine Aufgabe verknüpft",
+    "actionDecisionAttached": "hat eine Entscheidung verknüpft",
+    "actionVehicleAttached": "hat ein Fahrzeug verknüpft",
+    "actionMemberInvited": "hat ein Mitglied eingeladen",
+    "actionMemberRemoved": "hat ein Mitglied entfernt",
+    "actionUnknown": "{{action}}"
+  },
+  "share": {
+    "modalTitle": "Diesen Link teilen",
+    "copyLink": "Link kopieren",
+    "expiresAt": "Läuft ab am {{date}}",
+    "createError": "Freigabelink konnte nicht erstellt werden",
+    "resolveError": "Dieser Link ist nicht mehr gültig",
+    "viewingSharedTitle": "Mit Ihnen geteilt"
   },
   "documents": {
     "title": "Dokumente",
@@ -218,7 +250,14 @@
     "categoryDeadline": "Frist",
     "categoryNotification": "Meldung",
     "addToCalendar": "📅 Zum Kalender hinzufügen",
-    "calendarError": "Aufgabe konnte nicht in den Kalender exportiert werden"
+    "calendarError": "Aufgabe konnte nicht in den Kalender exportiert werden",
+    "statusInProgress": "in Bearbeitung",
+    "statusLabel": "Aufgabenstatus umschalten",
+    "deleteModalTitle": "\"{{title}}\" löschen?",
+    "deleteModalBody": "Dies kann nicht rückgängig gemacht werden.",
+    "deleteConfirm": "Aufgabe löschen",
+    "deletedToast": "\"{{title}}\" gelöscht",
+    "deleteError": "Löschen fehlgeschlagen"
   },
   "calendar": {
     "title": "Kalender",
@@ -302,7 +341,12 @@
     "noMembers": "Noch keine Mitglieder.",
     "pendingInvites": "Ausstehende Einladungen",
     "revokeInvite": "Widerrufen",
-    "removeMemberError": "Entfernen dieses Mitglieds fehlgeschlagen"
+    "removeMemberError": "Entfernen dieses Mitglieds fehlgeschlagen",
+    "deleteModalTitle": "\"{{name}}\" löschen?",
+    "deleteModalBody": "Verknüpfte Dokumente, Aufgaben und Fahrzeuge werden getrennt, nicht gelöscht.",
+    "deleteConfirm": "Fall löschen",
+    "deletedToast": "\"{{name}}\" gelöscht",
+    "deleteError": "Löschen fehlgeschlagen"
   },
   "workspaceSharing": {
     "title": "Arbeitsbereich teilen",

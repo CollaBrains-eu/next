@@ -13,7 +13,6 @@ import Login from "./routes/Login";
 import Onboard from "./routes/Onboard";
 import Dashboard from "./routes/Dashboard";
 import Workspace from "./routes/Workspace";
-import DocumentDetail from "./routes/DocumentDetail";
 import Chat from "./routes/Chat";
 import Legal from "./routes/Legal";
 import Tasks from "./routes/Tasks";
@@ -22,7 +21,7 @@ import Entities from "./routes/Entities";
 import EntityReview from "./routes/EntityReview";
 import EntityGraph from "./routes/EntityGraph";
 import Cases from "./routes/Cases";
-import CaseDetail from "./routes/CaseDetail";
+import ShareResolve from "./routes/ShareResolve";
 import Vehicles from "./routes/Vehicles";
 import Assistant from "./routes/Assistant";
 import Settings from "./routes/Settings";
@@ -73,7 +72,7 @@ function AppShell() {
           path="/documents/:id"
           element={
             <ProtectedRoute>
-              <DocumentDetail />
+              <Workspace />
             </ProtectedRoute>
           }
         />
@@ -95,6 +94,14 @@ function AppShell() {
         />
         <Route
           path="/tasks"
+          element={
+            <ProtectedRoute>
+              <Tasks />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tasks/:id"
           element={
             <ProtectedRoute>
               <Tasks />
@@ -145,7 +152,15 @@ function AppShell() {
           path="/cases/:id"
           element={
             <ProtectedRoute>
-              <CaseDetail />
+              <Cases />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/share/:token"
+          element={
+            <ProtectedRoute>
+              <ShareResolve />
             </ProtectedRoute>
           }
         />

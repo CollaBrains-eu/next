@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Cases from "./Cases";
+import { ToastProvider } from "../lib/toast";
 import * as api from "../lib/api";
 
 vi.mock("../lib/api", async () => {
@@ -15,6 +16,13 @@ vi.mock("../lib/api", async () => {
     listMyCaseInvitations: vi.fn(),
     acceptCaseInvitation: vi.fn(),
     declineCaseInvitation: vi.fn(),
+    getCase: vi.fn(),
+    deleteCase: vi.fn(),
+    listDocuments: vi.fn(),
+    listTasks: vi.fn(),
+    listDecisions: vi.fn(),
+    listVehicles: vi.fn(),
+    listCaseMembers: vi.fn(),
   };
 });
 
@@ -34,10 +42,15 @@ const INVITATION: api.CaseMemberOut = {
   username: "me", user_display_name: "Me", role: "member", status: "pending", created_at: "2026-01-01T00:00:00Z",
 };
 
-function renderPage() {
+function renderPage(initialPath = "/cases") {
   return render(
-    <MemoryRouter>
-      <Cases />
+    <MemoryRouter initialEntries={[initialPath]}>
+      <ToastProvider>
+        <Routes>
+          <Route path="/cases" element={<Cases />} />
+          <Route path="/cases/:id" element={<Cases />} />
+        </Routes>
+      </ToastProvider>
     </MemoryRouter>
   );
 }
@@ -52,6 +65,11 @@ describe("Cases", () => {
       status,
     }));
     vi.mocked(api.listMyCaseInvitations).mockResolvedValue([]);
+    vi.mocked(api.listDocuments).mockResolvedValue([]);
+    vi.mocked(api.listTasks).mockResolvedValue([]);
+    vi.mocked(api.listDecisions).mockResolvedValue([]);
+    vi.mocked(api.listVehicles).mockResolvedValue([]);
+    vi.mocked(api.listCaseMembers).mockResolvedValue([]);
   });
 
   it("renders case cards with name and status badge", async () => {
@@ -179,5 +197,38 @@ describe("Cases", () => {
     renderPage();
     await screen.findByText("Alpha matter");
     expect(screen.queryByText("Pending invitations")).not.toBeInTheDocument();
+  });
+
+  it("clicking a case card navigates to its detail route and opens the drawer with fetched case data", async () => {
+    vi.mocked(api.getCase).mockResolvedValue({
+      id: "c1", name: "Alpha matter", description: "First case", status: "open",
+      created_at: "2026-01-01T00:00:00Z", document_count: 3, member_count: 1,
+      documents: [], tasks: [], decisions: [], vehicles: [], appointments: [],
+      is_owner: true, owner_display_name: "Alice Owner",
+    });
+    renderPage();
+    fireEvent.click(await screen.findByRole("link", { name: /Alpha matter/ }));
+
+    await waitFor(() => expect(api.getCase).toHaveBeenCalledWith("c1"));
+    expect(await screen.findByTestId("drawer-backdrop")).toBeInTheDocument();
+    expect(screen.getByText("Owned by Alice Owner")).toBeInTheDocument();
+  });
+
+  it("deleting a case from the drawer calls deleteCase and closes the drawer", async () => {
+    vi.mocked(api.getCase).mockResolvedValue({
+      id: "c1", name: "Alpha matter", description: null, status: "open",
+      created_at: "2026-01-01T00:00:00Z", document_count: 0, member_count: 0,
+      documents: [], tasks: [], decisions: [], vehicles: [], appointments: [],
+      is_owner: true, owner_display_name: "Alice Owner",
+    });
+    vi.mocked(api.deleteCase).mockResolvedValue(undefined);
+    renderPage("/cases/c1");
+    await screen.findByTestId("drawer-backdrop");
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete case" }));
+
+    await waitFor(() => expect(api.deleteCase).toHaveBeenCalledWith("c1"));
+    await waitFor(() => expect(screen.queryByTestId("drawer-backdrop")).not.toBeInTheDocument());
   });
 });

@@ -83,6 +83,15 @@ describe("Dashboard", () => {
     expect(api.listTasks).toHaveBeenCalledWith("open");
   });
 
+  it("links a recent task to its detail drawer, like the recent-documents widget", async () => {
+    vi.mocked(api.listTasks).mockResolvedValue([
+      { id: "t1", document_id: null, title: "Review lease", description: null, due_date: null, assignee: null, status: "open", position: 0, source: "manual", created_at: "2026-01-01T00:00:00Z", recurrence_rule: null, category: null },
+    ]);
+    renderPage();
+    const link = await screen.findByRole("link", { name: "Review lease" });
+    expect(link).toHaveAttribute("href", "/tasks/t1");
+  });
+
   it("shows an overdue badge next to a task with a past due date", async () => {
     vi.mocked(api.listTasks).mockResolvedValue([
       { id: "t1", document_id: null, title: "Review lease", description: null, due_date: "2020-01-01", assignee: null, status: "open", position: 0, source: "manual", created_at: "2026-01-01T00:00:00Z", recurrence_rule: null, category: null },

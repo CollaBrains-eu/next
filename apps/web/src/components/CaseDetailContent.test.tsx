@@ -1,14 +1,13 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import CaseDetail from "./CaseDetail";
+import { CaseDetailContent } from "./CaseDetailContent";
 import * as api from "../lib/api";
 
 vi.mock("../lib/api", async () => {
   const actual = await vi.importActual<typeof api>("../lib/api");
   return {
     ...actual,
-    getCase: vi.fn(),
     updateCaseStatus: vi.fn(),
     listDocuments: vi.fn(),
     listTasks: vi.fn(),
@@ -48,20 +47,17 @@ const VEHICLES: api.VehicleOut[] = [
   },
 ];
 
-function renderPage() {
+function renderContent(caseData = CASE, onChanged = vi.fn()) {
   return render(
-    <MemoryRouter initialEntries={["/cases/c1"]}>
-      <Routes>
-        <Route path="/cases/:id" element={<CaseDetail />} />
-      </Routes>
+    <MemoryRouter>
+      <CaseDetailContent caseData={caseData} onChanged={onChanged} />
     </MemoryRouter>
   );
 }
 
-describe("CaseDetail", () => {
+describe("CaseDetailContent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(api.getCase).mockResolvedValue(CASE);
     vi.mocked(api.listDocuments).mockResolvedValue([]);
     vi.mocked(api.listTasks).mockResolvedValue([]);
     vi.mocked(api.listDecisions).mockResolvedValue([]);
@@ -71,46 +67,36 @@ describe("CaseDetail", () => {
     vi.mocked(api.listCaseMembers).mockResolvedValue([]);
   });
 
-  it("renders the case name and status badge", async () => {
-    renderPage();
-    expect(await screen.findByRole("heading", { name: "Alpha matter" })).toBeInTheDocument();
-    expect(screen.getByText("open")).toBeInTheDocument();
-  });
-
   it("shows who owns the case, even when viewed by a non-owner", async () => {
-    vi.mocked(api.getCase).mockResolvedValue({ ...CASE, is_owner: false, owner_display_name: "Bob Boss" });
-    renderPage();
-    await screen.findByRole("heading", { name: "Alpha matter" });
-    expect(screen.getByText("Owned by Bob Boss")).toBeInTheDocument();
+    renderContent({ ...CASE, is_owner: false, owner_display_name: "Bob Boss" });
+    expect(await screen.findByText("Owned by Bob Boss")).toBeInTheDocument();
   });
 
   it("shows 'Nothing linked yet.' for each empty section", async () => {
-    renderPage();
-    await screen.findByRole("heading", { name: "Alpha matter" });
-    expect(screen.getAllByText("Nothing linked yet.")).toHaveLength(5);
+    renderContent();
+    expect(await screen.findAllByText("Nothing linked yet.")).toHaveLength(5);
   });
 
   it("renders linked appointments with their formatted time", async () => {
-    vi.mocked(api.getCase).mockResolvedValue({
+    renderContent({
       ...CASE,
       appointments: [{ id: "a1", title: "Site visit", starts_at: "2026-03-05T14:30:00Z" }],
     });
-    renderPage();
-    await screen.findByRole("heading", { name: "Alpha matter" });
-    expect(screen.getByText("Site visit")).toBeInTheDocument();
+    expect(await screen.findByText("Site visit")).toBeInTheDocument();
   });
 
-  it("toggles status when the status badge is clicked", async () => {
-    renderPage();
-    await screen.findByRole("heading", { name: "Alpha matter" });
+  it("toggles status when the status badge is clicked, and calls onChanged", async () => {
+    const onChanged = vi.fn();
+    renderContent(CASE, onChanged);
+    await screen.findByText("open");
     fireEvent.click(screen.getByText("open"));
     await waitFor(() => expect(api.updateCaseStatus).toHaveBeenCalledWith("c1", "closed"));
+    await waitFor(() => expect(onChanged).toHaveBeenCalled());
   });
 
   it("attaches a vehicle via the vehicles Attach control", async () => {
-    renderPage();
-    await screen.findByRole("heading", { name: "Alpha matter" });
-    const vehiclesLabel = screen.getByText("Vehicles");
+    renderContent();
+    const vehiclesLabel = await screen.findByText("Vehicles");
     const vehiclesSection = vehiclesLabel.closest("div")!.parentElement!;
     fireEvent.click(within(vehiclesSection).getByText("+ Attach"));
     fireEvent.click(within(vehiclesSection).getByPlaceholderText("Select…"));
@@ -120,9 +106,8 @@ describe("CaseDetail", () => {
   });
 
   it("shows invite controls only when is_owner is true", async () => {
-    vi.mocked(api.getCase).mockResolvedValue({ ...CASE, is_owner: false });
-    renderPage();
-    await screen.findByRole("heading", { name: "Alpha matter" });
+    renderContent({ ...CASE, is_owner: false });
+    await screen.findByText("Members");
     expect(screen.queryByPlaceholderText("Phone number, e.g. +491511234567")).not.toBeInTheDocument();
   });
 
@@ -132,10 +117,9 @@ describe("CaseDetail", () => {
       id: "m1", case_id: "c1", case_name: "Alpha matter", user_id: "u2",
       username: "bob", user_display_name: "Bob Smith", role: "member", status: "pending", created_at: "2026-01-01T00:00:00Z",
     });
-    renderPage();
-    await screen.findByRole("heading", { name: "Alpha matter" });
+    renderContent();
 
-    fireEvent.change(screen.getByPlaceholderText("Phone number, e.g. +491511234567"), { target: { value: "+15559990101" } });
+    fireEvent.change(await screen.findByPlaceholderText("Phone number, e.g. +491511234567"), { target: { value: "+15559990101" } });
     fireEvent.click(screen.getByRole("button", { name: "Look up" }));
 
     expect(await screen.findByText("Bob Smith")).toBeInTheDocument();
@@ -146,10 +130,9 @@ describe("CaseDetail", () => {
 
   it("shows an inline error when the phone lookup finds nobody, and does not invite", async () => {
     vi.mocked(api.lookupUserByPhone).mockResolvedValue(null);
-    renderPage();
-    await screen.findByRole("heading", { name: "Alpha matter" });
+    renderContent();
 
-    fireEvent.change(screen.getByPlaceholderText("Phone number, e.g. +491511234567"), { target: { value: "+15559990199" } });
+    fireEvent.change(await screen.findByPlaceholderText("Phone number, e.g. +491511234567"), { target: { value: "+15559990199" } });
     fireEvent.click(screen.getByRole("button", { name: "Look up" }));
 
     expect(await screen.findByText("No user found with that phone number.")).toBeInTheDocument();
@@ -165,7 +148,7 @@ describe("CaseDetail", () => {
       },
     ]);
     vi.mocked(api.removeCaseMember).mockResolvedValue(undefined);
-    renderPage();
+    renderContent();
     await screen.findByText("Bob Smith");
 
     fireEvent.click(screen.getByRole("button", { name: "Remove" }));

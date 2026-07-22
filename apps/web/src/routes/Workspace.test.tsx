@@ -1,9 +1,13 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import Workspace from "./Workspace";
 import { ToastProvider } from "../lib/toast";
 import * as api from "../lib/api";
+
+vi.mock("../lib/auth", () => ({
+  useAuth: () => ({ user: { display_name: "Ada Admin", role: "admin" } }),
+}));
 
 vi.mock("../lib/api", async () => {
   const actual = await vi.importActual<typeof api>("../lib/api");
@@ -15,6 +19,7 @@ vi.mock("../lib/api", async () => {
     search: vi.fn(),
     deleteDocument: vi.fn(),
     downloadDocumentsCsv: vi.fn(),
+    getDocument: vi.fn(),
   };
 });
 
@@ -33,11 +38,14 @@ const docs: api.DocumentOut[] = Array.from({ length: 12 }, (_, i) => ({
   category_id: null,
 }));
 
-function renderPage() {
+function renderPage(initialPath = "/documents") {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[initialPath]}>
       <ToastProvider>
-        <Workspace />
+        <Routes>
+          <Route path="/documents" element={<Workspace />} />
+          <Route path="/documents/:id" element={<Workspace />} />
+        </Routes>
       </ToastProvider>
     </MemoryRouter>
   );
@@ -228,5 +236,27 @@ describe("Workspace (Documents list)", () => {
     await screen.findByText("document-0.pdf");
     fireEvent.change(await screen.findByLabelText("Viewing workspace"), { target: { value: "owner-9" } });
     await waitFor(() => expect(screen.queryByRole("button", { name: "Export CSV" })).not.toBeInTheDocument());
+  });
+
+  it("clicking a document row navigates to its detail route and opens the drawer with fetched document data", async () => {
+    vi.mocked(api.getDocument).mockResolvedValue({ ...docs[1], ocr_text: null, chunk_count: 0, summary: null, correspondent_street: null, correspondent_house_number: null, correspondent_po_box: null, correspondent_postal_code: null, correspondent_city: null, correspondent_country: null, metafields: null });
+    renderPage();
+    fireEvent.click(await screen.findByRole("link", { name: "document-1.pdf" }));
+
+    await waitFor(() => expect(api.getDocument).toHaveBeenCalledWith("doc-1"));
+    expect(await screen.findByTestId("drawer-backdrop")).toBeInTheDocument();
+  });
+
+  it("deleting a document from the drawer calls deleteDocument and closes the drawer", async () => {
+    vi.mocked(api.getDocument).mockResolvedValue({ ...docs[1], ocr_text: null, chunk_count: 0, summary: null, correspondent_street: null, correspondent_house_number: null, correspondent_po_box: null, correspondent_postal_code: null, correspondent_city: null, correspondent_country: null, metafields: null });
+    vi.mocked(api.deleteDocument).mockResolvedValue(undefined);
+    renderPage("/documents/doc-1");
+    await screen.findByTestId("drawer-backdrop");
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete document" }));
+
+    await waitFor(() => expect(api.deleteDocument).toHaveBeenCalledWith("doc-1"));
+    await waitFor(() => expect(screen.queryByTestId("drawer-backdrop")).not.toBeInTheDocument());
   });
 });

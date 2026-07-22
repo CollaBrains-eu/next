@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Tasks from "./Tasks";
+import { ToastProvider } from "../lib/toast";
 import * as api from "../lib/api";
 
 vi.mock("../lib/api", async () => {
@@ -14,6 +15,8 @@ vi.mock("../lib/api", async () => {
     moveTask: vi.fn(),
     updateTaskCategory: vi.fn(),
     downloadTaskIcs: vi.fn(),
+    getTask: vi.fn(),
+    deleteTask: vi.fn(),
   };
 });
 
@@ -29,10 +32,15 @@ const OPEN_TASKS: api.TaskOut[] = [
   },
 ];
 
-function renderPage() {
+function renderPage(initialPath = "/tasks") {
   return render(
-    <MemoryRouter>
-      <Tasks />
+    <MemoryRouter initialEntries={[initialPath]}>
+      <ToastProvider>
+        <Routes>
+          <Route path="/tasks" element={<Tasks />} />
+          <Route path="/tasks/:id" element={<Tasks />} />
+        </Routes>
+      </ToastProvider>
     </MemoryRouter>
   );
 }
@@ -252,5 +260,35 @@ describe("Tasks", () => {
     renderPage();
     await screen.findByText("Review lease");
     expect(screen.queryByRole("button", { name: "📅 Add to calendar" })).not.toBeInTheDocument();
+  });
+
+  it("clicking a task row navigates to its detail route and opens the drawer with fetched task data", async () => {
+    vi.mocked(api.getTask).mockResolvedValue(OPEN_TASKS[0]);
+    renderPage();
+    const row = await screen.findByTestId("task-row");
+    fireEvent.click(row);
+    await waitFor(() => expect(api.getTask).toHaveBeenCalledWith("t1"));
+    expect(await screen.findByTestId("drawer-backdrop")).toBeInTheDocument();
+  });
+
+  it("clicking a task row's checkbox does not navigate to its detail route", async () => {
+    renderPage();
+    await screen.findByText("Review lease");
+    fireEvent.click(screen.getByRole("checkbox"));
+    expect(screen.queryByTestId("drawer-backdrop")).not.toBeInTheDocument();
+    expect(api.getTask).not.toHaveBeenCalled();
+  });
+
+  it("deleting a task from the drawer calls deleteTask and closes the drawer", async () => {
+    vi.mocked(api.getTask).mockResolvedValue(OPEN_TASKS[0]);
+    vi.mocked(api.deleteTask).mockResolvedValue(undefined);
+    renderPage("/tasks/t1");
+    await screen.findByTestId("drawer-backdrop");
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete task" }));
+
+    await waitFor(() => expect(api.deleteTask).toHaveBeenCalledWith("t1"));
+    await waitFor(() => expect(screen.queryByTestId("drawer-backdrop")).not.toBeInTheDocument());
   });
 });

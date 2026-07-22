@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   listDocuments,
@@ -8,17 +8,24 @@ import {
   search as searchApi,
   deleteDocument,
   downloadDocumentsCsv,
+  getDocument,
   ApiError,
+  type DocumentDetailOut,
   type DocumentOut,
   type CategoryOut,
   type SearchResult,
   type WorkspaceMemberOut,
 } from "../lib/api";
 import UploadDialog from "../components/UploadDialog";
+import { ActivityTab } from "../components/ActivityTab";
 import { CategoryFilterGrid } from "../components/CategoryFilterGrid";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
+import { DeleteConfirmButton } from "../components/DeleteConfirmButton";
+import { DocumentDetailContent } from "../components/DocumentDetailContent";
+import { Drawer } from "../components/ui/Drawer";
+import { ShareButton } from "../components/ShareButton";
 import { TextField } from "../components/ui/form";
 import EmptyState from "../components/EmptyState";
 import { useBulkSelection } from "../hooks/useBulkSelection";
@@ -39,6 +46,10 @@ const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "default
 export default function Workspace() {
   const { t } = useTranslation();
   const { formatDateTime } = useDateFormat();
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [selectedDocument, setSelectedDocument] = useState<DocumentDetailOut | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const STATUS_FILTER_OPTIONS = [
     { id: "ready", label: t("documents.filterReady") },
     { id: "failed", label: t("documents.filterFailed") },
@@ -83,6 +94,31 @@ export default function Workspace() {
   useEffect(() => {
     listWorkspacesSharedWithMe().then(setSharedWorkspaces).catch(() => {});
   }, []);
+
+  const loadSelected = useCallback(() => {
+    if (!id) return;
+    getDocument(id).then(setSelectedDocument).catch(() => setSelectedDocument(null));
+  }, [id]);
+
+  useEffect(() => {
+    setSelectedDocument(null);
+    loadSelected();
+  }, [loadSelected]);
+
+  async function handleDrawerDelete() {
+    if (!id || !selectedDocument) return;
+    setDeleting(true);
+    try {
+      await deleteDocument(id);
+      showToast(t("documentDetail.deletedToast", { title: selectedDocument.title }));
+      navigate("/documents");
+      refresh();
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : t("documentDetail.deleteError"));
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   async function handleSearch(e: FormEvent) {
     e.preventDefault();
@@ -287,6 +323,42 @@ export default function Workspace() {
           />
         </>
       )}
+
+      <Drawer
+        open={!!id}
+        onClose={() => navigate("/documents")}
+        title={selectedDocument?.title ?? ""}
+        tabs={[
+          {
+            id: "details",
+            label: t("drawer.details"),
+            content: selectedDocument ? (
+              <DocumentDetailContent document={selectedDocument} onChanged={loadSelected} />
+            ) : (
+              <SkeletonLines />
+            ),
+          },
+          {
+            id: "activity",
+            label: t("drawer.activity"),
+            content: id ? <ActivityTab entityType="document" entityId={id} /> : null,
+          },
+        ]}
+        footer={
+          id && (
+            <>
+              <ShareButton entityType="document" entityId={id} />
+              <DeleteConfirmButton
+                confirmTitle={t("documentDetail.deleteModalTitle", { title: selectedDocument?.title ?? "" })}
+                confirmBody={t("documentDetail.deleteModalBody")}
+                confirmLabel={t("documentDetail.deleteConfirm")}
+                onConfirm={handleDrawerDelete}
+                deleting={deleting}
+              />
+            </>
+          )
+        }
+      />
     </div>
   );
 }

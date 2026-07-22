@@ -325,11 +325,19 @@ export function createTask(input: {
   });
 }
 
-export function updateTaskStatus(id: string, status: "open" | "done"): Promise<TaskOut> {
+export function updateTaskStatus(id: string, status: TaskStatus): Promise<TaskOut> {
   return request<TaskOut>(`/tasks/${id}`, {
     method: "PATCH",
     body: JSON.stringify({ status }),
   });
+}
+
+export function getTask(id: string): Promise<TaskOut> {
+  return request<TaskOut>(`/tasks/${id}`);
+}
+
+export function deleteTask(id: string): Promise<void> {
+  return request<void>(`/tasks/${id}`, { method: "DELETE" });
 }
 
 export function moveTask(id: string, status: TaskStatus, position: number): Promise<TaskOut> {
@@ -343,6 +351,20 @@ export function updateTaskCategory(id: string, status: TaskStatus, category: Tas
   return request<TaskOut>(`/tasks/${id}`, {
     method: "PATCH",
     body: JSON.stringify({ status, category }),
+  });
+}
+
+export function updateTaskTitle(id: string, status: TaskStatus, title: string): Promise<TaskOut> {
+  return request<TaskOut>(`/tasks/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status, title }),
+  });
+}
+
+export function updateTaskDescription(id: string, status: TaskStatus, description: string): Promise<TaskOut> {
+  return request<TaskOut>(`/tasks/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status, description }),
   });
 }
 
@@ -433,6 +455,49 @@ export function listDashboardActivity(): Promise<ActivityItemOut[]> {
   return request<ActivityItemOut[]>("/dashboard/activity");
 }
 
+export type ShareableEntityType = "document" | "case" | "task";
+
+// The real per-entity audit log (GET /activity) -- distinct from
+// ActivityItemOut above, which is the Dashboard's derived "recent items"
+// widget, not a persisted record of what happened.
+export interface ActivityLogEntryOut {
+  id: string;
+  entity_type: ShareableEntityType;
+  entity_id: string;
+  action: string;
+  actor_user_id: string;
+  actor_display_name: string;
+  detail: Record<string, unknown>;
+  created_at: string;
+}
+
+export function listActivity(entityType: ShareableEntityType, entityId: string): Promise<ActivityLogEntryOut[]> {
+  const params = new URLSearchParams({ entity_type: entityType, entity_id: entityId });
+  return request<ActivityLogEntryOut[]>(`/activity?${params}`);
+}
+
+export interface ShareLinkOut {
+  token: string;
+  url: string;
+  expires_at: string;
+}
+
+export function createShareLink(entityType: ShareableEntityType, entityId: string): Promise<ShareLinkOut> {
+  return request<ShareLinkOut>("/share", {
+    method: "POST",
+    body: JSON.stringify({ entity_type: entityType, entity_id: entityId }),
+  });
+}
+
+export interface ShareResolveOut {
+  entity_type: ShareableEntityType;
+  data: DocumentDetailOut | CaseDashboardOut | TaskOut;
+}
+
+export function resolveShareLink(token: string): Promise<ShareResolveOut> {
+  return request<ShareResolveOut>(`/share/${token}`);
+}
+
 export interface CaseOut {
   id: string;
   name: string;
@@ -490,6 +555,10 @@ export function updateCaseStatus(id: string, status: "open" | "closed"): Promise
     method: "PATCH",
     body: JSON.stringify({ status }),
   });
+}
+
+export function deleteCase(id: string): Promise<void> {
+  return request<void>(`/cases/${id}`, { method: "DELETE" });
 }
 
 export function listCaseMembers(caseId: string): Promise<CaseMemberOut[]> {

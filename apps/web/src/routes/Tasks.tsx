@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   ApiError,
   createTask,
+  deleteTask,
   downloadTaskIcs,
+  getTask,
   listTasks,
   moveTask,
   updateTaskCategory,
@@ -16,12 +18,18 @@ import {
 } from "../lib/api";
 import Card from "../components/Card";
 import EmptyState from "../components/EmptyState";
+import { ActivityTab } from "../components/ActivityTab";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
+import { DeleteConfirmButton } from "../components/DeleteConfirmButton";
+import { Drawer } from "../components/ui/Drawer";
 import { KanbanBoard } from "../components/ui/KanbanBoard";
+import { ShareButton } from "../components/ShareButton";
+import { TaskDetailContent } from "../components/TaskDetailContent";
 import { useDateFormat } from "../hooks/useDateFormat";
 import { taskUrgency, relativeDueLabel } from "../lib/taskUrgency";
 import { SkeletonLines } from "../components/ui/Skeleton";
+import { useToast } from "../lib/toast";
 
 type Filter = "open" | "done" | "all";
 type View = "list" | "board";
@@ -33,6 +41,11 @@ const CATEGORIES: TaskCategory[] = ["payment", "appointment", "deadline", "notif
 export default function Tasks() {
   const { t } = useTranslation();
   const { formatDate } = useDateFormat();
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { showToast } = useToast();
+  const [selectedTask, setSelectedTask] = useState<TaskOut | null>(null);
+  const [deletingTask, setDeletingTask] = useState(false);
   const [tasks, setTasks] = useState<TaskOut[]>([]);
   const [filter, setFilter] = useState<Filter>("open");
   const [view, setView] = useState<View>("list");
@@ -83,6 +96,31 @@ export default function Tasks() {
     listTasks().then(setAllTasks).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadSelectedTask = useCallback(() => {
+    if (!id) return;
+    getTask(id).then(setSelectedTask).catch(() => setSelectedTask(null));
+  }, [id]);
+
+  useEffect(() => {
+    setSelectedTask(null);
+    loadSelectedTask();
+  }, [loadSelectedTask]);
+
+  async function handleDrawerDeleteTask() {
+    if (!id || !selectedTask) return;
+    setDeletingTask(true);
+    try {
+      await deleteTask(id);
+      showToast(t("tasks.deletedToast", { title: selectedTask.title }));
+      navigate("/tasks");
+      refresh(view, filter);
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : t("tasks.deleteError"));
+    } finally {
+      setDeletingTask(false);
+    }
+  }
 
   async function toggleDone(task: TaskOut) {
     const nextStatus = task.status === "done" ? "open" : "done";
@@ -288,7 +326,13 @@ export default function Tasks() {
               <div
                 key={task.id}
                 data-testid="task-row"
-                className={`flex items-start gap-3 border-l-2 px-4 py-3 ${
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate(`/tasks/${task.id}`)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") navigate(`/tasks/${task.id}`);
+                }}
+                className={`flex cursor-pointer items-start gap-3 border-l-2 px-4 py-3 ${
                   task.due_date && task.status !== "done"
                     ? { danger: "border-l-danger", warning: "border-l-warning", default: "border-l-transparent" }[taskUrgency(task.due_date).variant]
                     : "border-l-transparent"
@@ -298,6 +342,7 @@ export default function Tasks() {
                   type="checkbox"
                   checked={task.status === "done"}
                   onChange={() => toggleDone(task)}
+                  onClick={(event) => event.stopPropagation()}
                   className="mt-1 h-4 w-4 accent-accent"
                 />
                 <div className="flex-1">
@@ -312,14 +357,21 @@ export default function Tasks() {
                     {badge && <Badge variant={badge.variant}>{badge.label}</Badge>}
                     {task.assignee && <span>{t("tasks.assignee", { name: task.assignee })}</span>}
                     {task.document_id && (
-                      <Link to={`/documents/${task.document_id}`} className="hover:text-accent hover:underline">
+                      <Link
+                        to={`/documents/${task.document_id}`}
+                        onClick={(event) => event.stopPropagation()}
+                        className="hover:text-accent hover:underline"
+                      >
                         {t("tasks.sourceDocument")}
                       </Link>
                     )}
                     {task.due_date && (
                       <button
                         type="button"
-                        onClick={() => handleDownloadIcs(task)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleDownloadIcs(task);
+                        }}
                         className="hover:text-accent hover:underline"
                       >
                         {t("tasks.addToCalendar")}
@@ -329,6 +381,7 @@ export default function Tasks() {
                       aria-label={`${t("tasks.categoryLabel")} – ${task.title}`}
                       value={task.category ?? ""}
                       onChange={(e) => handleSetCategory(task, e.target.value as TaskCategory)}
+                      onClick={(event) => event.stopPropagation()}
                       className="rounded border border-edge bg-surface px-1 py-0.5 text-xs text-ink-3 outline-none focus:border-accent"
                     >
                       <option value="" disabled>
@@ -347,6 +400,42 @@ export default function Tasks() {
           })}
         </div>
       )}
+
+      <Drawer
+        open={!!id}
+        onClose={() => navigate("/tasks")}
+        title={selectedTask?.title ?? ""}
+        tabs={[
+          {
+            id: "details",
+            label: t("drawer.details"),
+            content: selectedTask ? (
+              <TaskDetailContent task={selectedTask} onChanged={loadSelectedTask} />
+            ) : (
+              <SkeletonLines />
+            ),
+          },
+          {
+            id: "activity",
+            label: t("drawer.activity"),
+            content: id ? <ActivityTab entityType="task" entityId={id} /> : null,
+          },
+        ]}
+        footer={
+          id && (
+            <>
+              <ShareButton entityType="task" entityId={id} />
+              <DeleteConfirmButton
+                confirmTitle={t("tasks.deleteModalTitle", { title: selectedTask?.title ?? "" })}
+                confirmBody={t("tasks.deleteModalBody")}
+                confirmLabel={t("tasks.deleteConfirm")}
+                onConfirm={handleDrawerDeleteTask}
+                deleting={deletingTask}
+              />
+            </>
+          )
+        }
+      />
     </div>
   );
 }

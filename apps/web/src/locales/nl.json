@@ -87,7 +87,39 @@
     "thinking": "Aan het denken…",
     "addFilter": "+ Filter toevoegen",
     "profile": "Mijn profiel",
-    "remove": "Verwijderen"
+    "remove": "Verwijderen",
+    "share": "Delen"
+  },
+  "drawer": {
+    "details": "Details",
+    "activity": "Activiteit"
+  },
+  "activity": {
+    "empty": "Nog geen activiteit.",
+    "actionUploaded": "heeft dit geüpload",
+    "actionClassified": "heeft dit geclassificeerd",
+    "actionSummarized": "heeft dit samengevat",
+    "actionReprocessed": "heeft dit opnieuw verwerkt",
+    "actionDeleted": "heeft dit verwijderd",
+    "actionCreated": "heeft dit aangemaakt",
+    "actionStatusChanged": "heeft de status gewijzigd",
+    "actionCategoryChanged": "heeft de categorie gewijzigd",
+    "actionMoved": "heeft dit verplaatst",
+    "actionDocumentAttached": "heeft een document gekoppeld",
+    "actionTaskAttached": "heeft een taak gekoppeld",
+    "actionDecisionAttached": "heeft een beslissing gekoppeld",
+    "actionVehicleAttached": "heeft een voertuig gekoppeld",
+    "actionMemberInvited": "heeft een lid uitgenodigd",
+    "actionMemberRemoved": "heeft een lid verwijderd",
+    "actionUnknown": "{{action}}"
+  },
+  "share": {
+    "modalTitle": "Deel deze link",
+    "copyLink": "Link kopiëren",
+    "expiresAt": "Verloopt op {{date}}",
+    "createError": "Kon geen deel-link aanmaken",
+    "resolveError": "Deze link is niet langer geldig",
+    "viewingSharedTitle": "Met u gedeeld"
   },
   "documents": {
     "title": "Documenten",
@@ -218,7 +250,14 @@
     "categoryDeadline": "Deadline",
     "categoryNotification": "Melding",
     "addToCalendar": "📅 Toevoegen aan agenda",
-    "calendarError": "Kon taak niet exporteren naar agenda"
+    "calendarError": "Kon taak niet exporteren naar agenda",
+    "statusInProgress": "in behandeling",
+    "statusLabel": "Taakstatus wijzigen",
+    "deleteModalTitle": "\"{{title}}\" verwijderen?",
+    "deleteModalBody": "Dit kan niet ongedaan worden gemaakt.",
+    "deleteConfirm": "Taak verwijderen",
+    "deletedToast": "\"{{title}}\" verwijderd",
+    "deleteError": "Verwijderen mislukt"
   },
   "calendar": {
     "title": "Kalender",
@@ -302,7 +341,12 @@
     "noMembers": "Nog geen leden.",
     "pendingInvites": "Openstaande uitnodigingen",
     "revokeInvite": "Intrekken",
-    "removeMemberError": "Verwijderen van dat lid is mislukt"
+    "removeMemberError": "Verwijderen van dat lid is mislukt",
+    "deleteModalTitle": "\"{{name}}\" verwijderen?",
+    "deleteModalBody": "Gekoppelde documenten, taken en voertuigen worden ontkoppeld, niet verwijderd.",
+    "deleteConfirm": "Zaak verwijderen",
+    "deletedToast": "\"{{name}}\" verwijderd",
+    "deleteError": "Verwijderen mislukt"
   },
   "workspaceSharing": {
     "title": "Werkruimte delen",

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Card from "../components/Card";
 import EmptyState from "../components/EmptyState";
@@ -11,25 +11,39 @@ import { FilterChips } from "../components/ui/FilterChips";
 import { SkeletonLines } from "../components/ui/Skeleton";
 import { TextField } from "../components/ui/form";
 import { useBulkSelection } from "../hooks/useBulkSelection";
+import { ActivityTab } from "../components/ActivityTab";
+import { CaseDetailContent } from "../components/CaseDetailContent";
+import { DeleteConfirmButton } from "../components/DeleteConfirmButton";
+import { Drawer } from "../components/ui/Drawer";
+import { ShareButton } from "../components/ShareButton";
 import {
   acceptCaseInvitation,
   ApiError,
   createCase,
   declineCaseInvitation,
+  deleteCase,
   downloadCasesCsv,
+  getCase,
   listCases,
   listMyCaseInvitations,
   updateCaseStatus,
+  type CaseDashboardOut,
   type CaseMemberOut,
   type CaseOut,
 } from "../lib/api";
 import { useDateFormat } from "../hooks/useDateFormat";
+import { useToast } from "../lib/toast";
 
 type ViewMode = "cards" | "table";
 
 export default function Cases() {
   const { t } = useTranslation();
   const { formatDate } = useDateFormat();
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { showToast } = useToast();
+  const [selectedCase, setSelectedCase] = useState<CaseDashboardOut | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [cases, setCases] = useState<CaseOut[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +79,32 @@ export default function Cases() {
     refresh();
     refreshInvitations();
   }, []);
+
+  function loadSelected() {
+    if (!id) return;
+    getCase(id).then(setSelectedCase).catch(() => setSelectedCase(null));
+  }
+
+  useEffect(() => {
+    setSelectedCase(null);
+    loadSelected();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  async function handleDrawerDelete() {
+    if (!id || !selectedCase) return;
+    setDeleting(true);
+    try {
+      await deleteCase(id);
+      showToast(t("caseDetail.deletedToast", { name: selectedCase.name }));
+      navigate("/cases");
+      refresh();
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : t("caseDetail.deleteError"));
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   async function handleAcceptInvitation(invitation: CaseMemberOut) {
     try {
@@ -336,6 +376,42 @@ export default function Cases() {
           />
         </>
       )}
+
+      <Drawer
+        open={!!id}
+        onClose={() => navigate("/cases")}
+        title={selectedCase?.name ?? ""}
+        tabs={[
+          {
+            id: "details",
+            label: t("drawer.details"),
+            content: selectedCase ? (
+              <CaseDetailContent caseData={selectedCase} onChanged={loadSelected} />
+            ) : (
+              <SkeletonLines />
+            ),
+          },
+          {
+            id: "activity",
+            label: t("drawer.activity"),
+            content: id ? <ActivityTab entityType="case" entityId={id} /> : null,
+          },
+        ]}
+        footer={
+          id && (
+            <>
+              <ShareButton entityType="case" entityId={id} />
+              <DeleteConfirmButton
+                confirmTitle={t("caseDetail.deleteModalTitle", { name: selectedCase?.name ?? "" })}
+                confirmBody={t("caseDetail.deleteModalBody")}
+                confirmLabel={t("caseDetail.deleteConfirm")}
+                onConfirm={handleDrawerDelete}
+                deleting={deleting}
+              />
+            </>
+          )
+        }
+      />
     </div>
   );
 }

@@ -1,19 +1,16 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import Card from "../components/Card";
-import { Alert } from "../components/ui/Alert";
-import { Breadcrumbs } from "../components/ui/Breadcrumbs";
-import { Button } from "../components/ui/Button";
-import { Combobox } from "../components/ui/Combobox";
-import { SkeletonLines } from "../components/ui/Skeleton";
-import { StatusPipeline } from "../components/ui/StatusPipeline";
-import { Tooltip } from "../components/ui/Tooltip";
+import Card from "./Card";
+import { Alert } from "./ui/Alert";
+import { Button } from "./ui/Button";
+import { Combobox } from "./ui/Combobox";
+import { StatusPipeline } from "./ui/StatusPipeline";
+import { Tooltip } from "./ui/Tooltip";
 import { useDateFormat } from "../hooks/useDateFormat";
 import {
   ApiError,
   attachDocumentToCase,
-  getCase,
   inviteCaseMember,
   linkDecisionToCase,
   linkTaskToCase,
@@ -36,12 +33,15 @@ import {
 
 type AttachSection = "documents" | "tasks" | "decisions" | "vehicles";
 
-export default function CaseDetail() {
+export function CaseDetailContent({
+  caseData,
+  onChanged,
+}: {
+  caseData: CaseDashboardOut;
+  onChanged: () => void;
+}) {
   const { t } = useTranslation();
   const { formatDateTime } = useDateFormat();
-  const { id } = useParams<{ id: string }>();
-  const [caseData, setCaseData] = useState<CaseDashboardOut | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [attaching, setAttaching] = useState<AttachSection | null>(null);
   const [selected, setSelected] = useState("");
@@ -56,42 +56,30 @@ export default function CaseDetail() {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
 
-  function refresh() {
-    if (!id) return;
-    setLoading(true);
-    getCase(id)
-      .then(setCaseData)
-      .catch((err) => setError(err instanceof ApiError ? err.message : t("caseDetail.loadError")))
-      .finally(() => setLoading(false));
-  }
-
   function refreshMembers() {
-    if (!id) return;
-    listCaseMembers(id).then(setMembers).catch(() => undefined);
+    listCaseMembers(caseData.id).then(setMembers).catch(() => undefined);
   }
 
   useEffect(() => {
-    refresh();
     refreshMembers();
     listDocuments().then(setAllDocuments).catch(() => undefined);
     listTasks().then(setAllTasks).catch(() => undefined);
     listDecisions().then(setAllDecisions).catch(() => undefined);
     listVehicles().then(setAllVehicles).catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [caseData.id]);
 
   async function toggleStatus() {
-    if (!caseData) return;
     try {
       await updateCaseStatus(caseData.id, caseData.status === "open" ? "closed" : "open");
-      refresh();
+      onChanged();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("caseDetail.updateError"));
     }
   }
 
   async function handleAttach() {
-    if (!caseData || !selected) return;
+    if (!selected) return;
     try {
       if (attaching === "documents") await attachDocumentToCase(selected, caseData.id);
       if (attaching === "tasks") await linkTaskToCase(caseData.id, selected);
@@ -99,7 +87,7 @@ export default function CaseDetail() {
       if (attaching === "vehicles") await linkVehicleToCase(caseData.id, selected);
       setAttaching(null);
       setSelected("");
-      refresh();
+      onChanged();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("caseDetail.attachError"));
     }
@@ -120,7 +108,7 @@ export default function CaseDetail() {
   }
 
   async function handleInvite() {
-    if (!caseData || !inviteLookup || inviteLookup === "not-found") return;
+    if (!inviteLookup || inviteLookup === "not-found") return;
     setInviteLoading(true);
     setInviteError(null);
     try {
@@ -137,7 +125,6 @@ export default function CaseDetail() {
   }
 
   async function handleRemoveMember(userId: string) {
-    if (!caseData) return;
     try {
       await removeCaseMember(caseData.id, userId);
       refreshMembers();
@@ -145,10 +132,6 @@ export default function CaseDetail() {
       setError(err instanceof ApiError ? err.message : t("caseDetail.removeMemberError"));
     }
   }
-
-  if (loading) return <SkeletonLines className="max-w-md" />;
-  if (error && !caseData) return <Alert variant="danger" title={t("caseDetail.loadError")}>{error}</Alert>;
-  if (!caseData) return null;
 
   const linkedDocumentIds = new Set(caseData.documents.map((d) => d.id));
   const linkedTaskIds = new Set(caseData.tasks.map((t) => t.id));
@@ -202,12 +185,9 @@ export default function CaseDetail() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs items={[{ label: t("nav.cases"), to: "/cases" }, { label: caseData.name }]} />
-
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="truncate text-2xl font-semibold text-ink">{caseData.name}</h1>
-          <p className="mt-1 text-xs text-ink-3">{t("caseDetail.ownedBy", { name: caseData.owner_display_name })}</p>
+          <p className="text-xs text-ink-3">{t("caseDetail.ownedBy", { name: caseData.owner_display_name })}</p>
           {caseData.description && <p className="mt-1 text-sm text-ink-2">{caseData.description}</p>}
         </div>
         <Tooltip label="Toggle case status">
@@ -258,10 +238,14 @@ export default function CaseDetail() {
         ) : (
           <div className="flex flex-col divide-y divide-edge overflow-hidden rounded-xl border border-edge">
             {caseData.tasks.map((task) => (
-              <div key={task.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm text-ink">
+              <Link
+                key={task.id}
+                to={`/tasks/${task.id}`}
+                className="flex items-center justify-between gap-3 px-3 py-2 text-sm text-ink transition-colors duration-fast hover:bg-hover hover:text-accent"
+              >
                 <span className="truncate">{task.title}</span>
                 <span className="shrink-0 text-xs text-ink-3">{task.status}</span>
-              </div>
+              </Link>
             ))}
           </div>
         )}
@@ -413,3 +397,4 @@ export default function CaseDetail() {
     </div>
   );
 }
+
