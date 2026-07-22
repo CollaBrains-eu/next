@@ -18,6 +18,7 @@ import { useDateFormat } from "../hooks/useDateFormat";
 import { taskUrgency } from "../lib/taskUrgency";
 import Card from "../components/Card";
 import { DashboardWidgetCard } from "../components/DashboardWidgetCard";
+import { ActivityTimeline } from "../components/ActivityTimeline";
 import { Badge } from "../components/ui/Badge";
 
 const QUICK_ACTIONS: { to: string; titleKey: string; descKey: string }[] = [
@@ -100,7 +101,7 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="rounded-2xl bg-gradient-to-br from-accent to-accent-hover p-5 text-white shadow-raised">
+      <div className="rounded-ds-lg bg-gradient-brand p-5 text-white shadow-raised">
         <div className="text-xs font-semibold uppercase tracking-wide text-white/70">{dateLabel}</div>
         <h1 className="mt-1 text-2xl font-semibold">
           {t(getGreetingKey(now.getHours()), { name: user?.display_name ?? "" })}
@@ -113,7 +114,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Link
           to="/documents"
-          className="rounded-2xl border border-edge bg-surface p-4 shadow-raised transition-colors duration-fast hover:border-accent"
+          className="rounded-ds-lg border border-edge bg-surface p-4 shadow-raised transition-colors duration-fast hover:border-accent"
         >
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-accent">
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -130,7 +131,7 @@ export default function Dashboard() {
         </Link>
         <Link
           to="/tasks"
-          className="rounded-2xl border border-edge bg-surface p-4 shadow-raised transition-colors duration-fast hover:border-accent"
+          className="rounded-ds-lg border border-edge bg-surface p-4 shadow-raised transition-colors duration-fast hover:border-accent"
         >
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-success-soft text-success">
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -149,7 +150,7 @@ export default function Dashboard() {
         </Link>
         <Link
           to="/tasks"
-          className="rounded-2xl border border-edge bg-surface p-4 shadow-raised transition-colors duration-fast hover:border-accent"
+          className="rounded-ds-lg border border-edge bg-surface p-4 shadow-raised transition-colors duration-fast hover:border-accent"
         >
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-danger-soft text-danger">
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -167,7 +168,7 @@ export default function Dashboard() {
         </Link>
         <Link
           to="/cases"
-          className="rounded-2xl border border-edge bg-surface p-4 shadow-raised transition-colors duration-fast hover:border-accent"
+          className="rounded-ds-lg border border-edge bg-surface p-4 shadow-raised transition-colors duration-fast hover:border-accent"
         >
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-warning-soft text-warning">
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -201,6 +202,7 @@ export default function Dashboard() {
       </Card>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <ActivityTimeline />
         <DashboardWidgetCard
           title={t("dashboard.recentDocumentsTitle")}
           loading={documentsLoading}

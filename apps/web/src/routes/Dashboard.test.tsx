@@ -16,6 +16,7 @@ vi.mock("../lib/api", async () => {
     listCases: vi.fn(),
     listEntities: vi.fn(),
     getAdminHealth: vi.fn(),
+    listDashboardActivity: vi.fn(),
   };
 });
 
@@ -36,11 +37,17 @@ describe("Dashboard", () => {
     vi.mocked(api.listCases).mockResolvedValue([]);
     vi.mocked(api.listEntities).mockResolvedValue([]);
     vi.mocked(api.getAdminHealth).mockResolvedValue([]);
+    vi.mocked(api.listDashboardActivity).mockResolvedValue([]);
   });
 
   it("greets the signed-in user by name in the page heading", async () => {
     renderPage();
     expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("Ada Lovelace");
+  });
+
+  it("renders the activity timeline widget", async () => {
+    renderPage();
+    expect(await screen.findByText("Recent activity")).toBeInTheDocument();
   });
 
   it("renders the AI quick action links", async () => {
