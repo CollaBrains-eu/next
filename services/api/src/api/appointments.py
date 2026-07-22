@@ -28,6 +28,7 @@ class AppointmentOut(BaseModel):
     notes: str | None
     case_id: UUID | None
     vehicle_id: UUID | None
+    source_task_id: UUID | None
     created_at: datetime
 
 
