@@ -31,12 +31,18 @@ async def test_create_or_rotate_share_link_creates_then_rotates(client):
         first = await create_or_rotate_share_link(
             db, entity_type="document", entity_id=entity_id, created_by_user_id=user_id,
         )
+        # Capture as plain values before rotating -- `first` and the object
+        # returned by the second call are the same SQLAlchemy identity-mapped
+        # instance (same session, same PK), so comparing attributes on the
+        # live objects after the second call would always show them equal.
+        first_id, first_token = first.id, first.token
+
         second = await create_or_rotate_share_link(
             db, entity_type="document", entity_id=entity_id, created_by_user_id=user_id,
         )
 
-    assert first.id == second.id
-    assert first.token != second.token
+    assert first_id == second.id
+    assert first_token != second.token
 
 
 async def test_get_valid_share_link_returns_none_for_expired_token(client):
