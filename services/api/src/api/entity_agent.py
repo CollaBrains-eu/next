@@ -11,11 +11,13 @@ in `RESIDENCE_CATEGORY_SLUGS` updates the owning user's `Residency` timeline.
 """
 import json
 import logging
+import re
 from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.address_parser import parse_address
 from api.ai_gateway import chat_completion
 from api.models import AddressDetail, Category, Document, Entity, EntityMention, EntityRelationship, Residency
 
@@ -37,6 +39,20 @@ AUTO_EXTRACTED_ENTITY_TYPES = {"organization", "address"}
 # documents get linked to the resulting residency period once it exists.
 RESIDENCE_CATEGORY_SLUGS = {"identity_document", "mortgage_housing", "rental_contract", "government"}
 CONTRACT_CATEGORY_SLUGS = {"rental_contract", "mortgage_housing", "employment_contract"}
+
+# Code-level guardrail, not prompt-only -- this project's own established lesson
+# (ai_gateway.py's json_mode docstring) is that prompt instructions alone are not
+# reliable on a small local model. Live production data had an email, a URL, and a
+# person-salutation line all extracted as entity_type="address" despite the prompt
+# explicitly saying "Do not extract people's names."
+_GARBAGE_ADDRESS_RE = re.compile(
+    r"@|https?://|www\.|\bt\.a\.v\.|\bde heer\b|\bmevrouw\b|\bdhr\.|\bmw\.",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_garbage_address(name: str) -> bool:
+    return bool(_GARBAGE_ADDRESS_RE.search(name))
 
 EXTRACTION_PROMPT = """Extract organizations and specific addresses mentioned in the \
 following document. Do not extract people's names or generic locations -- only \
@@ -132,8 +148,28 @@ async def _get_or_create_address_entity(db: AsyncSession, item: dict, owner_id: 
     """Same contract as `_get_or_create_entity`, but dedups address entities by
     normalized structured fields (still scoped to `owner_id`) instead of exact name
     match -- two LLM extractions of the same real address rarely render as identical
-    text."""
-    normalized_key = _normalize_address_key(item)
+    text. Rejects candidates that look like an email/URL/person-salutation before
+    ever creating an Entity row (see _looks_like_garbage_address)."""
+    raw_name = str(item.get("name") or "").strip()
+    if _looks_like_garbage_address(raw_name):
+        logger.info("entity_agent: rejected garbage address candidate %r", raw_name)
+        return None
+
+    parsed = parse_address(raw_name)
+    # Prefer the LLM's own structured fields when present (schema-constrained, so
+    # at least well-typed when given), fall back to the deterministic parser for
+    # whatever it left null -- live data showed the LLM leaves these null far more
+    # often than it fills them.
+    filled_item = {
+        "name": raw_name,
+        "street": item.get("street") or parsed["street"],
+        "house_number": item.get("house_number") or parsed["house_number"],
+        "postal_code": item.get("postal_code") or parsed["postal_code"],
+        "city": item.get("city") or parsed["city"],
+        "country": item.get("country") or parsed["country"],
+    }
+
+    normalized_key = _normalize_address_key(filled_item)
     result = await db.execute(
         select(Entity).join(AddressDetail, AddressDetail.entity_id == Entity.id).where(
             AddressDetail.normalized_key == normalized_key, Entity.owner_id == owner_id
@@ -145,17 +181,17 @@ async def _get_or_create_address_entity(db: AsyncSession, item: dict, owner_id: 
             return None
         return entity
 
-    entity = Entity(name=str(item.get("name") or "").strip() or normalized_key, entity_type="address", owner_id=owner_id)
+    entity = Entity(name=raw_name or normalized_key, entity_type="address", owner_id=owner_id)
     db.add(entity)
     await db.flush()
     db.add(
         AddressDetail(
             entity_id=entity.id,
-            street=item.get("street"),
-            house_number=item.get("house_number"),
-            postal_code=item.get("postal_code"),
-            city=item.get("city"),
-            country=item.get("country"),
+            street=filled_item["street"],
+            house_number=filled_item["house_number"],
+            postal_code=filled_item["postal_code"],
+            city=filled_item["city"],
+            country=filled_item["country"],
             normalized_key=normalized_key,
         )
     )

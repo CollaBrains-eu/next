@@ -14,6 +14,12 @@ async def _login(client, username: str = "entityuser") -> str:
 
 
 async def _upload_ready_document(client, headers, text: str) -> str:
+    # All five auto_extract_*_on_ready settings must be disabled here, not just tasks/
+    # entities -- vehicles/classification/facts each fire a real chat_completion call on
+    # EMBEDDINGS_CREATED too (documents.py), and on this deployment's genuinely slow,
+    # semaphore-serialized Ollama, leaving any of them enabled turns every upload in this
+    # file into a multi-minute real LLM call instead of the fast, fully-mocked test this
+    # helper is meant to provide.
     with (
         patch("api.documents.submit_document", return_value="task-x"),
         patch("api.documents.wait_for_paperless_id", return_value=99),
@@ -21,6 +27,9 @@ async def _upload_ready_document(client, headers, text: str) -> str:
         patch("api.documents.embed_text", return_value=FAKE_EMBEDDING),
         patch("api.documents.settings.auto_extract_tasks_on_ready", False),
         patch("api.documents.settings.auto_extract_entities_on_ready", False),
+        patch("api.documents.settings.auto_extract_vehicles_on_ready", False),
+        patch("api.documents.settings.auto_classify_on_ready", False),
+        patch("api.documents.settings.auto_extract_facts_on_ready", False),
     ):
         upload = await client.post(
             "/documents", headers=headers, files={"file": ("case.txt", text.encode(), "text/plain")}
@@ -542,3 +551,75 @@ async def test_same_named_entity_is_independent_across_two_owners(client):
     assert create_a.status_code == 201
     assert create_b.status_code == 201
     assert create_a.json()["id"] != create_b.json()["id"]  # same name+type, different accounts -- not deduped together
+
+
+async def test_extraction_rejects_email_as_address(client):
+    token = await _login(client, "entityuser-emailreject")
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "contact us")
+    fake = (
+        '{"entities": [{"name": "user@example.com", "type": "address"}], "relationships": []}'
+    )
+
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        response = await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+async def test_extraction_rejects_url_as_address(client):
+    token = await _login(client, "entityuser-urlreject")
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "visit us")
+    fake = '{"entities": [{"name": "www.example.com", "type": "address"}], "relationships": []}'
+
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        response = await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+async def test_extraction_rejects_person_salutation_as_address(client):
+    token = await _login(client, "entityuser-salutationreject")
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "letter")
+    fake = '{"entities": [{"name": "t.a.v. mevrouw A. Thole", "type": "address"}], "relationships": []}'
+
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        response = await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+async def test_extraction_fills_structured_fields_when_llm_leaves_them_null(client):
+    """The live bug this fixes: the LLM's schema-constrained output is often
+    {"name": "Achterweg 15", "type": "address", "street": null, ...} --
+    address_parser must fill the gaps from the name string."""
+    token = await _login(client, "entityuser-fillfields")
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "letter")
+    fake = (
+        '{"entities": [{"name": "Achterweg 15", "type": "address", "street": null, '
+        '"house_number": null, "postal_code": null, "city": null, "country": null}], '
+        '"relationships": []}'
+    )
+
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        response = await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
+
+    assert response.status_code == 200
+    entities = response.json()
+    assert len(entities) == 1
+
+    from api.db import async_session
+    from api.models import AddressDetail
+    from sqlalchemy import select
+
+    async with async_session() as db:
+        result = await db.execute(select(AddressDetail).where(AddressDetail.entity_id == entities[0]["id"]))
+        detail = result.scalar_one()
+    assert detail.street == "Achterweg"
+    assert detail.house_number == "15"
