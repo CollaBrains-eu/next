@@ -55,6 +55,47 @@ async def test_extract_tasks_persists_parsed_items(client):
     assert mock_completion.call_args.kwargs["schema"] == EXTRACTION_SCHEMA
 
 
+async def test_extract_tasks_persists_category_when_provided(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "Dentist appointment booked for 2026-08-01.")
+
+    fake_llm_output = (
+        '[{"title": "Attend dentist appointment", "description": null, '
+        '"due_date": "2026-08-01", "assignee": null, "category": "appointment"}]'
+    )
+    with patch("api.planner_agent.chat_completion", return_value=fake_llm_output):
+        response = await client.post(f"/documents/{document_id}/extract-tasks", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()[0]["category"] == "appointment"
+
+
+async def test_extract_tasks_defaults_invalid_category_to_none(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "Some text.")
+
+    fake_llm_output = '[{"title": "Do a thing", "category": "not-a-real-category"}]'
+    with patch("api.planner_agent.chat_completion", return_value=fake_llm_output):
+        response = await client.post(f"/documents/{document_id}/extract-tasks", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()[0]["category"] is None
+
+
+async def test_extract_tasks_defaults_missing_category_to_none(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "Some text.")
+
+    with patch("api.planner_agent.chat_completion", return_value='[{"title": "Do a thing"}]'):
+        response = await client.post(f"/documents/{document_id}/extract-tasks", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()[0]["category"] is None
+
+
 async def test_extract_tasks_handles_unparseable_llm_output_gracefully(client):
     token = await _login(client)
     headers = {"Authorization": f"Bearer {token}"}
@@ -603,3 +644,79 @@ async def test_export_task_ics_rejects_non_owner(client):
 async def test_export_task_ics_requires_auth(client):
     response = await client.get("/tasks/00000000-0000-0000-0000-000000000000/ics")
     assert response.status_code == 401
+
+
+async def test_extracted_appointment_task_creates_a_linked_appointment(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "Dentist appointment booked for 2026-08-01.")
+
+    fake_llm_output = (
+        '[{"title": "Attend dentist appointment", "description": null, '
+        '"due_date": "2026-08-01", "assignee": null, "category": "appointment"}]'
+    )
+    with patch("api.planner_agent.chat_completion", return_value=fake_llm_output):
+        extracted = await client.post(f"/documents/{document_id}/extract-tasks", headers=headers)
+    task_id = extracted.json()[0]["id"]
+
+    appointments = await client.get(
+        "/appointments", headers=headers, params={"from": "2026-07-01", "to": "2026-08-31"}
+    )
+    matching = [a for a in appointments.json() if a["source_task_id"] == task_id]
+    assert len(matching) == 1
+    assert matching[0]["title"] == "Attend dentist appointment"
+
+
+async def test_creating_a_task_with_appointment_category_creates_a_linked_appointment(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    created = await client.post(
+        "/tasks", headers=headers,
+        json={"title": "Yearly checkup", "due_date": "2026-08-05", "category": "appointment"},
+    )
+    task_id = created.json()["id"]
+
+    appointments = await client.get(
+        "/appointments", headers=headers, params={"from": "2026-07-01", "to": "2026-08-31"}
+    )
+    matching = [a for a in appointments.json() if a["source_task_id"] == task_id]
+    assert len(matching) == 1
+    assert matching[0]["title"] == "Yearly checkup"
+
+
+async def test_setting_a_tasks_category_to_appointment_via_patch_creates_a_linked_appointment(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    created = await client.post("/tasks", headers=headers, json={"title": "Follow-up call", "due_date": "2026-08-10"})
+    task_id = created.json()["id"]
+
+    await client.patch(f"/tasks/{task_id}", headers=headers, json={"status": "open", "category": "appointment"})
+
+    appointments = await client.get(
+        "/appointments", headers=headers, params={"from": "2026-07-01", "to": "2026-08-31"}
+    )
+    matching = [a for a in appointments.json() if a["source_task_id"] == task_id]
+    assert len(matching) == 1
+
+
+async def test_patching_a_task_twice_does_not_create_duplicate_appointments(client):
+    token = await _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    created = await client.post(
+        "/tasks", headers=headers,
+        json={"title": "Repeat check", "due_date": "2026-08-12", "category": "appointment"},
+    )
+    task_id = created.json()["id"]
+
+    await client.patch(
+        f"/tasks/{task_id}", headers=headers, json={"status": "in_progress", "category": "appointment"}
+    )
+
+    appointments = await client.get(
+        "/appointments", headers=headers, params={"from": "2026-07-01", "to": "2026-08-31"}
+    )
+    matching = [a for a in appointments.json() if a["source_task_id"] == task_id]
+    assert len(matching) == 1

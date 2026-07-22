@@ -255,6 +255,12 @@ class AnswerFeedback(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+# Shared with planner_agent.py (auto-categorization) and tasks.py (manual
+# create/update validation) -- lives here rather than tasks.py to avoid a
+# circular import (tasks.py already imports from planner_agent.py).
+TASK_CATEGORIES = ("payment", "appointment", "deadline", "notification")
+
+
 class Task(Base):
     """An actionable item, created manually or extracted from a document by the Planner Agent.
 
@@ -692,6 +698,9 @@ class Appointment(Base):
     )
     vehicle_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("vehicles.id", ondelete="SET NULL"), nullable=True
+    )
+    source_task_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True
     )
     created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

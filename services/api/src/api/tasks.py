@@ -12,19 +12,17 @@ from sqlalchemy import exists, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth import get_current_user
+from api.calendar_sync import sync_appointment_for_task
 from api.db import get_db
 from api.documents import _can_read_document
 from api.ics_utils import build_vevent_calendar, format_ics_date, ics_slug
-from api.models import CaseMember, Document, Task, User
+from api.models import CaseMember, Document, Task, TASK_CATEGORIES, User
 from api.planner_agent import extract_tasks
 
 router = APIRouter(tags=["tasks"])
 
 TASK_STATUSES = ("open", "in_progress", "done")
 RECURRENCE_RULES = ("daily", "weekly", "monthly")
-# v2 parity ("betaling"/"afspraak"/"deadline"/"melding"): typed categories for
-# action items, purely descriptive -- no behavior currently keys off category.
-TASK_CATEGORIES = ("payment", "appointment", "deadline", "notification")
 
 
 def next_due_date(current: date, recurrence_rule: str) -> date:
@@ -174,6 +172,7 @@ async def create_task(
     db.add(task)
     await db.commit()
     await db.refresh(task)
+    await sync_appointment_for_task(db, task=task, user_id=current_user.id)
     return task
 
 
@@ -235,20 +234,20 @@ async def update_task(
     # Completing a recurring task spawns its next occurrence as a new row,
     # rather than rolling this one's due_date forward in place -- keeps a
     # real history of completed occurrences instead of silently resetting one.
+    spawned_task: Task | None = None
     if update.status == "done" and task.status != "done" and task.recurrence_rule and task.due_date:
-        db.add(
-            Task(
-                document_id=task.document_id,
-                title=task.title,
-                description=task.description,
-                due_date=next_due_date(task.due_date, task.recurrence_rule),
-                assignee=task.assignee,
-                source=task.source,
-                created_by=task.created_by,
-                recurrence_rule=task.recurrence_rule,
-                category=task.category,
-            )
+        spawned_task = Task(
+            document_id=task.document_id,
+            title=task.title,
+            description=task.description,
+            due_date=next_due_date(task.due_date, task.recurrence_rule),
+            assignee=task.assignee,
+            source=task.source,
+            created_by=task.created_by,
+            recurrence_rule=task.recurrence_rule,
+            category=task.category,
         )
+        db.add(spawned_task)
 
     if update.due_date is not None:
         task.due_date = update.due_date
@@ -261,6 +260,10 @@ async def update_task(
     task.status = update.status
     await db.commit()
     await db.refresh(task)
+    await sync_appointment_for_task(db, task=task, user_id=current_user.id)
+    if spawned_task is not None:
+        await db.refresh(spawned_task)
+        await sync_appointment_for_task(db, task=spawned_task, user_id=current_user.id)
     return task
 
 

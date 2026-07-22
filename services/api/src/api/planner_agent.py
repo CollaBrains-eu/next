@@ -1,7 +1,10 @@
 """Planner Agent: extract actionable tasks from a document's text (ADR 0004).
 
-Deliberately narrow scope -- task extraction, not scheduling. See the ADR
-for what's out of scope (calendar sync, recurrence, real user assignment).
+Originally deliberately narrow scope -- task extraction, not scheduling (see
+the ADR for what was out of scope: calendar sync, recurrence, real user
+assignment). Recurrence was added in ADR 0064; calendar sync was added here
+-- an appointment-category task now creates a linked Appointment via
+calendar_sync.sync_appointment_for_task once it's committed.
 """
 import json
 import logging
@@ -11,7 +14,8 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.ai_gateway import chat_completion
-from api.models import Task
+from api.calendar_sync import sync_appointment_for_task
+from api.models import TASK_CATEGORIES, Task
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +29,7 @@ Return ONLY a JSON array (no prose, no markdown fences), where each item has:
 - "description": one sentence of extra context, or null
 - "due_date": an ISO date "YYYY-MM-DD" if a concrete date is mentioned, otherwise null
 - "assignee": a person or role name if mentioned, otherwise null
+- "category": one of {categories} if the task clearly fits one, otherwise null
 
 If there are truly no actionable tasks or dates to act on, return an empty array: []
 
@@ -40,6 +45,7 @@ EXTRACTION_SCHEMA = {
             "description": {"type": ["string", "null"]},
             "due_date": {"type": ["string", "null"]},
             "assignee": {"type": ["string", "null"]},
+            "category": {"type": ["string", "null"], "enum": [*TASK_CATEGORIES, None]},
         },
         "required": ["title"],
     },
@@ -69,7 +75,7 @@ async def extract_tasks(
     when this runs from a background trigger with no requesting user in
     the loop -- callers pass the document's owner in that case.
     """
-    prompt = EXTRACTION_PROMPT.format(text=text[:8000])
+    prompt = EXTRACTION_PROMPT.format(text=text[:8000], categories=" | ".join(f'"{c}"' for c in TASK_CATEGORIES))
     raw = await chat_completion(
         [{"role": "user", "content": prompt}],
         user_id=user_id,
@@ -89,12 +95,16 @@ async def extract_tasks(
     for item in items:
         if not isinstance(item, dict) or not item.get("title"):
             continue
+        category = item.get("category")
+        if category not in TASK_CATEGORIES:
+            category = None
         task = Task(
             document_id=document_id,
             title=str(item["title"])[:500],
             description=item.get("description") or None,
             due_date=_parse_due_date(item.get("due_date")),
             assignee=item.get("assignee") or None,
+            category=category,
             source=source,
             created_by=user_id,
         )
@@ -105,4 +115,5 @@ async def extract_tasks(
         await db.commit()
         for task in tasks:
             await db.refresh(task)
+            await sync_appointment_for_task(db, task=task, user_id=user_id)
     return tasks
