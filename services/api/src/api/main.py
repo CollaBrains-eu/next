@@ -9,6 +9,7 @@ from api.auth import router as auth_router
 from api.cases_router import router as cases_router
 from api.categories_router import router as categories_router
 from api.chat import router as chat_router
+from api.dashboard_router import router as dashboard_router
 from api.db import engine
 from api.decisions import router as decisions_router
 from api.documents import router as documents_router, search_router
@@ -68,6 +69,7 @@ app.include_router(residencies_router)
 app.include_router(webauthn_router)
 app.include_router(onboarding_router)
 app.include_router(appointments_router)
+app.include_router(dashboard_router)
 app.include_router(users_router)
 app.include_router(workspace_router)
 
