@@ -121,6 +121,7 @@ class Document(Base):
     correspondent_city: Mapped[str | None] = mapped_column(String(255), nullable=True)
     correspondent_country: Mapped[str | None] = mapped_column(String(100), nullable=True)
     classification_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    metafields: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     # Postgres text-search config name ('english'/'german'/'dutch'), detected
     # from ocr_text at ingestion -- see api.text_language. Drives both this
     # document's chunks' content_tsv and, indirectly via the querying user's
