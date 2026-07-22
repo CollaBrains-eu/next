@@ -66,14 +66,14 @@ export function ChatLog({
   }
 
   return (
-    <div className="flex max-h-[420px] flex-col gap-3 overflow-y-auto">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
       {turns.map((turn, i) => (
         <div
           key={i}
           className={
             turn.role === "user"
-              ? "self-end max-w-[80%] rounded-2xl rounded-br-sm bg-accent px-4 py-2 text-sm text-white"
-              : "max-w-[80%] rounded-2xl rounded-bl-sm border border-edge bg-surface px-4 py-2 text-sm text-ink"
+              ? "self-end max-w-[80%] rounded-ds-lg rounded-br-sm bg-gradient-brand px-4 py-2 text-sm text-white"
+              : "glass-surface max-w-[80%] rounded-ds-lg rounded-bl-sm border border-edge px-4 py-2 text-sm text-ink"
           }
         >
           <p className="whitespace-pre-wrap">{turn.content}</p>
@@ -119,7 +119,7 @@ export function ChatLog({
         <div
           role="status"
           aria-label={thinkingLabel}
-          className="flex w-fit items-center gap-1 self-start rounded-2xl rounded-bl-sm border border-edge bg-surface px-4 py-3"
+          className="glass-surface flex w-fit items-center gap-1 self-start rounded-ds-lg rounded-bl-sm border border-edge px-4 py-3"
         >
           <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-3 [animation-delay:-0.3s]" />
           <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-3 [animation-delay:-0.15s]" />
