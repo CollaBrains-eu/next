@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ApiError, approveEntity, clearToken, downloadAppointmentIcs, downloadTaskIcs, login, request, setToken } from "./api";
+import { ApiError, approveEntity, clearToken, downloadAppointmentIcs, downloadMetafieldIcs, downloadTaskIcs, login, request, setToken } from "./api";
 
 const IPHONE_UA =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
 
 function stubUserAgent(userAgent: string) {
-  vi.spyOn(window.navigator, "userAgent", "get").mockReturnValue(userAgent);
+  return vi.spyOn(window.navigator, "userAgent", "get").mockReturnValue(userAgent);
 }
 
 describe("api request()", () => {
@@ -141,7 +141,7 @@ describe("downloadAppointmentIcs", () => {
   });
 
   it("opens the blob directly (no forced download) on an Apple platform, so Safari offers its native Add-to-Calendar sheet", async () => {
-    stubUserAgent(IPHONE_UA);
+    const userAgentSpy = stubUserAgent(IPHONE_UA);
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(new Response("BEGIN:VCALENDAR", { status: 200 }));
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
@@ -155,5 +155,43 @@ describe("downloadAppointmentIcs", () => {
 
     openSpy.mockRestore();
     clickSpy.mockRestore();
+    userAgentSpy.mockRestore();
+  });
+});
+
+describe("downloadMetafieldIcs", () => {
+  beforeEach(() => {
+    clearToken();
+    vi.stubGlobal("fetch", vi.fn());
+    URL.createObjectURL = vi.fn(() => "blob:mock-url");
+    URL.revokeObjectURL = vi.fn();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("fetches the metafield ics endpoint with the auth header and triggers a download", async () => {
+    setToken("secret-token");
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(new Response("BEGIN:VCALENDAR", { status: 200 }));
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+    vi.useFakeTimers();
+    await downloadMetafieldIcs("d1", "due_date", "due-date.ics");
+
+    const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toContain("/documents/d1/metafields/due_date/ics");
+    expect((init.headers as Headers).get("Authorization")).toBe("Bearer secret-token");
+    expect(clickSpy).toHaveBeenCalled();
+
+    vi.advanceTimersByTime(10000);
+    vi.useRealTimers();
+    clickSpy.mockRestore();
+  });
+
+  it("throws ApiError on a non-ok response", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(new Response("", { status: 404, statusText: "Not Found" }));
+
+    await expect(downloadMetafieldIcs("missing", "due_date", "x.ics")).rejects.toBeInstanceOf(ApiError);
   });
 });

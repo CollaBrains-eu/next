@@ -179,6 +179,7 @@ export interface DocumentDetailOut extends DocumentOut {
   correspondent_postal_code: string | null;
   correspondent_city: string | null;
   correspondent_country: string | null;
+  metafields: Record<string, string> | null;
 }
 
 export function listDocuments(ownerId?: string): Promise<DocumentOut[]> {
@@ -702,6 +703,10 @@ async function fetchAndOpenIcs(path: string, filename: string): Promise<void> {
 
 export async function downloadAppointmentIcs(id: string, filename: string): Promise<void> {
   await fetchAndOpenIcs(`/appointments/${id}/ics`, filename);
+}
+
+export async function downloadMetafieldIcs(documentId: string, fieldKey: string, filename: string): Promise<void> {
+  await fetchAndOpenIcs(`/documents/${documentId}/metafields/${fieldKey}/ics`, filename);
 }
 
 async function fetchDocumentFileBlob(id: string, disposition: "attachment" | "inline"): Promise<Blob> {
