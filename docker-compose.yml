@@ -156,18 +156,36 @@ services:
     image: ollama/ollama:latest
     restart: unless-stopped
     profiles: ["full"]
-    # Resource caps for this project's 4-vCPU/8GB CPU-only OpenVZ host (docs/deployment/ai-optimization.md):
-    # 1 core stays free for the OS/api/postgres, and swap is unavailable here (OpenVZ guests can't
-    # swapon -- confirmed, see the memory doc), so mem_limit is the only backstop against Ollama
-    # ballooning and starving everything else, as it did while running qwen3:8b (5.7GB/377% CPU
-    # observed live -- see ai-optimization.md).
-    mem_limit: 1536m
+    # Resource caps for this project's 4-vCPU/8GB CPU-only OpenVZ host (docs/deployment/ai-optimization.md).
+    # Swap is unavailable here (OpenVZ guests can't swapon -- confirmed, see the memory doc), so
+    # mem_limit is the real backstop against Ollama ballooning and taking the host down via OOM --
+    # RAM exhaustion was the actual observed crash risk (64MB free live), not CPU. 6656m (not a
+    # smaller cap) because qwen3:8b is the verified-correct chat_model -- smaller models were
+    # live-tested and produce garbled/hallucinated/wrong-language output or skip tool calls
+    # entirely for manager_agent -- this cap exists to stop *further* ballooning past the ~5.7GB
+    # already observed live, not to force a smaller model.
+    #
+    # Deliberately NOT cpu-limited (no `cpus:`, no OMP_NUM_THREADS): live-tested a cpus:"3.0" +
+    # OMP_NUM_THREADS=3 cap and it slowed qwen3:8b enough to blow past ai_gateway.py's httpx
+    # timeout on a real request (ReadTimeout -> 500) -- the OS doesn't need a *reserved* core the
+    # way it needs reserved memory (CPU contention degrades gracefully as latency, RAM exhaustion
+    # crashes the host), so unlike mem_limit this tradeoff wasn't worth it for the one model
+    # already proven necessary for correct output.
+    # OLLAMA_MAX_LOADED_MODELS=2, not 1: services/api/src/api/embeddings.py calls
+    # Ollama directly (its own httpx client, bypasses ai_gateway.py's semaphore
+    # entirely), and this app embeds documents in the background continuously
+    # (auto_extract_* on document upload) -- live-tested MAX_LOADED_MODELS=1 and
+    # caught it evicting qwen3:8b mid-chat-request to load nomic-embed-text for a
+    # real concurrent document upload, causing a genuine 500 (Ollama reloading
+    # model tensors mid-request), not just added latency. 2 lets the (tiny,
+    # 274MB) embedding model stay resident alongside whichever generation model
+    # is active -- comfortably inside mem_limit even with qwen3:8b (5.2GB) both
+    # loaded at once.
+    mem_limit: 6656m
     mem_reservation: 512m
-    cpus: "3.0"
     environment:
       OLLAMA_NUM_PARALLEL: "1"
-      OLLAMA_MAX_LOADED_MODELS: "1"
-      OMP_NUM_THREADS: "3"
+      OLLAMA_MAX_LOADED_MODELS: "2"
     volumes:
       - ollama_data:/root/.ollama
     ports:

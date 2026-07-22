@@ -36,18 +36,23 @@ else
   echo "/swapfile exists but is not active -- leaving as-is, check manually"
 fi
 
-log "2/5: Ollama resource limits + light models"
-# Limits themselves live in docker-compose.yml (mem_limit/cpus/OLLAMA_NUM_PARALLEL/
-# OLLAMA_MAX_LOADED_MODELS/OMP_NUM_THREADS on the `ollama` service) -- version
-# controlled, not a systemd override, since Ollama runs as a Compose service here,
-# not a bare-metal systemd unit.
+log "2/5: Ollama resource limits + models"
+# Limits themselves live in docker-compose.yml (mem_limit/OLLAMA_NUM_PARALLEL/
+# OLLAMA_MAX_LOADED_MODELS on the `ollama` service) -- version controlled, not a
+# systemd override, since Ollama runs as a Compose service here, not a bare-metal
+# systemd unit. No CPU cap: live-tested and reverted, see ai-optimization.md --
+# it slowed qwen3:8b (the model chat_model actually needs) past this app's httpx
+# timeout. chat_model stays qwen3:8b, NOT a 1.5B/3B model -- both were live-tested
+# against manager_agent's tool-calling and found broken (fake/no tool calls,
+# hallucinated non-English output), not just lower quality. deepseek-r1:1.5b is
+# the one new light model that's actually used, by POST /manager/reason only.
 docker compose --profile full up -d ollama
 echo "waiting for ollama to accept connections..."
 for _ in $(seq 1 30); do
   docker compose exec -T ollama ollama list >/dev/null 2>&1 && break
   sleep 2
 done
-for model in qwen2.5-coder:1.5b deepseek-r1:1.5b nomic-embed-text; do
+for model in qwen3:8b deepseek-r1:1.5b nomic-embed-text; do
   echo "pulling $model..."
   docker compose exec -T ollama ollama pull "$model"
 done

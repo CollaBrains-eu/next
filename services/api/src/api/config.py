@@ -23,15 +23,27 @@ class Settings(BaseSettings):
     ollama_url: str = "http://ollama:11434"
     embedding_model: str = "nomic-embed-text"
     embedding_dim: int = 768
-    # qwen2.5-coder:1.5b replaces qwen3:8b (5.7GB/377% CPU observed live on this
-    # 4-vCPU/8GB CPU-only host -- see docs/deployment/ai-optimization.md). It's a
-    # code-specialized model, not an ideal semantic fit for legal/document chat --
-    # qwen2.5:3b-instruct (already pulled) is the documented fallback if answer
-    # quality on /chat or /legal/draft regresses.
-    chat_model: str = "qwen2.5-coder:1.5b"
+    # qwen3:8b is the verified-correct default for this deployment despite its
+    # size (5.7GB/377% CPU observed live on this 4-vCPU/8GB CPU-only host -- see
+    # docs/deployment/ai-optimization.md). A 2026-07-22 investigation
+    # (project_collabrains_signal_quality_issue memory) already found smaller
+    # models (qwen2.5:3b-instruct) produce garbled/hallucinated output and wrong-
+    # language replies specifically in manager_agent's multi-round tool-calling
+    # path; this session live-tested qwen2.5-coder:1.5b and found it worse still
+    # (never actually issues a real tool call, just prints fake JSON as text, and
+    # produced incoherent output on a Dutch-language prompt). Do not downsize this
+    # again without live-testing manager_agent tool-calling and a non-English
+    # prompt specifically, not just a trivial greeting -- both failure modes are
+    # invisible on a simple "say hello" smoke test.
+    chat_model: str = "qwen3:8b"
     reasoning_model: str = "deepseek-r1:1.5b"
     chat_num_predict: int = 512
     reasoning_num_predict: int = 1024
+    # qwen3:8b on this 4-vCPU CPU-only host live-timed a correct-but-slow response at ~120s+ for a
+    # longer answer (see docs/deployment/ai-optimization.md) -- the old 120s httpx timeout turned
+    # that into a ReadTimeout/500 instead of just being slow. 240s gives real headroom without being
+    # unbounded.
+    ollama_timeout_seconds: float = 240.0
 
     chunk_size: int = 800
     chunk_overlap: int = 100

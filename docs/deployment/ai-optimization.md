@@ -34,49 +34,96 @@ profile), not a bare-metal systemd unit -- there is no systemd override
 file for it. Limits are on the `ollama` service block instead:
 
 ```yaml
-mem_limit: 1536m
+mem_limit: 6656m
 mem_reservation: 512m
-cpus: "3.0"
 environment:
   OLLAMA_NUM_PARALLEL: "1"
   OLLAMA_MAX_LOADED_MODELS: "1"
-  OMP_NUM_THREADS: "3"
 ```
 
-1 of the 4 cores stays free for the OS, `api`, and Postgres. Note
-`OLLAMA_NUM_PARALLEL=1` was already the host's *computed default* in
-practice (see `ai_gateway.py`'s existing client-side semaphore, which
-serializes calls for exactly this reason) -- this makes it explicit rather
-than relying on Ollama's own defaulting.
+No `cpus:`/`OMP_NUM_THREADS` cap -- **this was tried and reverted**, see
+"model downsizing" below. `mem_limit` is deliberately close to what was
+already being used unbounded (~5.7GB) rather than a small number: the
+goal is stopping *further* ballooning (RAM exhaustion was the actual
+observed crash risk -- 64MB free live), not shrinking Ollama's footprint,
+since the model that needs that memory is staying. `OLLAMA_NUM_PARALLEL=1`
+was already the host's *computed default* in practice (see
+`ai_gateway.py`'s existing client-side semaphore, which serializes calls
+for exactly this reason) -- this makes it explicit rather than relying on
+Ollama's own defaulting.
 
 The `web` Compose service also got `mem_limit: 2g` and
 `NODE_OPTIONS=--max-old-space-size=2048`, for the same no-swap reason: a
 runaway `vite build`/`tsc -b` (both do run in that container -- see
 `package.json`'s `build` script) shouldn't be able to starve everything
-else.
+else. This one wasn't found to cause any regression.
 
-### 2. Lighter default models
+### 2. Model downsizing -- attempted, live-tested, reverted
 
-`qwen3:8b` (5.2GB) is replaced as the default chat model by
-**`qwen2.5-coder:1.5b`** (`CHAT_MODEL` in `.env`/`.env.example`,
-`chat_model` in `services/api/src/api/config.py`). `nomic-embed-text`
-(embeddings) is unchanged.
+The original ask was to standardize on 1.5B-class models for everything.
+**This was tried and rolled back after live-testing found it broken, not
+just "lower quality."**
 
-**Caveat worth watching**: `qwen2.5-coder:1.5b` is a code-specialized
-model, and this app is a legal/document assistant (`/chat`, `/legal/draft`,
-task/entity extraction), not a coding tool -- there's a real risk this
-underperforms on legal drafting or nuanced document Q&A compared to a
-general-instruct model. `qwen2.5:3b-instruct` is already pulled in
-production and is the documented one-env-var fallback
-(`CHAT_MODEL=qwen2.5:3b-instruct` in `.env`, restart `api`) if answer
-quality regresses. Watch `ai_call_log` and real usage, not just that the
-endpoint responds.
+Sequence, in order:
 
-`qwen3:8b` was **not** deleted from the Ollama volume (in case it's
-wanted back) -- `OLLAMA_MAX_LOADED_MODELS=1` means it costs disk only, not
-RAM, unless something explicitly requests it again. Remove with `docker
-compose exec ollama ollama rm qwen3:8b` if disk hygiene is ever wanted (83G
-free at time of writing, not urgent).
+1. Set `CHAT_MODEL=qwen2.5-coder:1.5b` (a code-specialized model) and
+   capped Ollama to 3 CPU cores (`cpus: "3.0"`, `OMP_NUM_THREADS=3`),
+   reasoning 1 of 4 cores should stay free for the OS/api/postgres.
+2. Live-tested against `/manager/ask` (not just a trivial "say hello" --
+   see the lesson in `config.py`'s `chat_model` comment about why a
+   trivial smoke test hides this class of bug). Two real failures, not a
+   quality nitpick: a "what documents do I have" prompt got a **fake
+   tool call printed as plain-text JSON** instead of an actual function
+   call (`tools_called: []` -- the model never really invoked `search`),
+   and a Dutch-language prompt produced **incoherent, unrelated
+   hallucinated content**, also with no real tool call.
+3. This matches and *extends* an already-documented same-day finding
+   (see project memory, `project_collabrains_signal_quality_issue.md`):
+   a 2026-07-22 investigation had already found `qwen2.5:3b-instruct` (a
+   general-instruct 3B model, one size class up from what was tried here)
+   produces garbled/hallucinated output and wrong-language replies in
+   this exact same `manager_agent` multi-round tool-calling path, and had
+   already fixed prod by switching to `qwen3:8b`, verified via a real
+   Signal message. **Reverted `CHAT_MODEL` back to `qwen3:8b`** --
+   confirmed correct again via the same two live prompts after reverting.
+4. The 3-core CPU cap was *also* reverted, and turned out to be its own
+   real bug, independent of the model question: throttling Ollama to 3
+   cores slowed `qwen3:8b` enough that a real request exceeded
+   `ai_gateway.py`'s (then-120s) httpx timeout, producing a **500
+   ReadTimeout** instead of just being slow. Removed the CPU cap
+   entirely (kept `mem_limit`, since RAM exhaustion -- not CPU
+   contention -- was the actual crash risk; CPU contention just adds
+   latency, it doesn't take the host down) and raised
+   `settings.ollama_timeout_seconds` to 240 as a separate, deliberate
+   fix (see below).
+5. `qwen2.5-coder:1.5b` and `qwen2.5:3b-instruct` were both removed from
+   the Ollama volume (`ollama rm`) after confirming neither is referenced
+   by any config -- both are proven inadequate for this app's real usage
+   pattern, not worth keeping as disk-only dead weight.
+
+**Net result**: `chat_model` is `qwen3:8b`, unchanged from before this
+session. The resource crisis is fixed via `mem_limit` (stopping further
+RAM growth) and `num_predict` caps (below), not via a smaller model --
+this host's actual constraint turned out to be "must not exceed ~6.5GB,"
+not "must use fewer than 8B params." **Do not attempt this downsizing
+again without live-testing `manager_agent`'s tool-calling path and a
+non-English prompt specifically** -- both failure modes are invisible on
+a trivial greeting, which is exactly what made the original spec's model
+choice look safe until it wasn't.
+
+Manager Agent responses on `qwen3:8b` are genuinely slow on this
+CPU-only host -- one live test during this session ran past 280s for a
+multi-round tool-calling response before completing (`docker stats`
+showed sustained ~390% CPU while it worked, not a hang). This is
+consistent with, and somewhat worse than, the Phase 6d load-testing
+runbook's already-documented finding (`docs/runbooks/capacity.md`:
+"usable but slow... worst case ~85s at concurrency=8" -- that was for
+`/chat`, a single Ollama call; `manager_agent`'s tool-calling loop can
+issue up to `MAX_TOOL_ROUNDS=5` *sequential* calls, so its worst case is
+substantially higher). This is a pre-existing architectural
+characteristic of `manager_agent`, not something this session introduced
+or fixed -- flagged here for whoever picks up latency work next, out of
+scope for this pass.
 
 ### 3. `num_predict` cap (real gap closed)
 

@@ -75,7 +75,7 @@ async def _call_ollama(
     chosen_model = model or settings.chat_model
     start = time.monotonic()
     async with _ollama_semaphore:
-        async with httpx.AsyncClient(base_url=settings.ollama_url, timeout=120.0) as client:
+        async with httpx.AsyncClient(base_url=settings.ollama_url, timeout=settings.ollama_timeout_seconds) as client:
             # think=False (the default): qwen2.5-coder/qwen3-family models otherwise
             # emit a full chain-of-thought before every answer -- ~30s for a trivial
             # prompt on this CPU-only host vs ~1.8s with thinking off. Harmless no-op
