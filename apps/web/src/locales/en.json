@@ -277,7 +277,9 @@
     "classification": "Classification",
     "docType": "Document type",
     "tags": "Tags",
-    "correspondent": "Correspondent"
+    "correspondent": "Correspondent",
+    "metafields": "Details",
+    "addToCalendar": "Add to calendar"
   },
   "caseDetail": {
     "ownedBy": "Owned by {{name}}",

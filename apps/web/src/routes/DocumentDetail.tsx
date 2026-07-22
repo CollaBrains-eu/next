@@ -5,6 +5,7 @@ import {
   ApiError,
   deleteDocument,
   downloadDocumentFile,
+  downloadMetafieldIcs,
   getDocument,
   previewDocumentFile,
   reprocessDocument,
@@ -44,6 +45,17 @@ function formatCorrespondentAddress(doc: DocumentDetailOut): string | null {
     (line): line is string => Boolean(line),
   );
   return lines.length > 0 ? lines.join(", ") : null;
+}
+
+function humanizeFieldKey(key: string): string {
+  return key
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function isDateLikeKey(key: string): boolean {
+  return key.endsWith("_date");
 }
 
 export default function DocumentDetail() {
@@ -127,6 +139,19 @@ export default function DocumentDetail() {
       setError(err instanceof ApiError ? err.message : t("documentDetail.downloadError"));
     } finally {
       setPreviewing(false);
+    }
+  }
+
+  async function handleDownloadMetafieldIcs(fieldKey: string) {
+    if (!id) return;
+    const slug = `${doc?.title ?? "document"}-${fieldKey}`
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+    try {
+      await downloadMetafieldIcs(id, fieldKey, `${slug || "event"}.ics`);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("documentDetail.downloadError"));
     }
   }
 
@@ -233,6 +258,27 @@ export default function DocumentDetail() {
                 )}
               </div>
             )}
+          </div>
+        </Card>
+      )}
+
+      {doc.metafields && Object.keys(doc.metafields).length > 0 && (
+        <Card>
+          <h2 className="text-sm font-medium text-ink-2">{t("documentDetail.metafields")}</h2>
+          <div className="mt-2 flex flex-col gap-2">
+            {Object.entries(doc.metafields).map(([key, value]) => (
+              <div key={key} className="flex items-center justify-between gap-2 text-sm">
+                <span className="text-ink-3">{humanizeFieldKey(key)}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-ink">{value}</span>
+                  {isDateLikeKey(key) && (
+                    <Button variant="ghost" size="sm" onClick={() => handleDownloadMetafieldIcs(key)}>
+                      {t("documentDetail.addToCalendar")}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </Card>
       )}

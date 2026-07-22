@@ -277,7 +277,9 @@
     "classification": "Classificatie",
     "docType": "Documenttype",
     "tags": "Labels",
-    "correspondent": "Correspondent"
+    "correspondent": "Correspondent",
+    "metafields": "Details",
+    "addToCalendar": "Aan agenda toevoegen"
   },
   "caseDetail": {
     "ownedBy": "Eigenaar: {{name}}",

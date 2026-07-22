@@ -19,6 +19,7 @@ vi.mock("../lib/api", async () => {
     reprocessDocument: vi.fn(),
     downloadDocumentFile: vi.fn(),
     previewDocumentFile: vi.fn(),
+    downloadMetafieldIcs: vi.fn(),
   };
 });
 
@@ -44,6 +45,7 @@ const mockDoc = {
   correspondent_postal_code: null,
   correspondent_city: null,
   correspondent_country: null,
+  metafields: null,
 };
 
 function renderAt(id: string) {
@@ -180,5 +182,40 @@ describe("DocumentDetail", () => {
     renderAt("doc-1");
     fireEvent.click(await screen.findByRole("button", { name: "Preview" }));
     await waitFor(() => expect(api.previewDocumentFile).toHaveBeenCalledWith("doc-1"));
+  });
+
+  it("renders the metafields card when metafields are present", async () => {
+    vi.mocked(api.getDocument).mockResolvedValue({
+      ...mockDoc, doc_type: "invoice",
+      metafields: { amount: "500.00", due_date: "2026-08-15", invoice_number: "INV-123" },
+    });
+    renderAt("doc-1");
+
+    expect(await screen.findByText("Invoice Number")).toBeInTheDocument();
+    expect(screen.getByText("INV-123")).toBeInTheDocument();
+  });
+
+  it("does not render the metafields card when metafields are absent", async () => {
+    vi.mocked(api.getDocument).mockResolvedValue(mockDoc);
+    renderAt("doc-1");
+
+    await screen.findByRole("heading", { name: mockDoc.title });
+    expect(screen.queryByText("Invoice Number")).not.toBeInTheDocument();
+  });
+
+  it("shows an add-to-calendar button for date-like metafields and downloads on click", async () => {
+    vi.mocked(api.getDocument).mockResolvedValue({
+      ...mockDoc, doc_type: "invoice",
+      metafields: { amount: "500.00", due_date: "2026-08-15" },
+    });
+    vi.mocked(api.downloadMetafieldIcs).mockResolvedValue(undefined);
+    renderAt("doc-1");
+
+    const button = await screen.findByRole("button", { name: /add to calendar/i });
+    fireEvent.click(button);
+
+    await waitFor(() =>
+      expect(api.downloadMetafieldIcs).toHaveBeenCalledWith("doc-1", "due_date", expect.stringContaining("due-date"))
+    );
   });
 });
