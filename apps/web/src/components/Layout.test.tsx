@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import Layout from "./Layout";
@@ -40,46 +40,17 @@ describe("Layout", () => {
     expect(root.className).not.toContain("text-slate-900");
   });
 
-  it("does not show the mobile sidebar backdrop until the hamburger is clicked", () => {
+  it("renders the children passed to it", () => {
     renderLayout();
-    expect(screen.queryByTestId("sidebar-backdrop")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
-    expect(screen.getByTestId("sidebar-backdrop")).toBeInTheDocument();
+    expect(screen.getByText("content")).toBeInTheDocument();
   });
 
-  it("closes the mobile sidebar when its backdrop is clicked", () => {
+  it("renders the Navbar and the bottom MobileTabBar", () => {
     renderLayout();
-    fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
-    fireEvent.click(screen.getByTestId("sidebar-backdrop"));
-    expect(screen.queryByTestId("sidebar-backdrop")).not.toBeInTheDocument();
-  });
-
-  it("shows the CollaBrains brand name on the root route", () => {
-    renderLayout();
-    expect(screen.getByTestId("mobile-header-title")).toHaveTextContent("CollaBrains");
-  });
-
-  it("shows a bottom tab bar with the primary mobile destinations", () => {
-    renderLayout();
-    expect(screen.getByText("Home")).toBeInTheDocument();
-    expect(screen.getByText("Docs")).toBeInTheDocument();
-    expect(screen.getByText("Dossiers")).toBeInTheDocument();
-    expect(screen.getByText("Acties")).toBeInTheDocument();
-  });
-
-  it("shows a profile avatar linking to settings", () => {
-    renderLayout();
-    const link = screen.getByLabelText("My profile");
-    expect(link).toHaveAttribute("href", "/settings");
-    expect(link.textContent).toContain("AA");
-  });
-
-  it("toggles dark mode when the sun/moon button is clicked", () => {
-    renderLayout();
-    const toggle = screen.getByLabelText("🌙 Dark mode");
-    fireEvent.click(toggle);
-    expect(document.documentElement.classList.contains("dark")).toBe(true);
-    fireEvent.click(screen.getByLabelText("☀️ Light mode"));
-    expect(document.documentElement.classList.contains("dark")).toBe(false);
+    // Navbar and MobileTabBar behavior (nav items, drawer, dark mode, etc.)
+    // is covered by their own test files -- this just confirms Layout wires
+    // both of them in, since that's Layout's own remaining responsibility.
+    expect(screen.getByRole("img", { name: "CollaBrains" })).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Primary navigation" })).toBeInTheDocument();
   });
 });
