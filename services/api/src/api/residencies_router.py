@@ -6,6 +6,7 @@ itself happens in `entity_agent.py` as a side effect of document processing
 approve/reject a `pending_review` residency period the same way entities
 are reviewed (docs/superpowers/specs/2026-07-09-entity-review-queue-design.md).
 """
+import logging
 from datetime import date, datetime
 from uuid import UUID
 
@@ -18,6 +19,9 @@ from api.address_parser import build_maps_url
 from api.auth import get_current_user
 from api.db import get_db
 from api.models import AddressDetail, Document, Entity, Residency, User
+from api.signal_client import send_signal_message
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["residencies"])
 
@@ -138,7 +142,31 @@ async def approve_residency(
     current_user: User = Depends(get_current_user),
 ) -> ResidencyOut:
     residency = await _transition_residency(db, residency_id, "confirmed")
-    return await _to_out(db, residency)
+    out = await _to_out(db, residency)
+    await _maybe_notify_confirmed_residency(db, residency, out)
+    return out
+
+
+async def _maybe_notify_confirmed_residency(db: AsyncSession, residency: Residency, out: ResidencyOut) -> None:
+    """Best-effort (see signal_client.py's own contract) -- a Signal failure must
+    never break the approve endpoint itself. Gated on the address having all of
+    street/house_number/postal_code/city populated: a strictly-worse maps link
+    isn't useful, and this doubles as a live signal that the extraction pipeline
+    is actually producing complete data."""
+    address = out.address
+    if not all([address.street, address.house_number, address.postal_code, address.city]):
+        return
+    user = await db.get(User, residency.user_id)
+    if user is None or not user.phone_number or not address.maps_url:
+        return
+    try:
+        await send_signal_message(
+            user.phone_number,
+            f"Your address has been confirmed: {address.street} {address.house_number}, "
+            f"{address.postal_code} {address.city}\n{address.maps_url}",
+        )
+    except Exception:
+        logger.exception("residencies_router: failed to send residency-confirmed Signal notification")
 
 
 @router.post("/residencies/{residency_id}/reject", response_model=ResidencyOut)

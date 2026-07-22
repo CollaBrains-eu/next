@@ -26,7 +26,7 @@
 **Interfaces:**
 - Produces: `parse_address(raw_text: str) -> dict[str, str | None]` (keys: `street`, `house_number`, `postal_code`, `city`, `country`) and `build_maps_url(*, street, house_number, postal_code, city, country) -> str | None`. Both are pure functions, no I/O, no DB — Task 2 imports and calls them.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `services/api/tests/test_address_parser.py`:
 
@@ -93,7 +93,7 @@ def test_build_maps_url_returns_none_for_insufficient_data():
     assert build_maps_url(street=None, house_number=None, postal_code=None, city=None, country="NL") is None
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```bash
 cd ~/dev/collabrains-next
@@ -102,7 +102,7 @@ ssh root@178.254.22.178 "cd /opt/collabrains && docker compose exec -T -e PYTHON
 ```
 Expected: `ModuleNotFoundError: No module named 'api.address_parser'` (or collection error) for every test.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `services/api/src/api/address_parser.py`:
 
@@ -202,14 +202,14 @@ def build_maps_url(
     return f"https://www.google.com/maps/search/?api=1&query={quote(query)}"
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 ```bash
 ssh root@178.254.22.178 "cd /opt/collabrains && docker compose exec -T -e PYTHONPATH=/app/src api pytest tests/test_address_parser.py -v"
 ```
 Expected: all PASSED.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd ~/dev/collabrains-next
@@ -232,7 +232,7 @@ git push origin main
 - Consumes: `address_parser.parse_address` (Task 1).
 - Produces: `_get_or_create_address_entity` now rejects garbage candidates before creating an `Entity`, and fills structured fields from `parse_address` whenever the LLM left them null.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `services/api/tests/test_entities.py` (reuses this file's existing `_login`/`_upload_ready_document` helpers):
 
@@ -309,7 +309,7 @@ async def test_extraction_fills_structured_fields_when_llm_leaves_them_null(clie
     assert detail.house_number == "15"
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```bash
 cd ~/dev/collabrains-next
@@ -318,7 +318,7 @@ ssh root@178.254.22.178 "cd /opt/collabrains && docker compose exec -T -e PYTHON
 ```
 Expected: the reject tests FAIL (entities list is non-empty, garbage entity was created); the fillfields test FAILS (`detail.street` is `None`, not `"Achterweg"`).
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 In `services/api/src/api/entity_agent.py`, add the import and guardrail near the top (after existing imports):
 
@@ -403,14 +403,14 @@ async def _get_or_create_address_entity(db: AsyncSession, item: dict, owner_id: 
     return entity
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 ```bash
 ssh root@178.254.22.178 "cd /opt/collabrains && docker compose exec -T -e PYTHONPATH=/app/src api pytest tests/test_entities.py -v"
 ```
 Expected: all PASSED (both new and pre-existing tests in this file).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd ~/dev/collabrains-next
@@ -435,7 +435,7 @@ git push origin main
 
 **Root cause (already diagnosed, not re-investigated here)**: live production query joining `AddressDetail`/`EntityMention`/`Document`/`Category` showed **zero** of the 13 address-producing documents had a category in the original `RESIDENCE_CATEGORY_SLUGS = {"identity_document", "mortgage_housing", "rental_contract", "government"}` — all were `employment_contract`, `other_documents`, `education`, `correspondence`, or `medical_care`. Separately, `other_documents` holds 49 of ~74 total documents (66%) — `document_classification.py`'s classifier defaults to this generic bucket far more than to specific categories. The categories themselves are valid and current (confirmed against `document_categories.py`'s `DOCUMENT_CATEGORIES` list) — this is a classifier-precision gap, not a stale-slug bug.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `services/api/tests/test_residencies.py` (reuses this file's existing `_address_extraction`/`_create_document`/`_current_residency` helpers):
 
@@ -494,7 +494,7 @@ async def test_extracting_address_from_employment_contract_does_not_create_resid
     assert residency is None
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```bash
 cd ~/dev/collabrains-next
@@ -503,7 +503,7 @@ ssh root@178.254.22.178 "cd /opt/collabrains && docker compose exec -T -e PYTHON
 ```
 Expected: both new "creates residency" tests FAIL (`residency is None`).
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 In `services/api/src/api/entity_agent.py`, replace the `RESIDENCE_CATEGORY_SLUGS` definition (line 38):
 
@@ -543,14 +543,14 @@ Add diagnostic logging in `extract_entities`, replacing the residency-trigger bl
             )
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 ```bash
 ssh root@178.254.22.178 "cd /opt/collabrains && docker compose exec -T -e PYTHONPATH=/app/src api pytest tests/test_residencies.py -v"
 ```
 Expected: all PASSED, including the pre-existing `test_extracting_address_from_identity_document_creates_residency` (unchanged behavior for the original 4 slugs).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd ~/dev/collabrains-next
@@ -582,7 +582,7 @@ git push origin main
 
 **Real bug this fixes**: the live "Gaslaan 16" address exists as two separate `AddressDetail` rows for the same user — one with all fields `None` (created before this plan's Task 2 fix), one fully structured. Once Task 2 ships, *new* extractions will have fields properly populated, but two prior partial extractions of the same real address would still fragment under the old exact-`normalized_key`-only matching, since `normalized_key` is computed from whatever fields happen to be present each time.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `services/api/tests/test_residencies.py`:
 
@@ -638,7 +638,7 @@ async def test_partial_and_full_extraction_of_same_address_merge_not_fragment(cl
 
 Add `from sqlalchemy import func` to this test file's imports if not already present (check the existing `from sqlalchemy import select` line and extend it to `from sqlalchemy import func, select`).
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 cd ~/dev/collabrains-next
@@ -647,7 +647,7 @@ ssh root@178.254.22.178 "cd /opt/collabrains && docker compose exec -T -e PYTHON
 ```
 Expected: FAIL — `second[0].id != first[0].id` (two separate entities created).
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 In `services/api/src/api/entity_agent.py`, add a new `_find_matching_address_entity` helper, then replace the entire `_get_or_create_address_entity` function (as left by Task 2) with a version that calls it:
 
@@ -749,14 +749,14 @@ async def _get_or_create_address_entity(db: AsyncSession, item: dict, owner_id: 
     return entity
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 ```bash
 ssh root@178.254.22.178 "cd /opt/collabrains && docker compose exec -T -e PYTHONPATH=/app/src api pytest tests/test_residencies.py tests/test_entities.py -v"
 ```
 Expected: all PASSED, including every pre-existing test in both files (this changes matching logic, not the public contract).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd ~/dev/collabrains-next
@@ -785,7 +785,7 @@ git push origin main
 
 **Real bug this fixes**: `entities.py`'s `merge_entities` (line 310, `await db.delete(source)`) has no entity-type check and no check for an existing `Residency` row pointing at the entity being deleted. Every other FK from this schema to `entities.id` (`AddressDetail.entity_id`, `EntityMention.entity_id`, `EntityRelationship.*_entity_id`) specifies `ondelete="CASCADE"` — `Residency.address_entity_id` (`models.py:400`) is the one exception, so merging an address entity that backs a residency currently raises an unhandled `IntegrityError` (500). Not reachable through any frontend today (merge isn't exposed in the UI), but worth closing before it becomes reachable.
 
-- [ ] **Step 1: Find the current Alembic head**
+- [x] **Step 1: Find the current Alembic head**
 
 ```bash
 ssh root@178.254.22.178 "cd /opt/collabrains && docker compose exec -T -e PYTHONPATH=/app/src api python3 -c \"
@@ -803,7 +803,7 @@ asyncio.run(main())
 ```
 Expected output at time of writing: `c4d7f2a9e1b3` — but re-run this rather than trusting the value here, since Tasks 1-4 don't add migrations but other work may have landed on `main` since this plan was written.
 
-- [ ] **Step 2: Write the migration**
+- [x] **Step 2: Write the migration**
 
 Create `services/api/alembic/versions/a1b2c3d4e5f6_residency_address_entity_cascade.py` (generate a real revision id the same way existing migrations do, or use this placeholder-format one — Alembic only requires it be unique):
 
@@ -852,7 +852,7 @@ Also update `services/api/src/api/models.py`'s `Residency.address_entity_id` (li
 
 **Constraint name confirmed live** (2026-07-23, `docker compose exec postgres psql -U collabrains -d collabrains -c '\d residencies'`): `residencies_address_entity_id_fkey` — matches what Step 2's migration already references, no adjustment needed.
 
-- [ ] **Step 3: Apply and verify**
+- [x] **Step 3: Apply and verify**
 
 ```bash
 cd ~/dev/collabrains-next
@@ -863,7 +863,7 @@ ssh root@178.254.22.178 "cd /opt/collabrains && docker compose exec -T postgres 
 ```
 Expected: the FK now shows `ON DELETE CASCADE`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 cd ~/dev/collabrains-next
@@ -896,7 +896,7 @@ git push origin main
 - Consumes: `address_parser.build_maps_url` (Task 1).
 - Produces: `AddressOut.maps_url: str | None` (residencies), `EntityOut.maps_url: str | None` (entities, only non-null for `entity_type == "address"`).
 
-- [ ] **Step 1: Write the failing backend test**
+- [x] **Step 1: Write the failing backend test**
 
 Add to `services/api/tests/test_residencies.py`:
 
@@ -921,7 +921,7 @@ async def test_residency_out_includes_maps_url_for_complete_address(client):
     assert body[0]["address"]["maps_url"].startswith("https://www.google.com/maps/search/?api=1&query=")
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 cd ~/dev/collabrains-next
@@ -930,7 +930,7 @@ ssh root@178.254.22.178 "cd /opt/collabrains && docker compose exec -T -e PYTHON
 ```
 Expected: FAIL — `KeyError: 'maps_url'`.
 
-- [ ] **Step 3: Write the backend implementation**
+- [x] **Step 3: Write the backend implementation**
 
 In `services/api/src/api/residencies_router.py`, add the import:
 
@@ -1101,14 +1101,14 @@ async def bulk_review_entities(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 ```bash
 ssh root@178.254.22.178 "cd /opt/collabrains && docker compose exec -T -e PYTHONPATH=/app/src api pytest tests/test_residencies.py tests/test_entities.py tests/test_entity_merge.py -v"
 ```
 Expected: all PASSED. If any pre-existing test asserts an exact response body shape without accounting for the new `maps_url: null` field, update its assertion to match (Pydantic includes `None`-valued optional fields in JSON output by default).
 
-- [ ] **Step 5: Frontend — update types and display**
+- [x] **Step 5: Frontend — update types and display**
 
 In `apps/web/src/lib/api.ts`, update `AddressOut` (lines 1046-1054) and `EntityOut` (lines 375-ish, check exact current fields first):
 
@@ -1164,7 +1164,7 @@ const TYPE_STYLES: Record<string, string> = {
 };
 ```
 
-- [ ] **Step 6: Run frontend tests**
+- [x] **Step 6: Run frontend tests**
 
 ```bash
 cd ~/dev/collabrains-next
@@ -1189,7 +1189,7 @@ const RESIDENCY: api.ResidencyOut = {
 ```
 Then re-run. Expected: all PASSED.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 cd ~/dev/collabrains-next
@@ -1204,7 +1204,7 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 git push origin main
 ```
 
-- [ ] **Step 8: Deploy frontend build**
+- [x] **Step 8: Deploy frontend build**
 
 ```bash
 ssh root@178.254.22.178 "cd /opt/collabrains && docker compose exec -T web sh -c 'cd /app/apps/web && npx vite build'"
@@ -1233,9 +1233,10 @@ async def test_approving_complete_residency_sends_signal_notification_with_maps_
     username = _unique("residencyuser-signalnotify")
     token = await _login(client, username)
     user = await _user(username)
+    phone_number = f"+1555{uuid4().hex[:7]}"  # unique per run -- users.phone_number has a unique constraint
     async with async_session() as db:
         user_row = await db.get(User, user.id)
-        user_row.phone_number = "+15550001234"
+        user_row.phone_number = phone_number
         await db.commit()
 
     document_id = await _create_document(user.id, category_slug="correspondence")
@@ -1254,7 +1255,7 @@ async def test_approving_complete_residency_sends_signal_notification_with_maps_
     assert response.status_code == 200
     mock_send.assert_called_once()
     call_args = mock_send.call_args
-    assert call_args.args[0] == "+15550001234"
+    assert call_args.args[0] == phone_number
     assert "maps.google.com" in call_args.args[1] or "google.com/maps" in call_args.args[1]
 
 
@@ -1265,7 +1266,7 @@ async def test_approving_incomplete_residency_does_not_send_notification(client)
     user = await _user(username)
     async with async_session() as db:
         user_row = await db.get(User, user.id)
-        user_row.phone_number = "+15550005678"
+        user_row.phone_number = f"+1555{uuid4().hex[:7]}"
         await db.commit()
 
     document_id = await _create_document(user.id, category_slug="correspondence")

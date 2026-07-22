@@ -540,3 +540,66 @@ async def test_residency_out_includes_maps_url_for_complete_address(client):
     assert len(body) == 1
     assert body[0]["address"]["maps_url"] is not None
     assert body[0]["address"]["maps_url"].startswith("https://www.google.com/maps/search/?api=1&query=")
+
+
+async def test_approving_complete_residency_sends_signal_notification_with_maps_link(client):
+    username = _unique("residencyuser-signalnotify")
+    token = await _login(client, username)
+    user = await _user(username)
+    phone_number = f"+1555{uuid4().hex[:7]}"
+    async with async_session() as db:
+        user_row = await db.get(User, user.id)
+        user_row.phone_number = phone_number
+        await db.commit()
+
+    document_id = await _create_document(user.id, category_slug="correspondence")
+    street = _unique_street()
+    async with async_session() as db:
+        with patch("api.entity_agent.chat_completion", return_value=_address_extraction(street)):
+            await extract_entities(db, document_id=document_id, text="letter", user_id=user.id)
+
+    residency = await _current_residency(user.id)
+
+    with patch("api.residencies_router.send_signal_message") as mock_send:
+        response = await client.post(
+            f"/residencies/{residency.id}/approve", headers={"Authorization": f"Bearer {token}"}
+        )
+
+    assert response.status_code == 200
+    mock_send.assert_called_once()
+    call_args = mock_send.call_args
+    assert call_args.args[0] == phone_number
+    assert "maps.google.com" in call_args.args[1] or "google.com/maps" in call_args.args[1]
+
+
+async def test_approving_incomplete_residency_does_not_send_notification(client):
+    """Gating on completeness is deliberate -- a strictly-worse maps link isn't useful."""
+    username = _unique("residencyuser-incompletenotify")
+    token = await _login(client, username)
+    user = await _user(username)
+    async with async_session() as db:
+        user_row = await db.get(User, user.id)
+        user_row.phone_number = f"+1555{uuid4().hex[:7]}"
+        await db.commit()
+
+    document_id = await _create_document(user.id, category_slug="correspondence")
+    fake_partial = json.dumps({
+        "entities": [{
+            "name": "Some City", "type": "address",
+            "street": None, "house_number": None, "postal_code": None, "city": "Some City", "country": None,
+        }],
+        "relationships": [],
+    })
+    async with async_session() as db:
+        with patch("api.entity_agent.chat_completion", return_value=fake_partial):
+            await extract_entities(db, document_id=document_id, text="letter", user_id=user.id)
+
+    residency = await _current_residency(user.id)
+
+    with patch("api.residencies_router.send_signal_message") as mock_send:
+        response = await client.post(
+            f"/residencies/{residency.id}/approve", headers={"Authorization": f"Bearer {token}"}
+        )
+
+    assert response.status_code == 200
+    mock_send.assert_not_called()
