@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { ApiError, chat, submitFeedback, type ChatTurn, type Citation } from "../lib/api";
 import { Button } from "../components/ui/Button";
 import { ChatLog, type ChatTurnDisplay } from "../components/ui/ChatLog";
+import { ChatInput } from "../components/ui/ChatInput";
 import { useLoadingBar } from "../lib/loadingBar";
 import { useToast } from "../lib/toast";
 
@@ -97,30 +98,29 @@ export default function Chat() {
   }));
 
   return (
-    <div className="flex flex-col gap-4">
+    // `h-full` doesn't resolve here: Layout.tsx's <main> has no explicit height of
+    // its own (only a `min-h-screen` floor inherited via the flex chain), so a
+    // percentage height on this div just falls back to content size and the whole
+    // page grows instead of ChatLog scrolling internally. Pin to the viewport
+    // directly instead, minus the chrome that sits outside <main>'s content box:
+    // mobile header (61px) + <main>'s padding (py-6 pb-24 = 24+96=120px) = 181px;
+    // md+ has no header row (px-8 py-8 pb-8 = 32+32=64px).
+    <div className="flex h-[calc(100dvh-181px)] flex-col gap-4 md:h-[calc(100dvh-64px)]">
       <h1 className="text-2xl font-semibold text-ink">{t("nav.aiChat")}</h1>
 
-      <div className="flex flex-col gap-3">
-        <ChatLog
-          turns={displayTurns}
-          sending={sending}
-          hint={t("chat.hint")}
-          thinkingLabel={t("common.thinking")}
-          lowConfidenceLabel={t("chat.lowConfidence")}
-          thumbsUpLabel={t("chat.thumbsUp")}
-          thumbsDownLabel={t("chat.thumbsDown")}
-        />
-        {error && <p className="text-sm text-danger">{error}</p>}
-      </div>
+      <ChatLog
+        turns={displayTurns}
+        sending={sending}
+        hint={t("chat.hint")}
+        thinkingLabel={t("common.thinking")}
+        lowConfidenceLabel={t("chat.lowConfidence")}
+        thumbsUpLabel={t("chat.thumbsUp")}
+        thumbsDownLabel={t("chat.thumbsDown")}
+      />
+      {error && <p className="text-sm text-danger">{error}</p>}
 
       <form onSubmit={handleSubmit} className="flex gap-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={t("chat.inputPlaceholder")}
-          disabled={sending}
-          className="w-full rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none transition-colors duration-fast focus:border-accent focus:ring-2 focus:ring-accent-soft disabled:opacity-50"
-        />
+        <ChatInput value={input} onChange={setInput} placeholder={t("chat.inputPlaceholder")} disabled={sending} />
         <Button type="submit" disabled={sending || !input.trim()}>
           {t("common.send")}
         </Button>

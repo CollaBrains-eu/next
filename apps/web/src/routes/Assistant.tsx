@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ApiError, askManager } from "../lib/api";
 import { Button } from "../components/ui/Button";
 import { ChatLog, type ChatTurnDisplay } from "../components/ui/ChatLog";
+import { ChatInput } from "../components/ui/ChatInput";
 import { useLoadingBar } from "../lib/loadingBar";
 
 interface DisplayTurn {
@@ -52,22 +53,17 @@ export default function Assistant() {
   }));
 
   return (
-    <div className="flex flex-col gap-4">
+    // See Chat.tsx for why this isn't `h-full`: Layout.tsx's <main> has no
+    // explicit height of its own, so a percentage height here falls back to
+    // content size and the page grows instead of ChatLog scrolling internally.
+    <div className="flex h-[calc(100dvh-181px)] flex-col gap-4 md:h-[calc(100dvh-64px)]">
       <h1 className="text-2xl font-semibold text-ink">{t("nav.assistant")}</h1>
 
-      <div className="flex flex-col gap-3">
-        <ChatLog turns={displayTurns} sending={sending} hint={t("assistant.hint")} thinkingLabel={t("common.thinking")} />
-        {error && <p className="text-sm text-danger">{error}</p>}
-      </div>
+      <ChatLog turns={displayTurns} sending={sending} hint={t("assistant.hint")} thinkingLabel={t("common.thinking")} />
+      {error && <p className="text-sm text-danger">{error}</p>}
 
       <form onSubmit={handleSubmit} className="flex gap-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={t("assistant.inputPlaceholder")}
-          disabled={sending}
-          className="w-full rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none transition-colors duration-fast focus:border-accent focus:ring-2 focus:ring-accent-soft disabled:opacity-50"
-        />
+        <ChatInput value={input} onChange={setInput} placeholder={t("assistant.inputPlaceholder")} disabled={sending} />
         <Button type="submit" disabled={sending || !input.trim()}>
           {t("common.send")}
         </Button>
