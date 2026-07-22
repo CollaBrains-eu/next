@@ -98,10 +98,11 @@ describe("Workspace (Documents list)", () => {
     expect(screen.getByText((_, el) => el?.textContent === "2 selected")).toBeInTheDocument();
   });
 
-  it("shows a category filter chip and toggling it narrows the table to matching documents", async () => {
+  it("toggling a child category chip narrows the table to matching documents", async () => {
     vi.mocked(api.listCategories).mockResolvedValue([
-      { id: "cat-1", slug: "payslip", icon: "Banknote", color: "#FF9500", parent_id: null },
-      { id: "cat-2", slug: "invoice", icon: "Receipt", color: "#FF3B30", parent_id: null },
+      { id: "parent-finance", slug: "finance", icon: "Coins", color: "#FF9500", parent_id: null },
+      { id: "cat-1", slug: "payslip", icon: "Banknote", color: "#FF9500", parent_id: "parent-finance" },
+      { id: "cat-2", slug: "invoice", icon: "Receipt", color: "#FF3B30", parent_id: "parent-finance" },
     ]);
     vi.mocked(api.listDocuments).mockResolvedValue([
       { ...docs[0], category_id: "cat-1" },
@@ -109,29 +110,32 @@ describe("Workspace (Documents list)", () => {
     ]);
     renderPage();
     await screen.findByText("document-0.pdf");
-    await waitFor(() => expect(screen.getAllByText("+ Add filter")).toHaveLength(2));
-    fireEvent.click(screen.getAllByText("+ Add filter")[1]);
-    fireEvent.click(await screen.findByText("Payslip & Salary"));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Payslip & Salary" }));
+
     expect(screen.getByText("document-0.pdf")).toBeInTheDocument();
     expect(screen.queryByText("document-1.pdf")).not.toBeInTheDocument();
   });
 
-  it("removing an active category filter chip restores the full table", async () => {
+  it("toggling a category group header filters to all its children at once", async () => {
     vi.mocked(api.listCategories).mockResolvedValue([
-      { id: "cat-1", slug: "payslip", icon: "Banknote", color: "#FF9500", parent_id: null },
-      { id: "cat-2", slug: "invoice", icon: "Receipt", color: "#FF3B30", parent_id: null },
+      { id: "parent-finance", slug: "finance", icon: "Coins", color: "#FF9500", parent_id: null },
+      { id: "cat-1", slug: "payslip", icon: "Banknote", color: "#FF9500", parent_id: "parent-finance" },
+      { id: "cat-2", slug: "invoice", icon: "Receipt", color: "#FF3B30", parent_id: "parent-finance" },
     ]);
     vi.mocked(api.listDocuments).mockResolvedValue([
       { ...docs[0], category_id: "cat-1" },
       { ...docs[1], category_id: "cat-2" },
+      { ...docs[2], category_id: null },
     ]);
     renderPage();
     await screen.findByText("document-0.pdf");
-    await waitFor(() => expect(screen.getAllByText("+ Add filter")).toHaveLength(2));
-    fireEvent.click(screen.getAllByText("+ Add filter")[1]);
-    fireEvent.click(await screen.findByText("Payslip & Salary"));
-    fireEvent.click(screen.getByLabelText("Remove Payslip & Salary"));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Finance" }));
+
+    expect(screen.getByText("document-0.pdf")).toBeInTheDocument();
     expect(screen.getByText("document-1.pdf")).toBeInTheDocument();
+    expect(screen.queryByText("document-2.pdf")).not.toBeInTheDocument();
   });
 
   it("bulk-deleting selected rows calls deleteDocument for each and shows a toast", async () => {

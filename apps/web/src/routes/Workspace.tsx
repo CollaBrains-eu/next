@@ -15,6 +15,7 @@ import {
   type WorkspaceMemberOut,
 } from "../lib/api";
 import UploadDialog from "../components/UploadDialog";
+import { CategoryFilterGrid } from "../components/CategoryFilterGrid";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
@@ -56,7 +57,6 @@ export default function Workspace() {
   const [exporting, setExporting] = useState(false);
   const [sharedWorkspaces, setSharedWorkspaces] = useState<WorkspaceMemberOut[]>([]);
   const [viewedOwnerId, setViewedOwnerId] = useState<string | null>(null);
-  const CATEGORY_FILTER_OPTIONS = categories.map((c) => ({ id: c.id, label: t(`categories.${c.slug}`) }));
   const viewingSharedWorkspace = viewedOwnerId !== null;
   const activeSharedWorkspace = sharedWorkspaces.find((w) => w.owner_id === viewedOwnerId);
 
@@ -260,13 +260,24 @@ export default function Workspace() {
             onAdd={(opt) => setStatusFilters((prev) => [...prev, opt.id])}
           />
           {categories.length > 0 && (
-            <FilterChips
-              label={t("documents.categoryFilterLabel")}
-              chips={CATEGORY_FILTER_OPTIONS.filter((opt) => categoryFilters.includes(opt.id))}
-              onRemove={(id) => setCategoryFilters((prev) => prev.filter((c) => c !== id))}
-              addOptions={CATEGORY_FILTER_OPTIONS.filter((opt) => !categoryFilters.includes(opt.id))}
-              onAdd={(opt) => setCategoryFilters((prev) => [...prev, opt.id])}
-            />
+            <div>
+              <p className="mb-2 text-xs font-medium text-ink-3">{t("documents.categoryFilterLabel")}</p>
+              <CategoryFilterGrid
+                categories={categories}
+                activeIds={activeCategoryFilters}
+                onToggleGroup={(childIds) => {
+                  const allActive = childIds.every((id) => activeCategoryFilters.has(id));
+                  setCategoryFilters((prev) =>
+                    allActive
+                      ? prev.filter((id) => !childIds.includes(id))
+                      : [...new Set([...prev, ...childIds])]
+                  );
+                }}
+                onToggleChild={(id) =>
+                  setCategoryFilters((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]))
+                }
+              />
+            </div>
           )}
           <DataTable columns={columns} rows={filteredDocuments} rowKey={(doc) => doc.id} />
           <BulkActionBar
