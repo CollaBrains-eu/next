@@ -1224,7 +1224,7 @@ Expected: `200`.
 - Consumes: `api.signal_client.send_signal_message` (existing), `AddressOut.maps_url` (Task 6).
 - Produces: `approve_residency` now sends a best-effort Signal notification when the confirmed residency's address has street/house_number/postal_code/city all populated.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `services/api/tests/test_residencies.py`:
 
@@ -1292,7 +1292,7 @@ async def test_approving_incomplete_residency_does_not_send_notification(client)
     mock_send.assert_not_called()
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```bash
 cd ~/dev/collabrains-next
@@ -1301,7 +1301,7 @@ ssh root@178.254.22.178 "cd /opt/collabrains && docker compose exec -T -e PYTHON
 ```
 Expected: FAIL — `send_signal_message` never called (`AttributeError`/`assert_called_once` failure), since `api.residencies_router.send_signal_message` doesn't exist yet as an importable name in that module.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 In `services/api/src/api/residencies_router.py`, add imports:
 
@@ -1348,14 +1348,14 @@ async def _maybe_notify_confirmed_residency(db: AsyncSession, residency: Residen
 
 Add `import logging` + `logger = logging.getLogger(__name__)` near the top of the file if not already present (check the existing imports first — this file currently has no logger).
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 ```bash
 ssh root@178.254.22.178 "cd /opt/collabrains && docker compose exec -T -e PYTHONPATH=/app/src api pytest tests/test_residencies.py -v"
 ```
 Expected: all PASSED.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd ~/dev/collabrains-next
@@ -1524,3 +1524,5 @@ asyncio.run(main())
 ```
 
 Expected: the complete/total ratio for AddressDetail rows created *after* Task 2 deployed should be near 100% (pre-existing rows from before the fix stay as they were — this plan doesn't retroactively re-parse old data), and at least one Residency row should now exist if any real correspondence/other_documents/etc. document has been processed since Task 3 deployed.
+
+**Attempted live, 2026-07-23**: re-ran `POST /documents/{id}/extract-entities` on a real production document (a full Dutch legal decision letter, `other_documents` category) as admin, to see Tasks 1-4 against real text end-to-end, not just mocked test fixtures. It hit `httpx.ReadTimeout` at 240s (`ai_gateway.py`'s `ollama_timeout_seconds`) -- this specific document's OCR text is long and `qwen3:8b` on this CPU-only host is already known-slow for shorter prompts (see `docs/deployment/ai-optimization.md`), so a longer real document timing out is consistent with pre-existing host performance, not evidence of a logic bug in this plan's changes. Did not retry (repeated slow real-Ollama calls compete with real user traffic on the same global semaphore -- see the earlier "orphaned backlog" lesson from this same day). **Confidence in Tasks 1-4 instead rests on**: comprehensive passing unit tests using fixture strings copied directly from the real production data that motivated this plan ("Achterweg 15", "9671 CT WINSCHOTEN", the exact garbage strings that were misclassified), plus the confirmed root-cause diagnosis (RESIDENCE_CATEGORY_SLUGS mismatch, empty structured fields) matching exactly what got fixed. A true full-pipeline live confirmation on a real long document is still open -- retry when the host isn't under real contention, or with a shorter real document.
