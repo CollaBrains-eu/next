@@ -183,6 +183,11 @@ jobs:
       LDAP_BIND_DN_TEMPLATE: "uid={username},ou=people,dc=collabrains,dc=eu"
       LDAP_ADMIN_GROUP_DN: cn=collabrains-admins,ou=groups,dc=collabrains,dc=eu
       LDAP_ADMIN_PASSWORD: ci-test-ldap-admin-pw
+      # The built frontend is served on 4173 (vite preview), not the 5173
+      # dev-server port CORS_ALLOWED_ORIGINS defaults to -- without this, every
+      # browser call the Playwright suite makes to the API is CORS-blocked,
+      # fetchMe() fails, and every authenticated page bounces to /login.
+      CORS_ALLOWED_ORIGINS: http://localhost:4173
     steps:
       - uses: actions/checkout@v4
 
