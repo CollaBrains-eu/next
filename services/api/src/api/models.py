@@ -25,6 +25,17 @@ class Organization(Base):
     No per-table organization_id retrofit (documents/memories/plans/...)
     yet -- see ADR 0029 for why that's its own dedicated future phase,
     not done speculatively here.
+
+    `owner_user_id` (Priority 3, ADR 0074) is deliberately NOT `User.role`
+    ("admin"/"member") -- `role` is platform-wide (checked by both this
+    org's own endpoints and the LDAP-wide Admin Dashboard,
+    admin_router.py's `_require_admin`), so granting it to every
+    self-service signup would hand them platform admin, not just control
+    of their own org. `owner_user_id` is a narrow, additional permission
+    ("can manage *this* org") that composes with, rather than replaces,
+    the existing global role -- nullable because pre-Phase-14 orgs
+    (`DEFAULT_ORGANIZATION_ID`) predate the concept and have no single
+    owner; a real platform admin still manages those.
     """
 
     __tablename__ = "organizations"
@@ -32,6 +43,9 @@ class Organization(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     policies: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    owner_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -75,6 +89,109 @@ class PendingUserPhoneNumber(Base):
     username: Mapped[str] = mapped_column(String(255), primary_key=True)
     phone_number: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class PendingRegistration(Base):
+    """A self-service signup awaiting email verification (Priority 3
+    commercial SaaS, ADR 0074). No LDAP entry or Postgres `User` row exists
+    yet -- both are created together, in registration_service.complete_registration,
+    once the address is confirmed reachable. `password_hash` is
+    pre-computed at registration time (the same SSHA scheme ldap_auth.py
+    already uses for admin-created users) so verification never needs the
+    plaintext password again.
+
+    No unique constraint on `username`/`email` here (unlike `User.username`)
+    -- uniqueness against real accounts is enforced in
+    registration_service.username_or_email_taken at write time, the same
+    "application-enforced, not a DB constraint" choice `Organization.policies`
+    already made, since a merely pending, unconfirmed row shouldn't
+    permanently squat a name the way a real account does.
+    """
+
+    __tablename__ = "pending_registrations"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    username: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    display_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    email: Mapped[str] = mapped_column(String(255), nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    organization_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Set when this registration completes an invitation (invitation_service,
+    # ADR 0074) rather than creating a brand-new org -- nullable because
+    # ordinary self-service signup (registration_service) has no invitation.
+    invitation_token: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    token: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Invitation(Base):
+    """An org invitation sent by email (Priority 3 commercial SaaS, ADR
+    0074) -- the "invite a stranger by email" gap that ADR 0074 found
+    missing entirely. Unlike the pre-existing case/workspace sharing
+    (cases_router.py/workspace_router.py), which both require the invitee
+    to already be a provisioned platform user, this works for someone who
+    has never signed up: they register (registration_service, carrying
+    this invitation's token) and land in the inviting org instead of a
+    brand-new one, or -- if they already have an account -- accept
+    directly and switch into it (a user belongs to exactly one org, same
+    constraint `Organization`'s docstring already documents).
+
+    Deliberately has no `role` field: `User.role` is platform-wide (see
+    `Organization.owner_user_id`'s docstring), so an invitation can only
+    ever add someone as an ordinary member of the org, never grant admin
+    of anything.
+    """
+
+    __tablename__ = "invitations"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    email: Mapped[str] = mapped_column(String(255), nullable=False)
+    invited_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
+    token: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Subscription(Base):
+    """Stripe-backed billing state for an Organization (Priority 3
+    commercial SaaS, ADR 0074). One-to-one with Organization -- billing is
+    scoped to the tenant boundary, same as everything else Phase 14
+    established. Entirely webhook-driven (billing_service.py, dispatched
+    from billing_router.py's /billing/webhook) -- nothing here is ever
+    written directly from a user-facing request, so it can't drift from
+    what Stripe itself believes is true.
+
+    `status` deliberately mirrors Stripe's own subscription.status values
+    verbatim ("trialing"/"active"/"past_due"/"canceled"/"incomplete"/...)
+    rather than an app-invented vocabulary, so there's exactly one source
+    of truth for what each value means.
+    """
+
+    __tablename__ = "subscriptions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), unique=True, nullable=False
+    )
+    stripe_customer_id: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
+    stripe_subscription_id: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
+    plan: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    current_period_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancel_at_period_end: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class Document(Base):

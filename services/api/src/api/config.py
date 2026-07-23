@@ -75,6 +75,12 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from_address: str = "noreply@collabrains.eu"
 
+    # Keyed by email, not IP -- the thing worth bounding is "how many
+    # verification emails can one address be spammed with," which an IP
+    # limit wouldn't catch from a botnet and would over-catch for NAT'd
+    # offices. See registration_service._check_registration_rate_limit.
+    registration_rate_limit_per_hour: int = 5
+
     app_base_url: str = "https://collabrains.eu"
     # Browser CORS only matters for cross-origin callers -- production traffic
     # goes through Caddy same-origin (see infra/caddy/Caddyfile) and never hits
@@ -89,6 +95,19 @@ class Settings(BaseSettings):
     # called) in local dev/CI/test where no DSN is configured. See ADR 0072.
     sentry_dsn: str = ""
     sentry_environment: str = "development"
+
+    # Priority 3 commercial SaaS (ADR 0074). Empty by default -- billing_router.py's
+    # checkout/portal/webhook endpoints all fail fast with a clear 503 rather than
+    # calling Stripe with an empty key, same "stay inert until configured" contract
+    # smtp_host/sentry_dsn already use. Price IDs are looked up per plan rather than
+    # hardcoded so a Stripe *test* vs *live* mode account, or a repriced plan, is a
+    # config change, not a code change. Enterprise stays sales-assisted (Landing.tsx's
+    # existing mailto: CTA) -- no self-serve price ID for it.
+    stripe_secret_key: str = ""
+    stripe_publishable_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_price_id_starter: str = ""
+    stripe_price_id_pro: str = ""
 
 
 settings = Settings()

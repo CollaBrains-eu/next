@@ -1,6 +1,6 @@
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   Sparkles,
@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useClickOutside } from "../hooks/useClickOutside";
 import { useEscapeToClose } from "../hooks/useEscapeToClose";
+import { setPendingPlan } from "../lib/pendingPlan";
 
 const SUPPORTED_LANGUAGES = [
   { code: "en", label: "English" },
@@ -226,6 +227,8 @@ export default function Landing() {
       features: [t("landing.planEarlyFeature1"), t("landing.planEarlyFeature2"), t("landing.planEarlyFeature3")],
       cta: t("landing.planEarlyCta"),
       highlighted: true,
+      // Free tier -- no Stripe plan behind it, just register.
+      planId: null,
     },
     {
       name: t("landing.planStarterName"),
@@ -236,6 +239,7 @@ export default function Landing() {
       features: [t("landing.planStarterFeature1"), t("landing.planStarterFeature2"), t("landing.planStarterFeature3")],
       cta: t("landing.planStarterCta"),
       highlighted: false,
+      planId: "starter",
     },
     {
       name: t("landing.planProName"),
@@ -251,6 +255,7 @@ export default function Landing() {
       ],
       cta: t("landing.planProCta"),
       highlighted: false,
+      planId: "pro",
     },
   ];
 
@@ -273,6 +278,15 @@ export default function Landing() {
 
   function goToLogin() {
     navigate("/login");
+  }
+
+  // Anonymous visitors evaluating pricing don't have an account yet -- send
+  // them to self-service signup (ADR 0074), not the login form. A paid-plan
+  // choice is remembered (lib/pendingPlan.ts) so checkout can pick up right
+  // where they left off once their account exists.
+  function goToRegister(planId?: string | null) {
+    if (planId) setPendingPlan(planId);
+    navigate("/register");
   }
 
   return (
@@ -339,7 +353,7 @@ export default function Landing() {
             transition={{ duration: 0.7, delay: 0.3 }}
             className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center"
           >
-            <MagneticButton onClick={goToLogin}>
+            <MagneticButton onClick={() => goToRegister()}>
               {t("landing.ctaPrimary")} <ChevronRight className="h-4 w-4" />
             </MagneticButton>
           </motion.div>
@@ -498,12 +512,12 @@ export default function Landing() {
                   ))}
                 </ul>
                 {plan.highlighted ? (
-                  <MagneticButton onClick={goToLogin} className="w-full justify-center">
+                  <MagneticButton onClick={() => goToRegister(plan.planId)} className="w-full justify-center">
                     {plan.cta}
                   </MagneticButton>
                 ) : (
                   <button
-                    onClick={goToLogin}
+                    onClick={() => goToRegister(plan.planId)}
                     className="w-full rounded-full border border-zinc-700 px-7 py-3.5 text-sm font-semibold text-white transition-colors hover:border-zinc-500"
                   >
                     {plan.cta}
@@ -562,13 +576,32 @@ export default function Landing() {
           <GradientOrb className="-top-20 -right-20 h-64 w-64 bg-violet-400/30" />
           <h2 className="relative mb-4 text-3xl font-bold text-white">{t("landing.ctaTitle")}</h2>
           <p className="relative mb-8 text-violet-200">{t("landing.ctaSubtitle")}</p>
-          <MagneticButton onClick={goToLogin}>
+          <MagneticButton onClick={() => goToRegister()}>
             {t("landing.ctaPrimary")} <ChevronRight className="h-4 w-4" />
           </MagneticButton>
         </div>
       </Section>
 
-      <footer className="border-t border-zinc-800 px-6 py-8 text-center text-sm text-zinc-500">{t("landing.footer")}</footer>
+      <footer className="border-t border-zinc-800 px-6 py-8 text-center text-sm text-zinc-500">
+        <p>{t("landing.footer")}</p>
+        <nav className="mt-3 flex items-center justify-center gap-4">
+          <Link to="/privacy" className="hover:text-zinc-300">
+            {t("legalDocs.privacy.title")}
+          </Link>
+          <Link to="/terms" className="hover:text-zinc-300">
+            {t("legalDocs.terms.title")}
+          </Link>
+          <Link to="/cookies" className="hover:text-zinc-300">
+            {t("legalDocs.cookies.title")}
+          </Link>
+          <Link to="/support" className="hover:text-zinc-300">
+            {t("support.title")}
+          </Link>
+          <Link to="/changelog" className="hover:text-zinc-300">
+            {t("changelog.title")}
+          </Link>
+        </nav>
+      </footer>
     </div>
   );
 }

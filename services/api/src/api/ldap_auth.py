@@ -78,6 +78,45 @@ def authenticate(username: str, password: str) -> LdapIdentity | None:
         conn.unbind()
 
 
+def _add_ldap_person(conn: Connection, *, username: str, display_name: str, email: str, password_hash: str) -> str:
+    """Shared by create_user (admin flow, random password) and register_user
+    (self-service flow, ADR 0074, user-chosen password already hashed by
+    the caller) -- both need the identical directory entry, differing only
+    in where the password comes from. Returns the new entry's DN."""
+    conn.search(
+        search_base=f"ou=people,{settings.ldap_base_dn}",
+        search_filter="(objectClass=posixAccount)",
+        attributes=["uidNumber"],
+    )
+    existing_uid_numbers = [int(entry.uidNumber.value) for entry in conn.entries]
+    next_uid = max(existing_uid_numbers, default=10000) + 1
+
+    user_dn = settings.ldap_bind_dn_template.format(username=username)
+    name_parts = display_name.strip().split(" ", 1)
+    given_name = name_parts[0]
+    surname = name_parts[1] if len(name_parts) > 1 else name_parts[0]
+
+    added = conn.add(
+        user_dn,
+        ["inetOrgPerson", "posixAccount", "shadowAccount"],
+        {
+            "uid": username,
+            "sn": surname,
+            "givenName": given_name,
+            "cn": display_name,
+            "displayName": display_name,
+            "uidNumber": next_uid,
+            "gidNumber": next_uid,
+            "homeDirectory": f"/home/{username}",
+            "mail": email,
+            "userPassword": password_hash,
+        },
+    )
+    if not added:
+        raise LdapAdminError(conn.result.get("description", "LDAP add failed"))
+    return user_dn
+
+
 def create_user(*, username: str, display_name: str, email: str, is_admin: bool) -> LdapUserCreated:
     """Create a new LDAP user (Admin Dashboard "add user"). Generates a
     temporary password and returns it -- there's no email-delivery
@@ -92,40 +131,14 @@ def create_user(*, username: str, display_name: str, email: str, is_admin: bool)
         raise LdapAdminError("could not bind as LDAP admin")
 
     try:
-        conn.search(
-            search_base=f"ou=people,{settings.ldap_base_dn}",
-            search_filter="(objectClass=posixAccount)",
-            attributes=["uidNumber"],
-        )
-        existing_uid_numbers = [int(entry.uidNumber.value) for entry in conn.entries]
-        next_uid = max(existing_uid_numbers, default=10000) + 1
-
-        user_dn = settings.ldap_bind_dn_template.format(username=username)
         temporary_password = secrets.token_urlsafe(12)
-        password_hash = hashed(HASHED_SALTED_SHA, temporary_password)
-
-        name_parts = display_name.strip().split(" ", 1)
-        given_name = name_parts[0]
-        surname = name_parts[1] if len(name_parts) > 1 else name_parts[0]
-
-        added = conn.add(
-            user_dn,
-            ["inetOrgPerson", "posixAccount", "shadowAccount"],
-            {
-                "uid": username,
-                "sn": surname,
-                "givenName": given_name,
-                "cn": display_name,
-                "displayName": display_name,
-                "uidNumber": next_uid,
-                "gidNumber": next_uid,
-                "homeDirectory": f"/home/{username}",
-                "mail": email,
-                "userPassword": password_hash,
-            },
+        user_dn = _add_ldap_person(
+            conn,
+            username=username,
+            display_name=display_name,
+            email=email,
+            password_hash=hashed(HASHED_SALTED_SHA, temporary_password),
         )
-        if not added:
-            raise LdapAdminError(conn.result.get("description", "LDAP add failed"))
 
         if is_admin:
             conn.modify(settings.ldap_admin_group_dn, {"member": [(MODIFY_ADD, [user_dn])]})
@@ -135,6 +148,26 @@ def create_user(*, username: str, display_name: str, email: str, is_admin: bool)
                 )
 
         return LdapUserCreated(username=username, temporary_password=temporary_password)
+    finally:
+        conn.unbind()
+
+
+def register_user(*, username: str, display_name: str, email: str, password_hash: str) -> None:
+    """Self-service signup (Priority 3, ADR 0074). The password is already
+    chosen by the user and pre-hashed by the caller
+    (registration_service.hash_password) at registration time, before the
+    email is even confirmed reachable -- so there's no temporary password
+    to generate, relay, or return here. Raises LdapAdminError on any
+    directory failure, including "username already exists"."""
+    admin_dn = f"cn=admin,{settings.ldap_base_dn}"
+    server = Server(settings.ldap_url)
+    conn = Connection(server, user=admin_dn, password=settings.ldap_admin_password)
+
+    if not conn.bind():
+        raise LdapAdminError("could not bind as LDAP admin")
+
+    try:
+        _add_ldap_person(conn, username=username, display_name=display_name, email=email, password_hash=password_hash)
     finally:
         conn.unbind()
 

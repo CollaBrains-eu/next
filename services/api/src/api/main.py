@@ -10,6 +10,7 @@ from sqlalchemy import text
 from api import tools as _tools  # noqa: F401 - import side effect: registers built-in tools (ADR 0021)
 from api.activity_router import router as activity_router
 from api.admin_router import router as admin_router
+from api.billing_router import router as billing_router
 from api.appointments import router as appointments_router
 from api.auth import router as auth_router
 from api.cases_router import router as cases_router
@@ -22,6 +23,7 @@ from api.decisions import router as decisions_router
 from api.documents import router as documents_router, search_router
 from api.entities import router as entities_router
 from api.facts_router import router as facts_router
+from api.invitations_router import router as invitations_router
 from api.feedback_router import router as feedback_router
 from api.learning_router import router as learning_router
 from api.legal import router as legal_router
@@ -86,6 +88,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
     return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 app.include_router(admin_router)
+app.include_router(billing_router)
 app.include_router(auth_router)
 app.include_router(cases_router)
 app.include_router(categories_router)
@@ -97,6 +100,7 @@ app.include_router(legal_router)
 app.include_router(tasks_router)
 app.include_router(entities_router)
 app.include_router(facts_router)
+app.include_router(invitations_router)
 app.include_router(memories_router)
 app.include_router(plans_router)
 app.include_router(tools_router)

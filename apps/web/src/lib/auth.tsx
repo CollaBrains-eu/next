@@ -20,6 +20,7 @@ interface AuthContextValue {
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
   loginWithPasskey: () => Promise<void>;
+  loginWithToken: (token: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -74,13 +75,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await refreshUser();
   }, [refreshUser]);
 
+  // Shared by Register/VerifyEmail/InvitationLanding (Priority 3, ADR 0074):
+  // those endpoints already return a fresh access_token directly (same
+  // contract as /auth/token), so there's no separate credential exchange
+  // step here, unlike login()/loginWithPasskey().
+  const loginWithToken = useCallback(
+    async (token: string) => {
+      setToken(token);
+      await refreshUser();
+    },
+    [refreshUser],
+  );
+
   const logout = useCallback(() => {
     clearToken();
     setUser(null);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, loginWithPasskey, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, login, loginWithPasskey, loginWithToken, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

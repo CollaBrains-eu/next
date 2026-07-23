@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Settings from "./Settings";
 import { AuthProvider } from "../lib/auth";
@@ -16,6 +17,12 @@ vi.mock("../lib/api", async () => {
     listOrganizationMembers: vi.fn(),
     renameOrganization: vi.fn(),
     setOrganizationPolicies: vi.fn(),
+    inviteOrganizationMember: vi.fn(),
+    listOrganizationInvitations: vi.fn(),
+    revokeOrganizationInvitation: vi.fn(),
+    getSubscription: vi.fn(),
+    createCheckoutSession: vi.fn(),
+    createPortalSession: vi.fn(),
   };
 });
 
@@ -24,13 +31,15 @@ const MEMBERS = [
   { id: "u2", username: "badmin", display_name: "B Admin", role: "admin" },
 ];
 
-function renderPage() {
+function renderPage(path = "/settings") {
   return render(
-    <AuthProvider>
-      <ToastProvider>
-        <Settings />
-      </ToastProvider>
-    </AuthProvider>
+    <MemoryRouter initialEntries={[path]}>
+      <AuthProvider>
+        <ToastProvider>
+          <Settings />
+        </ToastProvider>
+      </AuthProvider>
+    </MemoryRouter>
   );
 }
 
@@ -58,11 +67,16 @@ describe("Settings", () => {
     });
     vi.mocked(api.getOrganization).mockResolvedValue({
       id: "org1", name: "Acme Legal", policies: { approval_required_goals: ["draft_legal_document"] },
+      is_org_admin: false,
     });
     vi.mocked(api.listOrganizationMembers).mockResolvedValue(MEMBERS);
-    vi.mocked(api.renameOrganization).mockResolvedValue({ id: "org1", name: "Renamed Inc", policies: {} });
+    vi.mocked(api.renameOrganization).mockResolvedValue({ id: "org1", name: "Renamed Inc", policies: {}, is_org_admin: true });
     vi.mocked(api.setOrganizationPolicies).mockResolvedValue({
-      id: "org1", name: "Acme Legal", policies: { approval_required_goals: ["summarize_case"] },
+      id: "org1", name: "Acme Legal", policies: { approval_required_goals: ["summarize_case"] }, is_org_admin: true,
+    });
+    vi.mocked(api.listOrganizationInvitations).mockResolvedValue([]);
+    vi.mocked(api.getSubscription).mockResolvedValue({
+      plan: null, status: null, current_period_end: null, cancel_at_period_end: false,
     });
   });
 
@@ -122,6 +136,10 @@ describe("Settings", () => {
         username: "admin1", display_name: "Admin One", email: null, role: "admin",
         phone_number: null, phone_prompt_dismissed: true,
       });
+      vi.mocked(api.getOrganization).mockResolvedValue({
+        id: "org1", name: "Acme Legal", policies: { approval_required_goals: ["draft_legal_document"] },
+        is_org_admin: true,
+      });
       renderPage();
       expect(await screen.findByLabelText("Name")).toHaveValue("Acme Legal");
       expect(screen.getByText("Goals requiring approval")).toBeInTheDocument();
@@ -133,6 +151,10 @@ describe("Settings", () => {
         username: "admin1", display_name: "Admin One", email: null, role: "admin",
         phone_number: null, phone_prompt_dismissed: true,
       });
+      vi.mocked(api.getOrganization).mockResolvedValue({
+        id: "org1", name: "Acme Legal", policies: { approval_required_goals: ["draft_legal_document"] },
+        is_org_admin: true,
+      });
       renderPage();
       const nameField = await screen.findByLabelText("Name");
       fireEvent.change(nameField, { target: { value: "Renamed Inc" } });
@@ -143,6 +165,118 @@ describe("Settings", () => {
       await waitFor(() => expect(api.renameOrganization).toHaveBeenCalledWith("Renamed Inc"));
       expect(api.setOrganizationPolicies).toHaveBeenCalledWith({ approval_required_goals: ["draft_legal_document"] });
       expect(await screen.findByText("Organization settings saved.")).toBeInTheDocument();
+    });
+
+    it("does not show the invite-a-teammate form to a non-admin", async () => {
+      renderPage();
+      await screen.findByText("Acme Legal");
+      expect(screen.queryByLabelText("Invite a teammate")).not.toBeInTheDocument();
+    });
+
+    it("lets an admin send an invitation and see it in the pending list", async () => {
+      vi.mocked(api.fetchMe).mockResolvedValue({
+        username: "admin1", display_name: "Admin One", email: null, role: "admin",
+        phone_number: null, phone_prompt_dismissed: true,
+      });
+      vi.mocked(api.getOrganization).mockResolvedValue({
+        id: "org1", name: "Acme Legal", policies: { approval_required_goals: ["draft_legal_document"] },
+        is_org_admin: true,
+      });
+      vi.mocked(api.inviteOrganizationMember).mockResolvedValue({
+        id: "inv1", email: "new@example.com", created_at: "2026-01-01T00:00:00Z", expires_at: "2026-01-08T00:00:00Z",
+      });
+      renderPage();
+
+      const emailField = await screen.findByLabelText("Invite a teammate");
+      fireEvent.change(emailField, { target: { value: "new@example.com" } });
+      fireEvent.click(screen.getByRole("button", { name: "Send invite" }));
+
+      await waitFor(() => expect(api.inviteOrganizationMember).toHaveBeenCalledWith("new@example.com"));
+      expect(await screen.findByText("new@example.com")).toBeInTheDocument();
+    });
+
+    it("lets an admin revoke a pending invitation", async () => {
+      vi.mocked(api.fetchMe).mockResolvedValue({
+        username: "admin1", display_name: "Admin One", email: null, role: "admin",
+        phone_number: null, phone_prompt_dismissed: true,
+      });
+      vi.mocked(api.getOrganization).mockResolvedValue({
+        id: "org1", name: "Acme Legal", policies: { approval_required_goals: ["draft_legal_document"] },
+        is_org_admin: true,
+      });
+      vi.mocked(api.listOrganizationInvitations).mockResolvedValue([
+        { id: "inv1", email: "pending@example.com", created_at: "2026-01-01T00:00:00Z", expires_at: "2026-01-08T00:00:00Z" },
+      ]);
+      vi.mocked(api.revokeOrganizationInvitation).mockResolvedValue(undefined);
+      renderPage();
+
+      await screen.findByText("pending@example.com");
+      fireEvent.click(screen.getByRole("button", { name: "Revoke" }));
+
+      await waitFor(() => expect(api.revokeOrganizationInvitation).toHaveBeenCalledWith("inv1"));
+      await waitFor(() => expect(screen.queryByText("pending@example.com")).not.toBeInTheDocument());
+    });
+  });
+
+  describe("Billing section", () => {
+    it("shows no active plan for a fresh organization", async () => {
+      renderPage();
+      expect(await screen.findByText("No active plan yet.")).toBeInTheDocument();
+    });
+
+    it("shows the active plan and status for an organization with a subscription", async () => {
+      vi.mocked(api.getSubscription).mockResolvedValue({
+        plan: "pro", status: "active", current_period_end: "2026-02-01T00:00:00Z", cancel_at_period_end: false,
+      });
+      renderPage();
+      expect(await screen.findByText("Current plan: pro")).toBeInTheDocument();
+      expect(screen.getByText("active")).toBeInTheDocument();
+    });
+
+    it("lets an admin start checkout for a plan", async () => {
+      vi.mocked(api.fetchMe).mockResolvedValue({
+        username: "admin1", display_name: "Admin One", email: null, role: "admin",
+        phone_number: null, phone_prompt_dismissed: true,
+      });
+      vi.mocked(api.getOrganization).mockResolvedValue({
+        id: "org1", name: "Acme Legal", policies: { approval_required_goals: ["draft_legal_document"] },
+        is_org_admin: true,
+      });
+      vi.mocked(api.createCheckoutSession).mockResolvedValue("https://checkout.stripe.com/fake");
+      renderPage();
+
+      const proButton = await screen.findByRole("button", { name: "Choose Pro" });
+      fireEvent.click(proButton);
+
+      await waitFor(() => expect(api.createCheckoutSession).toHaveBeenCalledWith("pro"));
+    });
+
+    it("does not show checkout/manage buttons to a plain member", async () => {
+      renderPage();
+      await screen.findByText("No active plan yet.");
+      expect(screen.queryByRole("button", { name: "Choose Pro" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Choose Starter" })).not.toBeInTheDocument();
+    });
+
+    it("auto-starts checkout for a plan carried in via ?checkout= for an org admin", async () => {
+      vi.mocked(api.fetchMe).mockResolvedValue({
+        username: "admin1", display_name: "Admin One", email: null, role: "admin",
+        phone_number: null, phone_prompt_dismissed: true,
+      });
+      vi.mocked(api.getOrganization).mockResolvedValue({
+        id: "org1", name: "Acme Legal", policies: { approval_required_goals: ["draft_legal_document"] },
+        is_org_admin: true,
+      });
+      vi.mocked(api.createCheckoutSession).mockResolvedValue("https://checkout.stripe.com/fake");
+      renderPage("/settings?checkout=pro");
+
+      await waitFor(() => expect(api.createCheckoutSession).toHaveBeenCalledWith("pro"));
+    });
+
+    it("does not auto-start checkout from ?checkout= for a plain member", async () => {
+      renderPage("/settings?checkout=pro");
+      await screen.findByText("No active plan yet.");
+      expect(api.createCheckoutSession).not.toHaveBeenCalled();
     });
   });
 });

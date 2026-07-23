@@ -1,10 +1,13 @@
 """Organization policy endpoints (Phase 14, ADR 0029).
 
-admin-role-only: reuses User.role (ADR 0001) rather than a new
-org-specific role, since nothing yet distinguishes "admin of this org"
-from platform-wide admin -- that's part of the RBAC 2.0 work this phase
-doesn't build.
+Gated by platform-wide admin (User.role, ADR 0001) OR the org's own
+`owner_user_id` (ADR 0074, Priority 3) -- the latter lets a self-service
+signup manage the org they created without granting them the LDAP-wide
+Admin Dashboard. Still not real per-org RBAC (no separate "member" vs
+"admin-of-this-org" distinction beyond a single owner) -- that's the
+RBAC 2.0 work this phase doesn't build.
 """
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -12,13 +15,23 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.auth import get_current_user
+from api.auth import EMAIL_PATTERN, get_current_user
 from api.db import get_db
-from api.models import Organization, User
+from api.invitation_service import (
+    create_invitation,
+    get_pending_invitation_for_email,
+    is_already_a_member,
+    list_pending_invitations,
+    refresh_invitation,
+    revoke_invitation,
+    send_invitation_email,
+)
+from api.models import Invitation, Organization, User
 from api.organizations import (
     get_organization_for_user,
     list_organization_members,
     rename_organization,
+    require_org_admin,
     set_organization_policies,
 )
 
@@ -33,11 +46,17 @@ class OrganizationOut(BaseModel):
     id: UUID
     name: str
     policies: dict[str, Any]
+    # Lets the frontend show admin controls (rename, policies, invitations,
+    # billing) to an org owner too, not just a platform-wide admin -- role
+    # alone (User.role) can't answer this, see require_org_admin's docstring.
+    is_org_admin: bool
 
 
-def _require_admin(current_user: User) -> None:
-    if current_user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required")
+def _organization_out(organization: Organization, current_user: User) -> OrganizationOut:
+    is_org_admin = current_user.role == "admin" or organization.owner_user_id == current_user.id
+    return OrganizationOut(
+        id=organization.id, name=organization.name, policies=organization.policies, is_org_admin=is_org_admin
+    )
 
 
 async def _get_org_or_404(db: AsyncSession, current_user: User) -> Organization:
@@ -53,7 +72,7 @@ async def get_my_organization(
     current_user: User = Depends(get_current_user),
 ) -> OrganizationOut:
     organization = await _get_org_or_404(db, current_user)
-    return OrganizationOut(id=organization.id, name=organization.name, policies=organization.policies)
+    return _organization_out(organization, current_user)
 
 
 @router.put("/me/policies", response_model=OrganizationOut)
@@ -62,10 +81,10 @@ async def set_my_organization_policies(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> OrganizationOut:
-    _require_admin(current_user)
     organization = await _get_org_or_404(db, current_user)
+    require_org_admin(current_user, organization)
     updated = await set_organization_policies(db, organization_id=organization.id, policies=request.policies)
-    return OrganizationOut(id=updated.id, name=updated.name, policies=updated.policies)
+    return _organization_out(updated, current_user)
 
 
 class OrganizationMemberOut(BaseModel):
@@ -94,7 +113,81 @@ async def rename_my_organization(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> OrganizationOut:
-    _require_admin(current_user)
     organization = await _get_org_or_404(db, current_user)
+    require_org_admin(current_user, organization)
     updated = await rename_organization(db, organization_id=organization.id, name=body.name)
-    return OrganizationOut(id=updated.id, name=updated.name, policies=updated.policies)
+    return _organization_out(updated, current_user)
+
+
+class InvitationCreateIn(BaseModel):
+    email: str
+
+
+class InvitationOut(BaseModel):
+    id: UUID
+    email: str
+    created_at: datetime
+    expires_at: datetime
+
+
+def _invitation_out(invitation: Invitation) -> InvitationOut:
+    return InvitationOut(
+        id=invitation.id, email=invitation.email, created_at=invitation.created_at, expires_at=invitation.expires_at
+    )
+
+
+@router.post("/me/invitations", response_model=InvitationOut, status_code=status.HTTP_201_CREATED)
+async def invite_organization_member(
+    body: InvitationCreateIn,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> InvitationOut:
+    """Sends (or, for a still-pending invite to the same address, resends)
+    an org invitation by email -- the "invite a stranger" gap ADR 0074
+    found missing from cases_router.py/workspace_router.py, which both
+    require the invitee to already be a provisioned platform user."""
+    organization = await _get_org_or_404(db, current_user)
+    require_org_admin(current_user, organization)
+
+    email = body.email.strip().lower()
+    if not EMAIL_PATTERN.match(email):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Enter a valid email address")
+
+    if await is_already_a_member(db, organization_id=organization.id, email=email):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This person is already a member")
+
+    existing = await get_pending_invitation_for_email(db, organization_id=organization.id, email=email)
+    invitation = (
+        await refresh_invitation(db, invitation=existing)
+        if existing is not None
+        else await create_invitation(
+            db, organization_id=organization.id, email=email, invited_by_user_id=current_user.id
+        )
+    )
+
+    await send_invitation_email(invitation=invitation, organization_name=organization.name)
+    return _invitation_out(invitation)
+
+
+@router.get("/me/invitations", response_model=list[InvitationOut])
+async def list_organization_invitations(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[InvitationOut]:
+    organization = await _get_org_or_404(db, current_user)
+    require_org_admin(current_user, organization)
+    invitations = await list_pending_invitations(db, organization_id=organization.id)
+    return [_invitation_out(invitation) for invitation in invitations]
+
+
+@router.delete("/me/invitations/{invitation_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def revoke_organization_invitation(
+    invitation_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    organization = await _get_org_or_404(db, current_user)
+    require_org_admin(current_user, organization)
+    invitation = await revoke_invitation(db, invitation_id=invitation_id, organization_id=organization.id)
+    if invitation is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invitation not found")

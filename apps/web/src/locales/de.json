@@ -431,6 +431,66 @@
     "drafting": "Wird entworfen…",
     "loadError": "Entwurfsanfrage fehlgeschlagen"
   },
+  "legalDocs": {
+    "backToHome": "Zurück zur Startseite",
+    "placeholderNoticeTitle": "Diese Seite ist ein Platzhalter",
+    "placeholderNoticeBody": "CollaBrains hat noch keine rechtlich geprüfte Version dieses Dokuments veröffentlicht. Die folgenden Abschnittsüberschriften zeigen, was es letztendlich abdecken wird; keiner der Texte auf dieser Seite ist eine verbindliche rechtliche Verpflichtung. Fragen in der Zwischenzeit? Kontaktieren Sie info@collabrains.eu.",
+    "sectionPending": "Inhalt wartet auf rechtliche Prüfung.",
+    "privacy": {
+      "title": "Datenschutzerklärung",
+      "sections": [
+        "Welche Daten wir erheben",
+        "Wie wir Ihre Daten verwenden",
+        "Speicherdauer der Daten",
+        "Ihre Rechte",
+        "Kontakt"
+      ]
+    },
+    "terms": {
+      "title": "Nutzungsbedingungen",
+      "sections": [
+        "Annahme dieser Bedingungen",
+        "Nutzung von CollaBrains",
+        "Abonnements und Abrechnung",
+        "Kündigung",
+        "Haftungsbeschränkung",
+        "Kontakt"
+      ]
+    },
+    "cookies": {
+      "title": "Cookie-Richtlinie",
+      "sections": [
+        "Welche Cookies wir verwenden",
+        "Warum wir sie verwenden",
+        "Ihre Einstellungen verwalten",
+        "Kontakt"
+      ]
+    }
+  },
+  "support": {
+    "title": "Support",
+    "body": "Haben Sie eine Frage, einen Fehler gefunden oder benötigen Sie Hilfe mit Ihrem Konto? Schreiben Sie uns eine E-Mail, und eine echte Person meldet sich bei Ihnen.",
+    "emailCta": "E-Mail an info@collabrains.eu",
+    "changelogLink": "Neuigkeiten ansehen"
+  },
+  "changelog": {
+    "title": "Änderungsprotokoll",
+    "intro": "Aktuelle Veröffentlichungen. Dieses Protokoll beginnt mit Priorität 1 unserer SaaS-Readiness-Roadmap -- es ist keine vollständige Historie aller jemals veröffentlichten CollaBrains-Funktionen.",
+    "entries": {
+      "priority3": {
+        "title": "Selbstregistrierung, Team-Einladungen und Abonnement-Abrechnung",
+        "body": "Jeder kann jetzt seinen eigenen CollaBrains-Arbeitsbereich erstellen, Teammitglieder per E-Mail einladen und ein kostenpflichtiges Abonnement abschließen -- ganz ohne Administrator."
+      },
+      "priority2": {
+        "title": "CI/CD, automatisierte Tests und Fehlerüberwachung",
+        "body": "Jede Änderung durchläuft jetzt eine automatisierte Testsuite und End-to-End-Browsertests, bevor sie veröffentlicht wird, und wir werden automatisch benachrichtigt, wenn in der Produktion etwas schiefgeht."
+      },
+      "priority1": {
+        "title": "Sicherheit und Barrierefreiheit verbessert",
+        "body": "Verbesserter Farbkontrast für bessere Lesbarkeit, strengere Sicherheits-Header und verschlüsselte Backups."
+      }
+    }
+  },
   "assistant": {
     "hint": "Bitten Sie den Assistenten, etwas zu erledigen — er kann selbstständig Tools auswählen und aufrufen, im Gegensatz zum KI-Chat, der nur auf Basis Ihrer Dokumente antwortet.",
     "inputPlaceholder": "Fragen Sie den Assistenten…",
@@ -518,7 +578,34 @@
     "passkeyLogin": "Mit Passkey anmelden",
     "passkeySubmitting": "Warten auf Passkey…",
     "passkeyLoginError": "Anmeldung mit Passkey fehlgeschlagen",
-    "orDivider": "oder"
+    "orDivider": "oder",
+    "noAccountYet": "Noch kein Konto?",
+    "alreadyHaveAccount": "Haben Sie bereits ein Konto?",
+    "email": "E-Mail-Adresse",
+    "displayName": "Vollständiger Name",
+    "organizationName": "Name der Organisation",
+    "organizationNamePlaceholder": "z. B. Acme Legal",
+    "registerTitle": "Konto erstellen",
+    "registerSubtitle": "Richten Sie Ihren eigenen CollaBrains-Arbeitsbereich ein.",
+    "registerInvitedSubtitle": "Treten Sie {{org}} auf CollaBrains bei.",
+    "registerSubmit": "Konto erstellen",
+    "registerSubmitting": "Konto wird erstellt…",
+    "registerError": "Konto konnte nicht erstellt werden",
+    "registerCheckEmailTitle": "Überprüfen Sie Ihre E-Mails",
+    "registerCheckEmailBody": "Wir haben einen Bestätigungslink an {{email}} gesendet. Klicken Sie darauf, um Ihr Konto zu aktivieren.",
+    "registerEmailNotSentBody": "Ihr Konto wurde erstellt, aber die Bestätigungs-E-Mail konnte nicht gesendet werden. Wenden Sie sich an Ihren Administrator, um es zu aktivieren.",
+    "verifyingEmail": "E-Mail-Adresse wird überprüft…",
+    "verifyEmailErrorTitle": "Link nicht mehr gültig",
+    "verifyEmailErrorBody": "Dieser Bestätigungslink ist abgelaufen oder wurde bereits verwendet. Sie können einen neuen anfordern, indem Sie sich erneut registrieren.",
+    "invitationTitle": "{{org}} beitreten",
+    "invitationBody": "Sie wurden eingeladen, als {{email}} beizutreten.",
+    "invitationAccept": "Einladung annehmen",
+    "invitationAccepting": "Wird beigetreten…",
+    "invitationAcceptError": "Diese Einladung konnte nicht angenommen werden",
+    "invitationLogInToAccept": "Zum Annehmen anmelden",
+    "invitationCreateAccount": "Konto erstellen",
+    "invitationInvalidTitle": "Einladung nicht mehr gültig",
+    "invitationInvalidBody": "Diese Einladung ist abgelaufen, wurde widerrufen oder bereits angenommen."
   },
   "onboard": {
     "welcomeTitle": "Willkommen, {{name}}",
@@ -581,7 +668,24 @@
       "draft_communication": "Nachricht entwerfen",
       "organize_document_collection": "Dokumentensammlung organisieren",
       "generate_timeline": "Zeitleiste erstellen"
-    }
+    },
+    "orgInviteLabel": "Teammitglied einladen",
+    "orgInvitePlaceholder": "kollege@beispiel.de",
+    "orgInviteButton": "Einladung senden",
+    "orgInviteSubmitting": "Wird gesendet…",
+    "orgInviteSent": "Einladung gesendet.",
+    "orgInviteError": "Einladung konnte nicht gesendet werden",
+    "orgRevokeInvitation": "Widerrufen",
+    "billingTitle": "Abrechnung",
+    "billingLoadError": "Abrechnungsinformationen konnten nicht geladen werden",
+    "billingNoPlan": "Noch kein aktives Abonnement.",
+    "billingCurrentPlan": "Aktuelles Abonnement: {{plan}}",
+    "billingChooseStarter": "Starter wählen",
+    "billingChoosePro": "Pro wählen",
+    "billingManage": "Abrechnung verwalten",
+    "billingRedirecting": "Wird weitergeleitet…",
+    "billingCheckoutError": "Bezahlvorgang konnte nicht gestartet werden",
+    "billingPortalError": "Abrechnungsportal konnte nicht geöffnet werden"
   },
   "phonePrompt": {
     "title": "Telefonnummer festlegen",
