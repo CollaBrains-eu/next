@@ -100,7 +100,8 @@ async def test_document_uploaded_and_deleted_are_logged(client):
     # the entity-existence check every entity_type branch shares) -- activity
     # for a deleted entity isn't independently browsable, which is fine since
     # the frontend Drawer closes and navigates away on delete anyway.
-    delete_response = await client.delete(f"/documents/{document_id}", headers=headers)
+    with patch("api.documents.paperless_delete", return_value=None):
+        delete_response = await client.delete(f"/documents/{document_id}", headers=headers)
     assert delete_response.status_code == 204
     after_delete = await client.get(
         "/activity", params={"entity_type": "document", "entity_id": document_id}, headers=headers

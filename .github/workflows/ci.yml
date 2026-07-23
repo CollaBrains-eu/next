@@ -183,6 +183,11 @@ jobs:
       LDAP_BIND_DN_TEMPLATE: "uid={username},ou=people,dc=collabrains,dc=eu"
       LDAP_ADMIN_GROUP_DN: cn=collabrains-admins,ou=groups,dc=collabrains,dc=eu
       LDAP_ADMIN_PASSWORD: ci-test-ldap-admin-pw
+      # The built frontend is served on 4173 (vite preview), not the 5173
+      # dev-server port CORS_ALLOWED_ORIGINS defaults to -- without this, every
+      # browser call the Playwright suite makes to the API is CORS-blocked,
+      # fetchMe() fails, and every authenticated page bounces to /login.
+      CORS_ALLOWED_ORIGINS: http://localhost:4173
     steps:
       - uses: actions/checkout@v4
 
@@ -198,10 +203,45 @@ jobs:
             -e LDAP_BASE_DN="$LDAP_BASE_DN" -e LDAP_ADMIN_PASSWORD="$LDAP_ADMIN_PASSWORD" \
             -v "${{ github.workspace }}/infra/ldap/bootstrap:/ldifs:ro" \
             ci-openldap
+          # entrypoint.sh has a two-phase startup on first boot: a temporary
+          # slapd comes up to seed the bootstrap LDIFs, gets killed, then the
+          # real foreground one starts. A plain "does ldapsearch succeed"
+          # check can catch the *first* instance and report ready right
+          # before it's killed and restarted -- confirmed live (PR #109's
+          # first CI run: this step finished in under a second, then the
+          # user-creation step got Connection refused). Wait for the log
+          # line that only appears once the real instance is about to exec.
+          ready=false
           for i in $(seq 1 30); do
-            docker exec ci-openldap ldapsearch -x -H ldap:/// -s base -b "" >/dev/null 2>&1 && break
+            if docker logs ci-openldap 2>&1 | grep -q "starting slapd in foreground"; then
+              ready=true
+              break
+            fi
             sleep 1
           done
+          echo "log-marker wait: ready=$ready"
+          if [ "$ready" != "true" ]; then
+            echo "::error::openldap never logged 'starting slapd in foreground' within 30s"
+            docker ps -a
+            docker logs ci-openldap 2>&1
+            exit 1
+          fi
+          bound=false
+          for i in $(seq 1 15); do
+            if docker exec ci-openldap ldapsearch -x -H ldap:/// -s base -b "" >/dev/null 2>&1; then
+              bound=true
+              break
+            fi
+            sleep 1
+          done
+          echo "ldapsearch wait: bound=$bound"
+          if [ "$bound" != "true" ]; then
+            echo "::error::ldapsearch never succeeded within 15s of the log marker appearing"
+            docker ps -a
+            docker logs ci-openldap 2>&1
+            exit 1
+          fi
+          docker logs ci-openldap 2>&1 | tail -20
 
       - uses: actions/setup-python@v5
         with:

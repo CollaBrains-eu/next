@@ -210,8 +210,8 @@ export default function Workspace() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold text-ink">{t("documents.title")}</h1>
           {sharedWorkspaces.length > 0 && (
             <select
@@ -229,7 +229,7 @@ export default function Workspace() {
             </select>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {(!viewingSharedWorkspace || activeSharedWorkspace?.can_export) && (
             <Button variant="secondary" onClick={handleExportCsv} disabled={exporting}>
               {t("documents.exportCsv")}
@@ -239,7 +239,7 @@ export default function Workspace() {
         </div>
       </div>
 
-      <form onSubmit={handleSearch} className="flex items-end gap-2">
+      <form onSubmit={handleSearch} className="flex flex-col gap-2 sm:flex-row sm:items-end">
         <div className="flex-1">
           <TextField
             label={t("documents.searchLabel")}
@@ -248,21 +248,23 @@ export default function Workspace() {
             placeholder={t("documents.searchPlaceholder")}
           />
         </div>
-        <Button type="submit" variant="secondary" disabled={searching}>
-          {t("documents.searchButton")}
-        </Button>
-        {results !== null && (
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => {
-              setResults(null);
-              setQuery("");
-            }}
-          >
-            {t("documents.clearButton")}
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" variant="secondary" disabled={searching}>
+            {t("documents.searchButton")}
           </Button>
-        )}
+          {results !== null && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setResults(null);
+                setQuery("");
+              }}
+            >
+              {t("documents.clearButton")}
+            </Button>
+          )}
+        </div>
       </form>
 
       {results !== null ? (

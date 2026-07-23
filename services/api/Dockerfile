@@ -17,4 +17,9 @@ COPY . .
 RUN useradd --create-home --uid 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 EXPOSE 8000
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--app-dir", "src"]
+
+# --no-access-log (ADR 0066 Priority 2, item 3): the request-logging
+# middleware in api/main.py now emits one structured JSON line per request
+# (method, path, status, duration_ms, request_id) -- uvicorn's own plaintext
+# access log would just duplicate that in a second, unparsable format.
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--app-dir", "src", "--no-access-log"]

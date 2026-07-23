@@ -1,4 +1,6 @@
+import { useId, useRef } from "react";
 import { useEscapeToClose } from "../../hooks/useEscapeToClose";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
 
 const SHORTCUTS: { label: string; keys: string }[] = [
   { label: "Open command palette", keys: "⌘K" },
@@ -8,15 +10,26 @@ const SHORTCUTS: { label: string; keys: string }[] = [
 ];
 
 export function ShortcutsSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+
   useEscapeToClose(open, onClose);
+  useFocusTrap(open, panelRef);
 
   if (!open) return null;
 
   return (
     <>
       <div data-testid="shortcuts-backdrop" className="fixed inset-0 z-50 bg-[#0D0C1A]/35 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed left-1/2 top-[15%] z-[51] w-[min(420px,90vw)] -translate-x-1/2 overflow-hidden rounded-2xl border border-edge bg-surface shadow-overlay">
-        <div className="border-b border-edge px-5 py-4 text-sm font-semibold text-ink">Keyboard shortcuts</div>
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="fixed left-1/2 top-[15%] z-[51] w-[min(420px,90vw)] -translate-x-1/2 overflow-hidden rounded-2xl border border-edge bg-surface shadow-overlay"
+      >
+        <div id={titleId} className="border-b border-edge px-5 py-4 text-sm font-semibold text-ink">Keyboard shortcuts</div>
         {SHORTCUTS.map((shortcut) => (
           <div key={shortcut.label} className="flex items-center justify-between px-5 py-2.5 text-sm text-ink-2">
             <span>{shortcut.label}</span>

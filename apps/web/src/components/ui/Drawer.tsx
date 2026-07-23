@@ -1,5 +1,6 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useEscapeToClose } from "../../hooks/useEscapeToClose";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
 import { Tooltip } from "./Tooltip";
 
 interface DrawerTab {
@@ -22,6 +23,8 @@ export function Drawer({
   footer?: ReactNode;
 }) {
   const [activeTabId, setActiveTabId] = useState(tabs[0]?.id);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
 
   useEffect(() => {
     if (open) setActiveTabId(tabs[0]?.id);
@@ -29,6 +32,7 @@ export function Drawer({
   }, [open]);
 
   useEscapeToClose(open, onClose);
+  useFocusTrap(open, panelRef);
 
   if (!open) return null;
 
@@ -41,9 +45,16 @@ export function Drawer({
         className="fixed inset-0 z-[80] bg-[#0D0C1A]/35 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="fixed bottom-0 right-0 top-0 z-[81] flex w-[min(380px,92vw)] flex-col border-l border-edge bg-surface shadow-overlay">
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="fixed bottom-0 right-0 top-0 z-[81] flex w-[min(380px,92vw)] flex-col border-l border-edge bg-surface shadow-overlay"
+      >
         <div className="flex items-start justify-between border-b border-edge p-5">
-          <h4 className="text-base font-semibold text-ink">{title}</h4>
+          <h4 id={titleId} className="text-base font-semibold text-ink">{title}</h4>
           <Tooltip label="Close">
             <button aria-label="Close" onClick={onClose} className="rounded-lg p-1 text-ink-2 hover:bg-hover hover:text-ink">
               ✕

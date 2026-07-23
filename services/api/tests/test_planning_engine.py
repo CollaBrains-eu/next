@@ -39,6 +39,17 @@ async def _upload_ready_document(client, headers, text: str) -> str:
         patch("api.documents.embed_text", return_value=FAKE_EMBEDDING),
         patch("api.documents.settings.auto_extract_tasks_on_ready", False),
         patch("api.documents.settings.auto_extract_entities_on_ready", False),
+        # vehicles/classify/metafields/facts were left enabled and unmocked --
+        # each fires a real chat_completion call against unreachable Ollama via
+        # EMBEDDINGS_CREATED, turning every upload in this file into a slow
+        # (up to several minutes) retry-backoff cascade (events.py) instead of
+        # the fast, fully-mocked upload this helper is meant to provide. Same
+        # root cause already fixed in test_document_reprocess.py, test_tasks.py,
+        # test_document_classification_events.py, and test_documents.py.
+        patch("api.documents.settings.auto_extract_vehicles_on_ready", False),
+        patch("api.documents.settings.auto_classify_on_ready", False),
+        patch("api.documents.settings.auto_extract_metafields_on_ready", False),
+        patch("api.documents.settings.auto_extract_facts_on_ready", False),
     ):
         upload = await client.post(
             "/documents", headers=headers, files={"file": ("notes.txt", text.encode(), "text/plain")}
