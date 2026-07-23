@@ -1,5 +1,10 @@
-from fastapi import FastAPI
+import logging
+import time
+import uuid
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from api import tools as _tools  # noqa: F401 - import side effect: registers built-in tools (ADR 0021)
@@ -20,6 +25,7 @@ from api.facts_router import router as facts_router
 from api.feedback_router import router as feedback_router
 from api.learning_router import router as learning_router
 from api.legal import router as legal_router
+from api.logging_config import configure_logging, log_request, request_id_var
 from api.manager_router import router as manager_router
 from api.mcp_router import router as mcp_router
 from api.memories import router as memories_router
@@ -36,6 +42,9 @@ from api.vehicles_router import router as vehicles_router
 from api.webauthn_router import router as webauthn_router
 from api.workspace_router import router as workspace_router
 
+configure_logging()
+logger = logging.getLogger("api.request")
+
 app = FastAPI(title="CollaBrains API", version="0.1.0")
 
 app.add_middleware(
@@ -45,6 +54,34 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def request_id_and_logging_middleware(request: Request, call_next):
+    # Honor an incoming X-Request-ID (a caller that already has one -- e.g.
+    # a future upstream proxy hop, or a client retry correlating attempts)
+    # rather than always minting a fresh one.
+    incoming_id = request.headers.get("x-request-id")
+    request_id = incoming_id if incoming_id else str(uuid.uuid4())
+    token = request_id_var.set(request_id)
+    start = time.perf_counter()
+    try:
+        response = await call_next(request)
+    finally:
+        request_id_var.reset(token)
+    duration_ms = (time.perf_counter() - start) * 1000
+    response.headers["X-Request-ID"] = request_id
+    log_request(logger, method=request.method, path=request.url.path, status_code=response.status_code, duration_ms=duration_ms)
+    return response
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    # Full traceback goes to the (structured, request-ID-tagged) log for
+    # debugging; the client gets a generic message, not internals -- same
+    # privacy-conscious default this project applies to Sentry (ADR 0070).
+    logger.error("unhandled_exception", exc_info=exc, extra={"path": request.url.path, "method": request.method})
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 app.include_router(admin_router)
 app.include_router(auth_router)
