@@ -29,6 +29,12 @@ async def test_classification_triggers_after_embeddings_created(client):
         patch("api.documents.settings.auto_extract_tasks_on_ready", False),
         patch("api.documents.settings.auto_extract_entities_on_ready", False),
         patch("api.documents.settings.auto_extract_vehicles_on_ready", False),
+        # Classification succeeds in this test (doc_type gets set), which fires
+        # DOCUMENT_CLASSIFIED -> metafield extraction; facts extraction also
+        # subscribes directly to EMBEDDINGS_CREATED. Neither is mocked, so
+        # both need disabling or they hang on a real (unreachable) Ollama call.
+        patch("api.documents.settings.auto_extract_metafields_on_ready", False),
+        patch("api.documents.settings.auto_extract_facts_on_ready", False),
         patch("api.document_classification.chat_completion", AsyncMock(return_value=FAKE_CLASSIFICATION)),
     ):
         upload = await client.post(
@@ -63,6 +69,10 @@ async def test_classification_skipped_when_auto_classify_disabled(client):
         patch("api.documents.settings.auto_extract_entities_on_ready", False),
         patch("api.documents.settings.auto_extract_vehicles_on_ready", False),
         patch("api.documents.settings.auto_classify_on_ready", False),
+        # Facts extraction subscribes directly to EMBEDDINGS_CREATED (not
+        # gated behind classification), so disabling auto_classify_on_ready
+        # alone doesn't stop it -- unmocked, it hangs on a real Ollama call.
+        patch("api.documents.settings.auto_extract_facts_on_ready", False),
         patch("api.document_classification.chat_completion", AsyncMock(return_value=FAKE_CLASSIFICATION)) as mock_call,
     ):
         upload = await client.post(
