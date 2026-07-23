@@ -2,8 +2,8 @@
 
 ## Status
 
-Proposed — Priority 1 items below are approved to execute as small, independently
-reviewable commits (matches existing project practice). Priority 2-4 need an
+Priority 1 shipped — see ADR 0067 for exactly what landed, in which
+commits, and what's still open from that pass. Priority 2-4 need an
 explicit go-ahead before starting, since several touch production security
 config (Caddy, Docker, OpenLDAP) or represent multi-week efforts.
 
