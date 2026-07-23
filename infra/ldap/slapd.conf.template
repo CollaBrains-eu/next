@@ -16,3 +16,25 @@ rootdn          "cn=admin,__BASE_DN__"
 rootpw          __ADMIN_PW_HASH__
 directory       /var/lib/ldap
 index           objectClass eq
+
+# ADR 0066 (Priority 1): this file previously had no `access to` directives
+# at all, so OpenLDAP fell back to its built-in default `access to * by *
+# read` -- any bind reachable on this container's network, including a fully
+# anonymous one, could read every attribute of every entry, userPassword
+# hashes included. rootdn (cn=admin, set above) always bypasses ACL
+# evaluation entirely, so this doesn't change anything for the app's
+# admin-bind paths (ldap_auth.py's create_user/set_password/delete_user/
+# lookup, all in services/api). The app's only other LDAP path is a
+# bind-as-the-authenticating-user for login (ldap_auth.authenticate) --
+# that's exactly what `by self write`/`by self read` below covers. Order
+# matters: OpenLDAP uses the first `access to` clause that matches, so the
+# userPassword-specific rule must come before the general `access to *` one.
+access to attrs=userPassword
+    by self write
+    by anonymous auth
+    by * none
+
+access to *
+    by self write
+    by users read
+    by * none

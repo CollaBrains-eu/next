@@ -78,6 +78,7 @@ export default function Cases() {
   useEffect(() => {
     refresh();
     refreshInvitations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
   }, []);
 
   function loadSelected() {

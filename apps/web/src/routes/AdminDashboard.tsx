@@ -187,6 +187,7 @@ function BugsTab() {
       .catch((err) => setError(err instanceof ApiError ? err.message : t("admin.bugsLoadError")));
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount; `t` isn't expected to change
   useEffect(load, []);
 
   async function handleAnalyze(id: string) {
@@ -252,6 +253,7 @@ function FeedbackTab() {
       .catch((err) => setError(err instanceof ApiError ? err.message : t("admin.feedbackLoadError")));
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-run on filter change only; `t` isn't expected to change
   useEffect(load, [ratingFilter, minConfidence]);
 
   return (
