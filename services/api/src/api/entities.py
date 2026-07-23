@@ -11,7 +11,8 @@ from api.address_parser import build_maps_url
 from api.auth import get_effective_user
 from api.db import get_db
 from api.entity_agent import VALID_ENTITY_TYPES, extract_entities
-from api.models import AddressDetail, Document, Entity, EntityMention, EntityMergeLog, EntityRelationship, User
+from api.models import AddressDetail, ContactDetail, Document, Entity, EntityMention, EntityMergeLog, EntityRelationship, User
+from api.residencies_router import AddressOut
 
 # Types a user can pick when manually creating an entity -- "other" is an auto-extraction
 # fallback bucket, not a meaningful manual choice, and vehicles have their own dedicated
@@ -21,6 +22,29 @@ MANUALLY_CREATABLE_ENTITY_TYPES = VALID_ENTITY_TYPES - {"other", "vehicle"}
 router = APIRouter(tags=["entities"])
 
 
+class ContactDetailOut(BaseModel):
+    phone: str | None
+    po_box_address: AddressOut | None
+    visiting_address: AddressOut | None
+
+
+async def _address_out(db: AsyncSession, entity_id: UUID | None) -> AddressOut | None:
+    if entity_id is None:
+        return None
+    entity = await db.get(Entity, entity_id)
+    detail = await db.get(AddressDetail, entity_id)
+    if entity is None or detail is None:
+        return None
+    return AddressOut(
+        id=entity.id, name=entity.name, street=detail.street, house_number=detail.house_number,
+        postal_code=detail.postal_code, city=detail.city, country=detail.country,
+        maps_url=build_maps_url(
+            street=detail.street, house_number=detail.house_number,
+            postal_code=detail.postal_code, city=detail.city, country=detail.country,
+        ),
+    )
+
+
 class EntityOut(BaseModel):
     id: UUID
     name: str
@@ -28,6 +52,7 @@ class EntityOut(BaseModel):
     status: str
     created_at: datetime
     maps_url: str | None = None
+    contact: ContactDetailOut | None = None
 
     @classmethod
     async def from_entity(cls, db: AsyncSession, entity: Entity) -> "EntityOut":
@@ -39,9 +64,18 @@ class EntityOut(BaseModel):
                     street=detail.street, house_number=detail.house_number,
                     postal_code=detail.postal_code, city=detail.city, country=detail.country,
                 )
+        contact = None
+        if entity.entity_type in ("person", "organization"):
+            contact_detail = await db.get(ContactDetail, entity.id)
+            if contact_detail is not None:
+                contact = ContactDetailOut(
+                    phone=contact_detail.phone,
+                    po_box_address=await _address_out(db, contact_detail.po_box_address_entity_id),
+                    visiting_address=await _address_out(db, contact_detail.visiting_address_entity_id),
+                )
         return cls(
             id=entity.id, name=entity.name, entity_type=entity.entity_type,
-            status=entity.status, created_at=entity.created_at, maps_url=maps_url,
+            status=entity.status, created_at=entity.created_at, maps_url=maps_url, contact=contact,
         )
 
 
@@ -211,6 +245,7 @@ class GraphEdge(BaseModel):
     source: UUID
     target: UUID
     relationship_type: str
+    title: str | None
     document_id: UUID | None
 
 
@@ -273,6 +308,7 @@ async def get_entity_graph(
                 source=edge.source_entity_id,
                 target=edge.target_entity_id,
                 relationship_type=edge.relationship_type,
+                title=edge.title,
                 document_id=edge.document_id,
             )
             for edge in edges
