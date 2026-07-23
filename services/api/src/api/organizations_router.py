@@ -31,6 +31,7 @@ from api.organizations import (
     get_organization_for_user,
     list_organization_members,
     rename_organization,
+    require_org_admin,
     set_organization_policies,
 )
 
@@ -45,11 +46,6 @@ class OrganizationOut(BaseModel):
     id: UUID
     name: str
     policies: dict[str, Any]
-
-
-def _require_org_admin(current_user: User, organization: Organization) -> None:
-    if current_user.role != "admin" and organization.owner_user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required")
 
 
 async def _get_org_or_404(db: AsyncSession, current_user: User) -> Organization:
@@ -75,7 +71,7 @@ async def set_my_organization_policies(
     current_user: User = Depends(get_current_user),
 ) -> OrganizationOut:
     organization = await _get_org_or_404(db, current_user)
-    _require_org_admin(current_user, organization)
+    require_org_admin(current_user, organization)
     updated = await set_organization_policies(db, organization_id=organization.id, policies=request.policies)
     return OrganizationOut(id=updated.id, name=updated.name, policies=updated.policies)
 
@@ -107,7 +103,7 @@ async def rename_my_organization(
     current_user: User = Depends(get_current_user),
 ) -> OrganizationOut:
     organization = await _get_org_or_404(db, current_user)
-    _require_org_admin(current_user, organization)
+    require_org_admin(current_user, organization)
     updated = await rename_organization(db, organization_id=organization.id, name=body.name)
     return OrganizationOut(id=updated.id, name=updated.name, policies=updated.policies)
 
@@ -140,7 +136,7 @@ async def invite_organization_member(
     found missing from cases_router.py/workspace_router.py, which both
     require the invitee to already be a provisioned platform user."""
     organization = await _get_org_or_404(db, current_user)
-    _require_org_admin(current_user, organization)
+    require_org_admin(current_user, organization)
 
     email = body.email.strip().lower()
     if not EMAIL_PATTERN.match(email):
@@ -168,7 +164,7 @@ async def list_organization_invitations(
     current_user: User = Depends(get_current_user),
 ) -> list[InvitationOut]:
     organization = await _get_org_or_404(db, current_user)
-    _require_org_admin(current_user, organization)
+    require_org_admin(current_user, organization)
     invitations = await list_pending_invitations(db, organization_id=organization.id)
     return [_invitation_out(invitation) for invitation in invitations]
 
@@ -180,7 +176,7 @@ async def revoke_organization_invitation(
     current_user: User = Depends(get_current_user),
 ) -> None:
     organization = await _get_org_or_404(db, current_user)
-    _require_org_admin(current_user, organization)
+    require_org_admin(current_user, organization)
     invitation = await revoke_invitation(db, invitation_id=invitation_id, organization_id=organization.id)
     if invitation is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invitation not found")

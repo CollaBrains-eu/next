@@ -161,6 +161,39 @@ class Invitation(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class Subscription(Base):
+    """Stripe-backed billing state for an Organization (Priority 3
+    commercial SaaS, ADR 0074). One-to-one with Organization -- billing is
+    scoped to the tenant boundary, same as everything else Phase 14
+    established. Entirely webhook-driven (billing_service.py, dispatched
+    from billing_router.py's /billing/webhook) -- nothing here is ever
+    written directly from a user-facing request, so it can't drift from
+    what Stripe itself believes is true.
+
+    `status` deliberately mirrors Stripe's own subscription.status values
+    verbatim ("trialing"/"active"/"past_due"/"canceled"/"incomplete"/...)
+    rather than an app-invented vocabulary, so there's exactly one source
+    of truth for what each value means.
+    """
+
+    __tablename__ = "subscriptions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), unique=True, nullable=False
+    )
+    stripe_customer_id: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
+    stripe_subscription_id: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
+    plan: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    current_period_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancel_at_period_end: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class Document(Base):
     """An uploaded file, tracked through OCR (via Paperless-ngx) and embedding.
 

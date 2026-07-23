@@ -7,10 +7,22 @@ tenant isolation are explicitly deferred; see the ADR for why.
 """
 from uuid import UUID
 
+from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.models import Organization, User
+
+
+def require_org_admin(current_user: User, organization: Organization) -> None:
+    """Gates org-level management actions (organizations_router.py's
+    rename/policy/invitation endpoints, billing_router.py's
+    checkout/portal endpoints) -- platform-wide admin (User.role, ADR
+    0001) OR the org's own `owner_user_id` (ADR 0074, Priority 3). The
+    latter lets a self-service signup manage the org they created
+    without granting them the LDAP-wide Admin Dashboard."""
+    if current_user.role != "admin" and organization.owner_user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required")
 
 
 async def get_organization_for_user(db: AsyncSession, user_id: UUID) -> Organization | None:

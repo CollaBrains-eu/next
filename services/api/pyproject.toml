@@ -20,6 +20,7 @@ dependencies = [
     "webauthn==2.8.0",
     "langdetect>=1.0.9",
     "sentry-sdk[fastapi]>=2.20",
+    "stripe>=11.0",
 ]
 
 [dependency-groups]
