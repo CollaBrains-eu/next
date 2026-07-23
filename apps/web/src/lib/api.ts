@@ -372,6 +372,12 @@ export async function downloadTaskIcs(id: string, filename: string): Promise<voi
   await fetchAndOpenIcs(`/tasks/${id}/ics`, filename);
 }
 
+export interface ContactDetailOut {
+  phone: string | null;
+  po_box_address: AddressOut | null;
+  visiting_address: AddressOut | null;
+}
+
 export interface EntityOut {
   id: string;
   name: string;
@@ -379,6 +385,7 @@ export interface EntityOut {
   status: string;
   created_at: string;
   maps_url: string | null;
+  contact: ContactDetailOut | null;
 }
 
 export function listEntities(q?: string, entityType?: string, status?: string): Promise<EntityOut[]> {
@@ -431,6 +438,7 @@ export interface GraphEdge {
   source: string;
   target: string;
   relationship_type: string;
+  title: string | null;
   document_id: string | null;
 }
 

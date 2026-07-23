@@ -15,7 +15,7 @@ vi.mock("../lib/api", async () => {
 const GRAPH: api.EntityGraphOut = {
   center: { id: "e1", name: "Jane Smith", entity_type: "person" },
   nodes: [{ id: "e2", name: "Acme Corp", entity_type: "organization" }],
-  edges: [{ source: "e1", target: "e2", relationship_type: "works at", document_id: null }],
+  edges: [{ source: "e1", target: "e2", relationship_type: "works at", title: null, document_id: null }],
 };
 
 function renderPage() {

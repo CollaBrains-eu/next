@@ -111,7 +111,7 @@ export default function EntityGraph() {
                     markerEnd="url(#arrow)"
                   />
                   <text x={mid.x} y={mid.y} textAnchor="middle" fontSize={10} fill="var(--text-2)" className="select-none">
-                    {edge.relationship_type}
+                    {edge.title ? `${edge.relationship_type} (${edge.title})` : edge.relationship_type}
                   </text>
                 </g>
               );
