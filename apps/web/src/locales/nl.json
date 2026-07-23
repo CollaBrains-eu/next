@@ -16,7 +16,8 @@
   "commandCenter": {
     "groupNavigation": "Navigatie",
     "groupDocuments": "Documenten",
-    "searching": "Zoeken…"
+    "searching": "Zoeken…",
+    "ariaLabel": "Opdrachtenpalet"
   },
   "mobileNav": {
     "navLabel": "Hoofdnavigatie",

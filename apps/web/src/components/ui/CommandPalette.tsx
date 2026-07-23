@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useEscapeToClose } from "../../hooks/useEscapeToClose";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
 
 export interface CommandItem {
   label: string;
@@ -27,8 +28,11 @@ export function CommandPalette({
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const listboxId = useId();
 
   useEscapeToClose(open, onClose);
+  useFocusTrap(open, panelRef);
 
   useEffect(() => {
     if (open) {
@@ -66,9 +70,19 @@ export function CommandPalette({
   return (
     <>
       <div className="fixed inset-0 z-50 bg-[#0D0C1A]/35 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed left-1/2 top-[18%] z-[51] w-[min(520px,90vw)] -translate-x-1/2 overflow-hidden rounded-2xl border border-edge bg-surface shadow-overlay">
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("commandCenter.ariaLabel")}
+        className="fixed left-1/2 top-[18%] z-[51] w-[min(520px,90vw)] -translate-x-1/2 overflow-hidden rounded-2xl border border-edge bg-surface shadow-overlay"
+      >
         <input
           autoFocus
+          role="combobox"
+          aria-expanded={filtered.length > 0}
+          aria-controls={listboxId}
+          aria-activedescendant={filtered.length > 0 ? `${listboxId}-option-${selectedIndex}` : undefined}
           value={query}
           onChange={(event) => {
             setQuery(event.target.value);
@@ -79,7 +93,7 @@ export function CommandPalette({
           placeholder="Search documents, cases, vehicles…"
           className="w-full border-b border-edge bg-transparent px-4 py-4 text-sm text-ink outline-none"
         />
-        <div className="max-h-[60vh] overflow-y-auto">
+        <div id={listboxId} role="listbox" className="max-h-[60vh] overflow-y-auto">
           {filteredNav.length > 0 && docs.length > 0 && (
             <div className="px-4 pt-3 text-[11px] font-semibold uppercase tracking-wide text-ink-3">
               {t("commandCenter.groupNavigation")}
@@ -88,6 +102,9 @@ export function CommandPalette({
           {filteredNav.map((item, index) => (
             <div
               key={`nav-${index}-${item.label}`}
+              id={`${listboxId}-option-${index}`}
+              role="option"
+              aria-selected={index === selectedIndex}
               onClick={() => runSelection(item)}
               onMouseEnter={() => setSelectedIndex(index)}
               className={`cursor-pointer px-4 py-2.5 text-sm transition-colors duration-fast ${
@@ -110,6 +127,9 @@ export function CommandPalette({
             return (
               <div
                 key={`doc-${docIndex}-${item.label}`}
+                id={`${listboxId}-option-${index}`}
+                role="option"
+                aria-selected={index === selectedIndex}
                 onClick={() => runSelection(item)}
                 onMouseEnter={() => setSelectedIndex(index)}
                 className={`cursor-pointer px-4 py-2.5 text-sm transition-colors duration-fast ${

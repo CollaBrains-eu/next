@@ -16,7 +16,8 @@
   "commandCenter": {
     "groupNavigation": "Navigation",
     "groupDocuments": "Documents",
-    "searching": "Searching…"
+    "searching": "Searching…",
+    "ariaLabel": "Command palette"
   },
   "mobileNav": {
     "navLabel": "Primary navigation",
