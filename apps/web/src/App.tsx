@@ -10,6 +10,9 @@ import { PhonePromptModal } from "./components/PhonePromptModal";
 import Layout from "./components/Layout";
 import Landing from "./routes/Landing";
 import Login from "./routes/Login";
+import Register from "./routes/Register";
+import VerifyEmail from "./routes/VerifyEmail";
+import InvitationLanding from "./routes/InvitationLanding";
 import Onboard from "./routes/Onboard";
 import Dashboard from "./routes/Dashboard";
 import Workspace from "./routes/Workspace";
@@ -215,6 +218,9 @@ export default function App() {
               <Routes>
                 <Route path="/" element={<RootRoute />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/verify-email" element={<VerifyEmail />} />
+                <Route path="/invitations/:token" element={<InvitationLanding />} />
                 <Route path="/onboard" element={<Onboard />} />
                 <Route path="/*" element={<AppShell />} />
               </Routes>

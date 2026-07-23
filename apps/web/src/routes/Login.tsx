@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -109,6 +109,13 @@ export default function Login() {
             {submitting ? t("auth.submitting") : t("auth.submit")}
           </Button>
         </form>
+
+        <p className="mt-4 text-center text-sm text-ink-2">
+          {t("auth.noAccountYet")}{" "}
+          <Link to="/register" className="font-medium text-accent hover:underline">
+            {t("auth.registerTitle")}
+          </Link>
+        </p>
       </div>
     </div>
   );

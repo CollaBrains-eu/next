@@ -46,6 +46,17 @@ class OrganizationOut(BaseModel):
     id: UUID
     name: str
     policies: dict[str, Any]
+    # Lets the frontend show admin controls (rename, policies, invitations,
+    # billing) to an org owner too, not just a platform-wide admin -- role
+    # alone (User.role) can't answer this, see require_org_admin's docstring.
+    is_org_admin: bool
+
+
+def _organization_out(organization: Organization, current_user: User) -> OrganizationOut:
+    is_org_admin = current_user.role == "admin" or organization.owner_user_id == current_user.id
+    return OrganizationOut(
+        id=organization.id, name=organization.name, policies=organization.policies, is_org_admin=is_org_admin
+    )
 
 
 async def _get_org_or_404(db: AsyncSession, current_user: User) -> Organization:
@@ -61,7 +72,7 @@ async def get_my_organization(
     current_user: User = Depends(get_current_user),
 ) -> OrganizationOut:
     organization = await _get_org_or_404(db, current_user)
-    return OrganizationOut(id=organization.id, name=organization.name, policies=organization.policies)
+    return _organization_out(organization, current_user)
 
 
 @router.put("/me/policies", response_model=OrganizationOut)
@@ -73,7 +84,7 @@ async def set_my_organization_policies(
     organization = await _get_org_or_404(db, current_user)
     require_org_admin(current_user, organization)
     updated = await set_organization_policies(db, organization_id=organization.id, policies=request.policies)
-    return OrganizationOut(id=updated.id, name=updated.name, policies=updated.policies)
+    return _organization_out(updated, current_user)
 
 
 class OrganizationMemberOut(BaseModel):
@@ -105,7 +116,7 @@ async def rename_my_organization(
     organization = await _get_org_or_404(db, current_user)
     require_org_admin(current_user, organization)
     updated = await rename_organization(db, organization_id=organization.id, name=body.name)
-    return OrganizationOut(id=updated.id, name=updated.name, policies=updated.policies)
+    return _organization_out(updated, current_user)
 
 
 class InvitationCreateIn(BaseModel):

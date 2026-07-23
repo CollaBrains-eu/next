@@ -31,6 +31,40 @@ async def test_get_my_organization_returns_the_default_organization(client):
     assert body["id"] == str(DEFAULT_ORGANIZATION_ID)
 
 
+async def test_is_org_admin_reflects_ownership_not_just_platform_role(client):
+    """ADR 0074: is_org_admin must be true for a platform admin OR the
+    org's owner_user_id, and false for a plain member with neither."""
+    from api.db import async_session
+    from api.models import Organization, User
+
+    plain_token = await _login(client, _unique("orgisadminplain"))
+    plain_response = await client.get("/organizations/me", headers={"Authorization": f"Bearer {plain_token}"})
+    assert plain_response.json()["is_org_admin"] is False
+
+    admin_token = await _login(client, _unique("orgisadminplatform"), is_admin=True)
+    admin_response = await client.get("/organizations/me", headers={"Authorization": f"Bearer {admin_token}"})
+    assert admin_response.json()["is_org_admin"] is True
+
+    owner_username = _unique("orgisadminowner")
+    owner_token = await _login(client, owner_username)
+    from sqlalchemy import select
+
+    async with async_session() as db:
+        user = (await db.execute(select(User).where(User.username == owner_username))).scalar_one()
+        organization = await db.get(Organization, DEFAULT_ORGANIZATION_ID)
+        organization.owner_user_id = user.id
+        await db.commit()
+
+    try:
+        owner_response = await client.get("/organizations/me", headers={"Authorization": f"Bearer {owner_token}"})
+        assert owner_response.json()["is_org_admin"] is True
+    finally:
+        async with async_session() as db:
+            organization = await db.get(Organization, DEFAULT_ORGANIZATION_ID)
+            organization.owner_user_id = None
+            await db.commit()
+
+
 async def test_set_policies_requires_admin_role(client):
     token = await _login(client, "orgrouteruser2", is_admin=False)
     headers = {"Authorization": f"Bearer {token}"}
@@ -138,7 +172,6 @@ async def test_org_owner_without_platform_admin_role_can_manage_their_own_org(cl
     token = await _login(client, username, is_admin=False)
     headers = {"Authorization": f"Bearer {token}"}
 
-    me = await client.get("/auth/me", headers=headers)
     org = await client.get("/organizations/me", headers=headers)
     org_id = org.json()["id"]
 

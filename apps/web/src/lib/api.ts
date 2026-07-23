@@ -883,6 +883,7 @@ export interface OrganizationOut {
   id: string;
   name: string;
   policies: Record<string, unknown>;
+  is_org_admin: boolean;
 }
 
 export function getOrganization(): Promise<OrganizationOut> {
@@ -1104,4 +1105,101 @@ export interface OnboardingTokenOut {
 
 export function checkOnboardingToken(token: string): Promise<OnboardingTokenOut> {
   return request<OnboardingTokenOut>(`/onboarding/${token}`);
+}
+
+// --- Self-service signup (Priority 3, ADR 0074) ---------------------------
+
+export interface RegisterParams {
+  username: string;
+  displayName: string;
+  email: string;
+  password: string;
+  organizationName?: string;
+  invitationToken?: string;
+}
+
+export function registerAccount(params: RegisterParams): Promise<{ email_sent: boolean }> {
+  return request<{ email_sent: boolean }>("/auth/register", {
+    method: "POST",
+    body: JSON.stringify({
+      username: params.username,
+      display_name: params.displayName,
+      email: params.email,
+      password: params.password,
+      organization_name: params.organizationName ?? null,
+      invitation_token: params.invitationToken ?? null,
+    }),
+  });
+}
+
+export function verifyEmail(token: string): Promise<string> {
+  return request<{ access_token: string; token_type: string }>("/auth/verify-email", {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  }).then((result) => result.access_token);
+}
+
+// --- Org invitations by email (Priority 3, ADR 0074) ----------------------
+
+export interface InvitationOut {
+  id: string;
+  email: string;
+  created_at: string;
+  expires_at: string;
+}
+
+export function inviteOrganizationMember(email: string): Promise<InvitationOut> {
+  return request<InvitationOut>("/organizations/me/invitations", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export function listOrganizationInvitations(): Promise<InvitationOut[]> {
+  return request<InvitationOut[]>("/organizations/me/invitations");
+}
+
+export function revokeOrganizationInvitation(id: string): Promise<void> {
+  return request<void>(`/organizations/me/invitations/${id}`, { method: "DELETE" });
+}
+
+export interface InvitationCheckOut {
+  valid: boolean;
+  organization_name: string | null;
+  email: string | null;
+  account_exists: boolean;
+}
+
+export function checkInvitation(token: string): Promise<InvitationCheckOut> {
+  return request<InvitationCheckOut>(`/invitations/${token}`);
+}
+
+export function acceptInvitation(token: string): Promise<string> {
+  return request<{ access_token: string; token_type: string }>(`/invitations/${token}/accept`, {
+    method: "POST",
+  }).then((result) => result.access_token);
+}
+
+// --- Billing (Priority 3, ADR 0074) ----------------------------------------
+
+export interface SubscriptionOut {
+  plan: string | null;
+  status: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+}
+
+export function getSubscription(): Promise<SubscriptionOut> {
+  return request<SubscriptionOut>("/billing/subscription");
+}
+
+export function createCheckoutSession(plan: string): Promise<string> {
+  return request<{ url: string }>("/billing/checkout-session", {
+    method: "POST",
+    body: JSON.stringify({ plan }),
+  }).then((result) => result.url);
+}
+
+export function createPortalSession(): Promise<string> {
+  return request<{ url: string }>("/billing/portal-session", { method: "POST" }).then((result) => result.url);
 }

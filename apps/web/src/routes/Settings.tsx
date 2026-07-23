@@ -9,15 +9,23 @@ import { Button } from "../components/ui/Button";
 import { Combobox, type ComboboxOption } from "../components/ui/Combobox";
 import {
   ApiError,
+  createCheckoutSession,
+  createPortalSession,
   getOrganization,
   getPreferences,
+  getSubscription,
+  inviteOrganizationMember,
+  listOrganizationInvitations,
   listOrganizationMembers,
   renameOrganization,
+  revokeOrganizationInvitation,
   setOrganizationPolicies,
   setPreferences,
+  type InvitationOut,
   type OrganizationMemberOut,
+  type SubscriptionOut,
 } from "../lib/api";
-import { syncLanguage, useAuth } from "../lib/auth";
+import { syncLanguage } from "../lib/auth";
 import { toDateFormatPrefs, type DateFormat, type TimeFormat } from "../lib/dateFormat";
 import { setDateFormatPrefs } from "../hooks/useDateFormat";
 import { useToast } from "../lib/toast";
@@ -184,6 +192,8 @@ export default function Settings() {
 
       <OrganizationSection />
 
+      <BillingSection />
+
       <WorkspaceSharing />
     </div>
   );
@@ -191,11 +201,10 @@ export default function Settings() {
 
 function OrganizationSection() {
   const { t } = useTranslation();
-  const { user } = useAuth();
   const { showToast } = useToast();
-  const isAdmin = user?.role === "admin";
 
   const [name, setName] = useState("");
+  const [isOrgAdmin, setIsOrgAdmin] = useState(false);
   const [approvalRequiredGoals, setApprovalRequiredGoals] = useState<ComboboxOption[]>([]);
   const [members, setMembers] = useState<OrganizationMemberOut[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -203,16 +212,25 @@ function OrganizationSection() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [invitations, setInvitations] = useState<InvitationOut[] | null>(null);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviting, setInviting] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+
   const goalOptions: ComboboxOption[] = GOAL_TYPES.map((id) => ({ id, label: t(`settings.orgGoalType.${id}`) }));
 
   useEffect(() => {
     Promise.all([getOrganization(), listOrganizationMembers()])
       .then(([org, memberList]) => {
         setName(org.name);
+        setIsOrgAdmin(org.is_org_admin);
         const approved = org.policies.approval_required_goals;
         const selectedIds = Array.isArray(approved) ? approved.filter((id): id is string => typeof id === "string") : [];
         setApprovalRequiredGoals(goalOptions.filter((option) => selectedIds.includes(option.id)));
         setMembers(memberList);
+        if (org.is_org_admin) {
+          return listOrganizationInvitations().then(setInvitations);
+        }
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : t("settings.orgLoadError")))
       .finally(() => setLoading(false));
@@ -235,6 +253,30 @@ function OrganizationSection() {
     }
   }
 
+  async function handleInvite() {
+    setInviting(true);
+    setInviteError(null);
+    try {
+      const invitation = await inviteOrganizationMember(inviteEmail);
+      setInvitations((prev) => [...(prev ?? []).filter((i) => i.id !== invitation.id), invitation]);
+      setInviteEmail("");
+      showToast(t("settings.orgInviteSent"));
+    } catch (err) {
+      setInviteError(err instanceof ApiError ? err.message : t("settings.orgInviteError"));
+    } finally {
+      setInviting(false);
+    }
+  }
+
+  async function handleRevoke(id: string) {
+    try {
+      await revokeOrganizationInvitation(id);
+      setInvitations((prev) => (prev ?? []).filter((i) => i.id !== id));
+    } catch (err) {
+      setInviteError(err instanceof ApiError ? err.message : t("settings.orgInviteError"));
+    }
+  }
+
   return (
     <Card className="flex max-w-md flex-col gap-3">
       <h2 className="text-lg font-semibold text-ink">{t("settings.orgTitle")}</h2>
@@ -247,7 +289,7 @@ function OrganizationSection() {
             <label className="text-sm font-medium text-ink" htmlFor="org-name">
               {t("settings.orgNameLabel")}
             </label>
-            {isAdmin ? (
+            {isOrgAdmin ? (
               <input
                 id="org-name"
                 value={name}
@@ -262,7 +304,7 @@ function OrganizationSection() {
             )}
           </div>
 
-          {isAdmin && (
+          {isOrgAdmin && (
             <div>
               <label className="text-sm font-medium text-ink">{t("settings.orgApprovalRequiredLabel")}</label>
               <p className="mb-1 text-xs text-ink-3">{t("settings.orgApprovalRequiredHint")}</p>
@@ -292,12 +334,132 @@ function OrganizationSection() {
             </ul>
           </div>
 
+          {isOrgAdmin && (
+            <div>
+              <label className="text-sm font-medium text-ink" htmlFor="org-invite-email">
+                {t("settings.orgInviteLabel")}
+              </label>
+              <div className="mt-1 flex gap-2">
+                <input
+                  id="org-invite-email"
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder={t("settings.orgInvitePlaceholder")}
+                  className="flex-1 rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft"
+                />
+                <Button onClick={handleInvite} disabled={inviting || !inviteEmail} className="shrink-0">
+                  {inviting ? t("settings.orgInviteSubmitting") : t("settings.orgInviteButton")}
+                </Button>
+              </div>
+              {inviteError && <p className="mt-1 text-sm text-danger">{inviteError}</p>}
+
+              {invitations && invitations.length > 0 && (
+                <ul className="mt-3 flex flex-col gap-1.5">
+                  {invitations.map((invitation) => (
+                    <li key={invitation.id} className="flex items-center justify-between gap-2 text-sm text-ink">
+                      <span>{invitation.email}</span>
+                      <Button variant="ghost" size="sm" onClick={() => handleRevoke(invitation.id)}>
+                        {t("settings.orgRevokeInvitation")}
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
           {error && <p className="text-sm text-danger">{error}</p>}
           {saved && <p className="text-sm text-success">{t("settings.saved")}</p>}
-          {isAdmin && (
+          {isOrgAdmin && (
             <Button onClick={handleSave} disabled={saving} className="self-start">
               {t("settings.save")}
             </Button>
+          )}
+        </>
+      )}
+    </Card>
+  );
+}
+
+function BillingSection() {
+  const { t } = useTranslation();
+  const [isOrgAdmin, setIsOrgAdmin] = useState(false);
+  const [subscription, setSubscription] = useState<SubscriptionOut | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [redirecting, setRedirecting] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    Promise.all([getOrganization(), getSubscription()])
+      .then(([org, sub]) => {
+        setIsOrgAdmin(org.is_org_admin);
+        setSubscription(sub);
+      })
+      .catch((err) => setError(err instanceof ApiError ? err.message : t("settings.billingLoadError")))
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function handleCheckout(plan: string) {
+    setRedirecting(plan);
+    setError(null);
+    try {
+      window.location.href = await createCheckoutSession(plan);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("settings.billingCheckoutError"));
+      setRedirecting(null);
+    }
+  }
+
+  async function handleManageBilling() {
+    setRedirecting("portal");
+    setError(null);
+    try {
+      window.location.href = await createPortalSession();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("settings.billingPortalError"));
+      setRedirecting(null);
+    }
+  }
+
+  const hasActivePlan = Boolean(subscription?.plan && subscription.status && subscription.status !== "canceled");
+
+  return (
+    <Card className="flex max-w-md flex-col gap-3">
+      <h2 className="text-lg font-semibold text-ink">{t("settings.billingTitle")}</h2>
+
+      {loading ? (
+        <p className="text-sm text-ink-3">{t("common.loading")}</p>
+      ) : (
+        <>
+          {hasActivePlan ? (
+            <div className="flex items-center justify-between gap-2 text-sm text-ink">
+              <span>{t("settings.billingCurrentPlan", { plan: subscription?.plan })}</span>
+              <Badge variant={subscription?.status === "active" ? "success" : "warning"}>
+                {subscription?.status}
+              </Badge>
+            </div>
+          ) : (
+            <p className="text-sm text-ink-2">{t("settings.billingNoPlan")}</p>
+          )}
+
+          {error && <p className="text-sm text-danger">{error}</p>}
+
+          {isOrgAdmin && (
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => handleCheckout("starter")} disabled={redirecting !== null} variant="secondary">
+                {redirecting === "starter" ? t("settings.billingRedirecting") : t("settings.billingChooseStarter")}
+              </Button>
+              <Button onClick={() => handleCheckout("pro")} disabled={redirecting !== null}>
+                {redirecting === "pro" ? t("settings.billingRedirecting") : t("settings.billingChoosePro")}
+              </Button>
+              {hasActivePlan && (
+                <Button onClick={handleManageBilling} disabled={redirecting !== null} variant="ghost">
+                  {redirecting === "portal" ? t("settings.billingRedirecting") : t("settings.billingManage")}
+                </Button>
+              )}
+            </div>
           )}
         </>
       )}
