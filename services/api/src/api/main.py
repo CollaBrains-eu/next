@@ -34,6 +34,7 @@ from api.organizations_router import router as organizations_router
 from api.plans import router as plans_router
 from api.preferences_router import router as preferences_router
 from api.residencies_router import router as residencies_router
+from api.sentry_config import init_sentry
 from api.sharing_router import router as sharing_router
 from api.tasks import router as tasks_router
 from api.tools_router import router as tools_router
@@ -42,6 +43,7 @@ from api.vehicles_router import router as vehicles_router
 from api.webauthn_router import router as webauthn_router
 from api.workspace_router import router as workspace_router
 
+init_sentry()
 configure_logging()
 logger = logging.getLogger("api.request")
 

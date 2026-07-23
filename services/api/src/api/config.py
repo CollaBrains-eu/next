@@ -85,5 +85,10 @@ class Settings(BaseSettings):
     # was hardcoded with no way to override before).
     cors_allowed_origins: str = "http://localhost:5173"
 
+    # Empty by default -- Sentry stays fully off (sentry_sdk.init is never
+    # called) in local dev/CI/test where no DSN is configured. See ADR 0072.
+    sentry_dsn: str = ""
+    sentry_environment: str = "development"
+
 
 settings = Settings()
