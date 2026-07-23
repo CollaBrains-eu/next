@@ -126,3 +126,48 @@ async def test_rename_rejects_empty_name(client):
 
     response = await client.put("/organizations/me", headers=headers, json={"name": ""})
     assert response.status_code == 422
+
+
+async def test_org_owner_without_platform_admin_role_can_manage_their_own_org(client):
+    """A self-service signup (ADR 0074) is `Organization.owner_user_id`,
+    not platform `role == "admin"` -- this confirms that's actually
+    sufficient to manage the org, not just a inert marker."""
+    from api.models import Organization
+
+    username = _unique("orgowner")
+    token = await _login(client, username, is_admin=False)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    me = await client.get("/auth/me", headers=headers)
+    org = await client.get("/organizations/me", headers=headers)
+    org_id = org.json()["id"]
+
+    async with async_session() as db:
+        from sqlalchemy import select
+
+        from api.models import User
+
+        user = (await db.execute(select(User).where(User.username == username))).scalar_one()
+        organization = await db.get(Organization, org_id)
+        organization.owner_user_id = user.id
+        await db.commit()
+
+    try:
+        rename_response = await client.put(
+            "/organizations/me", headers=headers, json={"name": "Owner-Managed Org"}
+        )
+        assert rename_response.status_code == 200
+        assert rename_response.json()["name"] == "Owner-Managed Org"
+
+        policies_response = await client.put(
+            "/organizations/me/policies", headers=headers, json={"policies": {"approval_required_goals": []}}
+        )
+        assert policies_response.status_code == 200
+    finally:
+        async with async_session() as db:
+            organization = await db.get(Organization, org_id)
+            organization.owner_user_id = None
+            await db.commit()
+        async with async_session() as db:
+            await rename_organization(db, organization_id=org_id, name=org.json()["name"])
+            await set_organization_policies(db, organization_id=org_id, policies={})

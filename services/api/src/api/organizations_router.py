@@ -1,9 +1,11 @@
 """Organization policy endpoints (Phase 14, ADR 0029).
 
-admin-role-only: reuses User.role (ADR 0001) rather than a new
-org-specific role, since nothing yet distinguishes "admin of this org"
-from platform-wide admin -- that's part of the RBAC 2.0 work this phase
-doesn't build.
+Gated by platform-wide admin (User.role, ADR 0001) OR the org's own
+`owner_user_id` (ADR 0074, Priority 3) -- the latter lets a self-service
+signup manage the org they created without granting them the LDAP-wide
+Admin Dashboard. Still not real per-org RBAC (no separate "member" vs
+"admin-of-this-org" distinction beyond a single owner) -- that's the
+RBAC 2.0 work this phase doesn't build.
 """
 from typing import Any
 from uuid import UUID
@@ -35,8 +37,8 @@ class OrganizationOut(BaseModel):
     policies: dict[str, Any]
 
 
-def _require_admin(current_user: User) -> None:
-    if current_user.role != "admin":
+def _require_org_admin(current_user: User, organization: Organization) -> None:
+    if current_user.role != "admin" and organization.owner_user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required")
 
 
@@ -62,8 +64,8 @@ async def set_my_organization_policies(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> OrganizationOut:
-    _require_admin(current_user)
     organization = await _get_org_or_404(db, current_user)
+    _require_org_admin(current_user, organization)
     updated = await set_organization_policies(db, organization_id=organization.id, policies=request.policies)
     return OrganizationOut(id=updated.id, name=updated.name, policies=updated.policies)
 
@@ -94,7 +96,7 @@ async def rename_my_organization(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> OrganizationOut:
-    _require_admin(current_user)
     organization = await _get_org_or_404(db, current_user)
+    _require_org_admin(current_user, organization)
     updated = await rename_organization(db, organization_id=organization.id, name=body.name)
     return OrganizationOut(id=updated.id, name=updated.name, policies=updated.policies)

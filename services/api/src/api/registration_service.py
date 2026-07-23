@@ -169,14 +169,20 @@ async def complete_registration(db: AsyncSession, *, token: str) -> User | None:
     db.add(organization)
     await db.flush()
 
+    # role stays the "member" default deliberately -- User.role is
+    # platform-wide (see Organization.owner_user_id's docstring), so a
+    # self-service signup must not grant platform admin. owner_user_id
+    # below is what actually lets this person manage their own org.
     user = User(
         username=record.username,
         display_name=record.display_name,
         email=record.email,
-        role="admin",
         organization_id=organization.id,
     )
     db.add(user)
+    await db.flush()
+
+    organization.owner_user_id = user.id
     record.consumed_at = datetime.now(timezone.utc)
     await db.commit()
     await db.refresh(user)

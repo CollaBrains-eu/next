@@ -183,9 +183,14 @@ async def test_verify_email_completes_registration_and_logs_in(client, monkeypat
 
     async with async_session() as db:
         user = (await db.execute(select(User).where(User.username == username))).scalar_one()
-        assert user.role == "admin"
+        # Deliberately still "member" -- role is platform-wide (shared with
+        # the LDAP-wide Admin Dashboard), so granting "admin" here would
+        # hand every self-service signup platform admin. owner_user_id is
+        # the narrow permission that actually lets them manage their org.
+        assert user.role == "member"
         org = await db.get(Organization, user.organization_id)
         assert org.name == "Verify Co"
+        assert org.owner_user_id == user.id
 
     refreshed = await _pending_registration_for(username)
     assert refreshed.consumed_at is not None

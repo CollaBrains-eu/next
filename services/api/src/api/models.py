@@ -25,6 +25,17 @@ class Organization(Base):
     No per-table organization_id retrofit (documents/memories/plans/...)
     yet -- see ADR 0029 for why that's its own dedicated future phase,
     not done speculatively here.
+
+    `owner_user_id` (Priority 3, ADR 0074) is deliberately NOT `User.role`
+    ("admin"/"member") -- `role` is platform-wide (checked by both this
+    org's own endpoints and the LDAP-wide Admin Dashboard,
+    admin_router.py's `_require_admin`), so granting it to every
+    self-service signup would hand them platform admin, not just control
+    of their own org. `owner_user_id` is a narrow, additional permission
+    ("can manage *this* org") that composes with, rather than replaces,
+    the existing global role -- nullable because pre-Phase-14 orgs
+    (`DEFAULT_ORGANIZATION_ID`) predate the concept and have no single
+    owner; a real platform admin still manages those.
     """
 
     __tablename__ = "organizations"
@@ -32,6 +43,9 @@ class Organization(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     policies: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    owner_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
