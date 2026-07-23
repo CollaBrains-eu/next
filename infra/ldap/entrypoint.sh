@@ -39,7 +39,13 @@ if [ "$FIRST_BOOT" = "1" ]; then
     done
   fi
 
-  kill "$SLAPD_PID"
+  # Tolerant of the seeding slapd having already exited on its own by this
+  # point (observed live in CI: sh's `&`/`$!` can track a PID that's gone
+  # by the time kill runs, e.g. if slapd double-forks internally) --
+  # `set -e` turned that into a hard crash before, right after seeding
+  # had already succeeded. If it's already gone, the goal (stop it) is
+  # already met.
+  kill "$SLAPD_PID" 2>/dev/null || true
   wait "$SLAPD_PID" 2>/dev/null || true
   echo "[entrypoint] seeding complete"
 fi
