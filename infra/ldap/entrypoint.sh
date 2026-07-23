@@ -47,6 +47,11 @@ if [ "$FIRST_BOOT" = "1" ]; then
   # already met.
   kill "$SLAPD_PID" 2>/dev/null || true
   wait "$SLAPD_PID" 2>/dev/null || true
+  # Killing/reaping the process doesn't guarantee the kernel has released
+  # its bound TCP port yet -- observed live in CI: the foreground slapd
+  # below failed with "bind(6) failed errno=98 (Address already in use)"
+  # immediately after `wait` returned. A short settle delay avoids the race.
+  sleep 1
   echo "[entrypoint] seeding complete"
 fi
 
