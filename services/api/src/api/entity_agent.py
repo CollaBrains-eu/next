@@ -25,13 +25,12 @@ logger = logging.getLogger(__name__)
 
 VALID_ENTITY_TYPES = {"person", "organization", "location", "address", "other"}
 
-# Only these two types are trustworthy enough to auto-create from a bulk per-document LLM
-# scan without a human in the loop first -- organizations feed case-correspondent linking,
-# addresses feed the residency timeline below. Person/location/other entities were the
-# dominant source of low-quality "random entity" noise (see
-# docs/superpowers/specs/2026-07-09-entity-review-queue-design.md) and are now manual-only,
-# created via POST /entities in entities.py instead.
-AUTO_EXTRACTED_ENTITY_TYPES = {"organization", "address"}
+# Broadened 2026-07-23 to include person/location, now that a code-level guardrail
+# exists (_looks_like_garbage_address et al) -- the 2026-07-09 pullback to
+# organization/address only predates any such guardrail (prompt instructions alone
+# weren't reliable). Deployed only after Tasks 1-4 of
+# docs/superpowers/plans/2026-07-23-reliable-entity-extraction-maps.md were verified.
+AUTO_EXTRACTED_ENTITY_TYPES = {"organization", "address", "person", "location"}
 
 # Documents where an extracted address is very likely the user's own current
 # address, not a third party's (e.g. a landlord on a rental contract, or a
@@ -65,17 +64,16 @@ _GARBAGE_ADDRESS_RE = re.compile(
 def _looks_like_garbage_address(name: str) -> bool:
     return bool(_GARBAGE_ADDRESS_RE.search(name))
 
-EXTRACTION_PROMPT = """Extract organizations and specific addresses mentioned in the \
-following document. Do not extract people's names or generic locations -- only \
-organizations and addresses. Return ONLY a JSON object (no prose, no markdown fences) \
-with this shape:
+EXTRACTION_PROMPT = """Extract people, organizations, locations, and specific addresses \
+mentioned in the following document. Return ONLY a JSON object (no prose, no markdown \
+fences) with this shape:
 
-{{"entities": [{{"name": str, "type": "organization"|"address", \
+{{"entities": [{{"name": str, "type": "person"|"organization"|"location"|"address", \
 "street": str|null, "house_number": str|null, "postal_code": str|null, "city": str|null, \
 "country": str|null}}], "relationships": [{{"source": str, "target": str, "type": str}}]}}
 
 The "street"/"house_number"/"postal_code"/"city"/"country" fields only apply to \
-type "address" entities; omit or null them for "organization".
+type "address" entities; omit or null them for every other type.
 
 "source" and "target" must exactly match a "name" from the entities list. If there are no \
 entities, return {{"entities": [], "relationships": []}}.
@@ -92,7 +90,7 @@ EXTRACTION_SCHEMA = {
                 "type": "object",
                 "properties": {
                     "name": {"type": "string"},
-                    "type": {"type": "string", "enum": ["organization", "address"]},
+                    "type": {"type": "string", "enum": ["person", "organization", "location", "address"]},
                     "street": {"type": ["string", "null"]},
                     "house_number": {"type": ["string", "null"]},
                     "postal_code": {"type": ["string", "null"]},

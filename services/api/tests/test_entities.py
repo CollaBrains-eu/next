@@ -118,7 +118,12 @@ async def test_extract_entities_handles_unparseable_output_gracefully(client):
     assert response.json() == []
 
 
-async def test_extract_entities_does_not_auto_create_person_or_location(client):
+async def test_extract_entities_auto_creates_person_and_location(client):
+    """Reversed 2026-07-23: person/location were pulled from auto-extraction on
+    2026-07-09 for being "the dominant source of low-quality noise", before any
+    code-level guardrail existed. Now that _looks_like_garbage_address (and its
+    generalization here) exists, both are auto-created like organization/address
+    always were. See docs/superpowers/plans/2026-07-23-reliable-entity-extraction-maps.md."""
     token = await _login(client, "entityuser16")
     headers = {"Authorization": f"Bearer {token}"}
     document_id = await _upload_ready_document(client, headers, "A person visits a place.")
@@ -131,10 +136,12 @@ async def test_extract_entities_does_not_auto_create_person_or_location(client):
         response = await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
 
     assert response.status_code == 200
-    assert response.json() == []  # person/location are no longer auto-created
+    entities = response.json()
+    assert {e["name"] for e in entities} == {"Random Person", "Random Place"}
+    assert {e["entity_type"] for e in entities} == {"person", "location"}
 
     listing = await client.get("/entities", headers=headers, params={"q": "Random", "status": "all"})
-    assert listing.json() == []  # nothing was persisted at all
+    assert len(listing.json()) == 2
 
 
 async def test_entity_graph_returns_one_hop_neighbors_and_edges(client):
@@ -623,3 +630,33 @@ async def test_extraction_fills_structured_fields_when_llm_leaves_them_null(clie
         detail = result.scalar_one()
     assert detail.street == "Achterweg"
     assert detail.house_number == "15"
+
+
+async def test_person_entities_are_now_auto_extracted(client):
+    token = await _login(client, "entityuser-personauto")
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "Letter from Jan de Vries.")
+    fake = '{"entities": [{"name": "Jan de Vries", "type": "person"}], "relationships": []}'
+
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        response = await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
+
+    assert response.status_code == 200
+    entities = response.json()
+    assert len(entities) == 1
+    assert entities[0]["entity_type"] == "person"
+
+
+async def test_location_entities_are_now_auto_extracted(client):
+    token = await _login(client, "entityuser-locationauto")
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "Meeting held in Amsterdam.")
+    fake = '{"entities": [{"name": "Amsterdam", "type": "location"}], "relationships": []}'
+
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        response = await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
+
+    assert response.status_code == 200
+    entities = response.json()
+    assert len(entities) == 1
+    assert entities[0]["entity_type"] == "location"
