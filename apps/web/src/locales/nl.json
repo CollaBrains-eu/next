@@ -467,6 +467,30 @@
       ]
     }
   },
+  "support": {
+    "title": "Ondersteuning",
+    "body": "Heeft u een vraag, een bug gevonden, of hulp nodig met uw account? Mail ons en een echt persoon neemt contact met u op.",
+    "emailCta": "Mail info@collabrains.eu",
+    "changelogLink": "Bekijk wat er nieuw is"
+  },
+  "changelog": {
+    "title": "Wijzigingslog",
+    "intro": "Recente releases. Dit logboek begint bij Prioriteit 1 van ons SaaS-gereedheidstraject -- het is geen volledige geschiedenis van alle functies die CollaBrains ooit heeft uitgebracht.",
+    "entries": {
+      "priority3": {
+        "title": "Zelfregistratie, teamuitnodigingen en abonnementsfacturering",
+        "body": "Iedereen kan nu zijn eigen CollaBrains-werkruimte aanmaken, teamgenoten uitnodigen per e-mail en zich abonneren op een betaald plan -- zonder tussenkomst van een beheerder."
+      },
+      "priority2": {
+        "title": "CI/CD, geautomatiseerd testen en foutmonitoring",
+        "body": "Elke wijziging doorloopt nu een geautomatiseerde testsuite en end-to-end browsertests voordat deze wordt uitgebracht, en we worden automatisch op de hoogte gesteld als er iets misgaat in productie."
+      },
+      "priority1": {
+        "title": "Beveiliging en toegankelijkheid verbeterd",
+        "body": "Verbeterd kleurcontrast voor leesbaarheid, strengere beveiligingsheaders en versleutelde back-ups."
+      }
+    }
+  },
   "assistant": {
     "hint": "Vraag de assistent iets te doen — deze kan zelf tools kiezen en aanroepen, in tegenstelling tot AI-chat, die alleen antwoordt op basis van uw documenten.",
     "inputPlaceholder": "Vraag de assistent…",

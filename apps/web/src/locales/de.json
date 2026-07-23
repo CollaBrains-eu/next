@@ -467,6 +467,30 @@
       ]
     }
   },
+  "support": {
+    "title": "Support",
+    "body": "Haben Sie eine Frage, einen Fehler gefunden oder benötigen Sie Hilfe mit Ihrem Konto? Schreiben Sie uns eine E-Mail, und eine echte Person meldet sich bei Ihnen.",
+    "emailCta": "E-Mail an info@collabrains.eu",
+    "changelogLink": "Neuigkeiten ansehen"
+  },
+  "changelog": {
+    "title": "Änderungsprotokoll",
+    "intro": "Aktuelle Veröffentlichungen. Dieses Protokoll beginnt mit Priorität 1 unserer SaaS-Readiness-Roadmap -- es ist keine vollständige Historie aller jemals veröffentlichten CollaBrains-Funktionen.",
+    "entries": {
+      "priority3": {
+        "title": "Selbstregistrierung, Team-Einladungen und Abonnement-Abrechnung",
+        "body": "Jeder kann jetzt seinen eigenen CollaBrains-Arbeitsbereich erstellen, Teammitglieder per E-Mail einladen und ein kostenpflichtiges Abonnement abschließen -- ganz ohne Administrator."
+      },
+      "priority2": {
+        "title": "CI/CD, automatisierte Tests und Fehlerüberwachung",
+        "body": "Jede Änderung durchläuft jetzt eine automatisierte Testsuite und End-to-End-Browsertests, bevor sie veröffentlicht wird, und wir werden automatisch benachrichtigt, wenn in der Produktion etwas schiefgeht."
+      },
+      "priority1": {
+        "title": "Sicherheit und Barrierefreiheit verbessert",
+        "body": "Verbesserter Farbkontrast für bessere Lesbarkeit, strengere Sicherheits-Header und verschlüsselte Backups."
+      }
+    }
+  },
   "assistant": {
     "hint": "Bitten Sie den Assistenten, etwas zu erledigen — er kann selbstständig Tools auswählen und aufrufen, im Gegensatz zum KI-Chat, der nur auf Basis Ihrer Dokumente antwortet.",
     "inputPlaceholder": "Fragen Sie den Assistenten…",

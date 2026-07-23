@@ -594,6 +594,12 @@ export default function Landing() {
           <Link to="/cookies" className="hover:text-zinc-300">
             {t("legalDocs.cookies.title")}
           </Link>
+          <Link to="/support" className="hover:text-zinc-300">
+            {t("support.title")}
+          </Link>
+          <Link to="/changelog" className="hover:text-zinc-300">
+            {t("changelog.title")}
+          </Link>
         </nav>
       </footer>
     </div>

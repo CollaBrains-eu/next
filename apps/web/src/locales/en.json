@@ -467,6 +467,30 @@
       ]
     }
   },
+  "support": {
+    "title": "Support",
+    "body": "Have a question, found a bug, or need help with your account? Email us and a real person will get back to you.",
+    "emailCta": "Email info@collabrains.eu",
+    "changelogLink": "See what's new"
+  },
+  "changelog": {
+    "title": "Changelog",
+    "intro": "Recent releases. This log starts from Priority 1 of our SaaS-readiness roadmap -- it isn't a complete history of every feature CollaBrains has ever shipped.",
+    "entries": {
+      "priority3": {
+        "title": "Self-service signup, team invitations, and subscription billing",
+        "body": "Anyone can now create their own CollaBrains workspace, invite teammates by email, and subscribe to a paid plan -- no admin required."
+      },
+      "priority2": {
+        "title": "CI/CD, automated testing, and error tracking",
+        "body": "Every change now runs through an automated test suite and end-to-end browser tests before it ships, and we get notified automatically if something breaks in production."
+      },
+      "priority1": {
+        "title": "Security and accessibility hardening",
+        "body": "Improved color contrast for readability, stricter security headers, and encrypted backups."
+      }
+    }
+  },
   "assistant": {
     "hint": "Ask the assistant to do something — it can choose and call tools on its own, unlike AI Chat which only answers from your documents.",
     "inputPlaceholder": "Ask the assistant…",

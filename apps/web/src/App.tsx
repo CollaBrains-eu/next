@@ -17,6 +17,8 @@ import Onboard from "./routes/Onboard";
 import PrivacyPolicy from "./routes/PrivacyPolicy";
 import TermsOfService from "./routes/TermsOfService";
 import CookiePolicy from "./routes/CookiePolicy";
+import Support from "./routes/Support";
+import Changelog from "./routes/Changelog";
 import Dashboard from "./routes/Dashboard";
 import Workspace from "./routes/Workspace";
 import Chat from "./routes/Chat";
@@ -228,6 +230,8 @@ export default function App() {
                 <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/terms" element={<TermsOfService />} />
                 <Route path="/cookies" element={<CookiePolicy />} />
+                <Route path="/support" element={<Support />} />
+                <Route path="/changelog" element={<Changelog />} />
                 <Route path="/*" element={<AppShell />} />
               </Routes>
             </CommandCenterStateProvider>
