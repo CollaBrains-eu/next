@@ -1,5 +1,13 @@
 import { test as base, expect, type Page } from "@playwright/test";
 
+// The API's own origin -- deliberately separate from Playwright's `baseURL`
+// (playwright.config.ts, used for page.goto() navigation), which points at
+// the *frontend* origin. loginViaApi below calls /auth/token directly
+// against the real backend, not through the frontend's own build-time
+// VITE_API_URL, so it needs this regardless of what the frontend was built
+// to talk to.
+const API_BASE_URL = process.env.E2E_API_BASE_URL ?? "http://localhost:8000";
+
 // Credentials for disposable test users, provisioned by whatever runs this
 // suite (CI: .github/workflows/ci.yml creates them via ldap_auth.create_user,
 // the same mechanism used for every prior live-verification pass in this
@@ -38,7 +46,7 @@ export async function loginViaUi(page: Page, username: string, password: string)
  * to check what's *behind* login, not the login form itself. */
 export async function loginViaApi(page: Page, username: string, password: string) {
   requireCreds({ username, password }, "Test user");
-  const response = await page.request.post("/auth/token", {
+  const response = await page.request.post(`${API_BASE_URL}/auth/token`, {
     form: { username, password },
   });
   expect(response.ok(), `login failed for ${username}: ${response.status()}`).toBeTruthy();
