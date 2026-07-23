@@ -74,6 +74,23 @@ def parse_address(raw_text: str) -> dict[str, str | None]:
     return result
 
 
+def find_full_address_matches(text: str) -> list[str]:
+    """Scan raw text for high-confidence full address matches (street+number+
+    postal+city together) -- a recall safety net for addresses the LLM's
+    semantic pass didn't propose as a candidate at all. Deliberately uses
+    only the strict _FULL_NL_RE/_FULL_DE_RE patterns (all four parts
+    present), not the looser postal-only or street-only fallbacks
+    parse_address() also tries -- scanning arbitrary document prose with a
+    loose pattern would flag invoice numbers, case numbers, etc. as false
+    positives.
+    """
+    matches = []
+    for regex in (_FULL_NL_RE, _FULL_DE_RE):
+        for match in regex.finditer(text):
+            matches.append(match.group(0).strip())
+    return matches
+
+
 def build_maps_url(
     *, street: str | None, house_number: str | None, postal_code: str | None,
     city: str | None, country: str | None,

@@ -1,4 +1,4 @@
-from api.address_parser import build_maps_url, parse_address
+from api.address_parser import build_maps_url, find_full_address_matches, parse_address
 
 
 def test_parses_street_and_house_number_only():
@@ -58,3 +58,18 @@ def test_build_maps_url_from_full_address():
 
 def test_build_maps_url_returns_none_for_insufficient_data():
     assert build_maps_url(street=None, house_number=None, postal_code=None, city=None, country="NL") is None
+
+
+def test_find_full_address_matches_finds_address_in_surrounding_prose():
+    text = "Informationen zu Ihrem Termin\n\nWo?\nJahnstr. 6, 26789 Leer\nRaum: Wartebereich"
+    assert find_full_address_matches(text) == ["Jahnstr. 6, 26789 Leer"]
+
+
+def test_find_full_address_matches_returns_empty_list_when_no_full_address():
+    text = "Bitte bringen Sie Ihr Ausweisdokument mit. Halten Sie Ihre Rentenversicherungsnummer bereit."
+    assert find_full_address_matches(text) == []
+
+
+def test_find_full_address_matches_ignores_bare_numbers_in_prose():
+    text = "Zie pagina 5 voor meer informatie, artikel 12 lid 3 is van toepassing."
+    assert find_full_address_matches(text) == []
