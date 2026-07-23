@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.address_parser import find_full_address_matches, parse_address
 from api.ai_gateway import chat_completion
 from api.contact_parser import looks_like_garbage_title, parse_phone
-from api.models import AddressDetail, Category, ContactDetail, Document, Entity, EntityMention, EntityRelationship, Residency
+from api.models import AddressDetail, Category, ContactDetail, Document, Entity, EntityMention, EntityMergeLog, EntityRelationship, Residency
 
 logger = logging.getLogger(__name__)
 
@@ -330,6 +330,74 @@ async def _upsert_contact_detail(
         await _add_mention_if_missing(db, entity_id=visiting_entity.id, document_id=document_id)
 
 
+def _is_street_fragment(detail: AddressDetail) -> bool:
+    return bool(detail.street or detail.house_number) and not (detail.postal_code and detail.city)
+
+
+def _is_postal_fragment(detail: AddressDetail) -> bool:
+    return bool(detail.postal_code or detail.city) and not (detail.street and detail.house_number)
+
+
+async def _maybe_merge_complementary_address_fragments(
+    db: AsyncSession, *, address_entity_ids: list[UUID], persisted: list[Entity], user_id: UUID
+) -> list[UUID]:
+    """If a single extraction call produced exactly 2 address entities, and one is a
+    street-only fragment while the other is a postal/city-only fragment, they almost
+    certainly describe the same real-world address split across two labeled form
+    fields (e.g. "Straatnaam: Gaslaan 16" / "Postcode en woonplaats: 9671CT
+    Winschoten") -- merge them. Two candidates that already look complete-ish (e.g.
+    a landlord address and a property address on a rental contract) never match
+    this shape and are correctly left separate. Gap-fills only, same rule as
+    _get_or_create_address_entity, and logs to EntityMergeLog like the manual-merge
+    endpoint does.
+    """
+    if len(address_entity_ids) != 2:
+        return address_entity_ids
+
+    kept_id, absorbed_id = address_entity_ids[0], address_entity_ids[1]
+    kept_detail = await db.get(AddressDetail, kept_id)
+    absorbed_detail = await db.get(AddressDetail, absorbed_id)
+    if kept_detail is None or absorbed_detail is None:
+        return address_entity_ids
+
+    is_complementary = (
+        (_is_street_fragment(kept_detail) and _is_postal_fragment(absorbed_detail))
+        or (_is_postal_fragment(kept_detail) and _is_street_fragment(absorbed_detail))
+    )
+    if not is_complementary:
+        return address_entity_ids
+
+    for field in ("street", "house_number", "postal_code", "city", "country"):
+        if getattr(kept_detail, field) is None and getattr(absorbed_detail, field) is not None:
+            setattr(kept_detail, field, getattr(absorbed_detail, field))
+    kept_detail.normalized_key = _normalize_address_key(
+        {
+            "postal_code": kept_detail.postal_code, "house_number": kept_detail.house_number,
+            "street": kept_detail.street,
+        }
+    )
+
+    mentions_result = await db.execute(select(EntityMention).where(EntityMention.entity_id == absorbed_id))
+    for mention in mentions_result.scalars().all():
+        await _add_mention_if_missing(db, entity_id=kept_id, document_id=mention.document_id)
+        # Not explicitly deleting `mention` here -- entity_mentions.entity_id has
+        # ondelete="CASCADE", so deleting absorbed_entity below removes it at the DB
+        # level. An explicit ORM-level delete too raced with that cascade and logged
+        # a "0 rows matched" SAWarning.
+
+    db.add(EntityMergeLog(source_entity_id=absorbed_id, target_entity_id=kept_id, merged_by=user_id))
+    absorbed_entity = await db.get(Entity, absorbed_id)
+    if absorbed_entity is not None:
+        # Deleting the Entity is enough -- AddressDetail.entity_id has ondelete="CASCADE",
+        # so explicitly deleting absorbed_detail too would double-delete the same row
+        # through both the ORM and the DB cascade.
+        await db.delete(absorbed_entity)
+    await db.flush()
+
+    persisted[:] = [e for e in persisted if e.id != absorbed_id]
+    return [kept_id]
+
+
 async def _update_residency(db: AsyncSession, *, user_id: UUID, address_entity_id: UUID, document_id: UUID) -> Residency:
     """Update the user's residency timeline given a newly-extracted address.
 
@@ -443,6 +511,10 @@ async def extract_entities(db: AsyncSession, *, document_id: UUID, text: str, us
             persisted.append(entity)
             address_entity_ids.append(entity.id)
         await _add_mention_if_missing(db, entity_id=entity.id, document_id=document_id)
+
+    address_entity_ids = await _maybe_merge_complementary_address_fragments(
+        db, address_entity_ids=address_entity_ids, persisted=persisted, user_id=user_id
+    )
 
     if address_entity_ids:
         if category_slug in RESIDENCE_CATEGORY_SLUGS:

@@ -786,3 +786,61 @@ async def test_recall_scan_creates_address_missed_by_llm(client):
     assert len(entities) == 1
     assert entities[0]["entity_type"] == "address"
     assert entities[0]["maps_url"] is not None
+
+
+async def test_fragmented_address_from_form_fields_merges_into_one_entity(client):
+    """Live bug found 2026-07-23: a Dutch form with labeled fields ("Straatnaam: Gaslaan 16"
+    ... "Postcode en woonplaats: 9671CT Winschoten") caused the LLM to emit two separate
+    entity items -- one street-only, one postal-only -- for what is really one address."""
+    token = await _login(client, "entityuser-fragmerge1")
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "form")
+    fake = (
+        '{"entities": [{"name": "Gaslaan 16", "type": "address", "street": "Gaslaan", '
+        '"house_number": "16", "postal_code": null, "city": null, "country": null}, '
+        '{"name": "9671CT Winschoten", "type": "address", "street": null, "house_number": null, '
+        '"postal_code": "9671CT", "city": "Winschoten", "country": null}], "relationships": []}'
+    )
+
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        response = await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
+
+    assert response.status_code == 200
+    entities = response.json()
+    assert len(entities) == 1
+    assert entities[0]["maps_url"] is not None
+
+    from api.db import async_session
+    from api.models import AddressDetail, EntityMergeLog
+    from sqlalchemy import select
+
+    async with async_session() as db:
+        result = await db.execute(select(AddressDetail).where(AddressDetail.entity_id == entities[0]["id"]))
+        detail = result.scalar_one()
+        merge_log = await db.execute(select(EntityMergeLog).where(EntityMergeLog.target_entity_id == entities[0]["id"]))
+        assert merge_log.scalar_one_or_none() is not None
+    assert detail.street == "Gaslaan"
+    assert detail.house_number == "16"
+    assert detail.postal_code == "9671CT"
+    assert detail.city == "Winschoten"
+
+
+async def test_two_distinct_addresses_in_one_document_are_not_merged(client):
+    """A rental contract with a landlord address and a property address must stay
+    separate -- both already look complete-ish (each has street+house_number), so
+    neither matches the complementary-fragment shape the merge requires."""
+    token = await _login(client, "entityuser-fragmerge2")
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "contract")
+    fake = (
+        '{"entities": [{"name": "Landlordstraat 1", "type": "address", "street": "Landlordstraat", '
+        '"house_number": "1", "postal_code": "1000AA", "city": "Amsterdam", "country": null}, '
+        '{"name": "Propertylaan 2", "type": "address", "street": "Propertylaan", "house_number": "2", '
+        '"postal_code": "2000BB", "city": "Rotterdam", "country": null}], "relationships": []}'
+    )
+
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        response = await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
+
+    assert response.status_code == 200
+    assert len(response.json()) == 2
