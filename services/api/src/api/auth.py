@@ -11,6 +11,7 @@ e.g. Signal guests in Phase 3) aren't silently overwritten.
 service account act on behalf of a specific user, identified by a linked
 phone number -- see docs/adr/0006-phase3b-signal-identity-linking.md.
 """
+import re
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
@@ -25,6 +26,15 @@ from api.config import settings
 from api.db import get_db
 from api.ldap_auth import authenticate as ldap_authenticate
 from api.models import PendingUserPhoneNumber, User
+from api.registration_service import (
+    check_registration_rate_limit,
+    complete_registration,
+    create_pending_registration,
+    get_pending_registration_for_username,
+    refresh_pending_registration,
+    send_verification_email,
+    username_or_email_taken,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
@@ -109,6 +119,109 @@ async def login(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password")
 
     user = await _get_or_provision_user(db, identity)
+    return Token(access_token=create_access_token(user.username, user.role))
+
+
+USERNAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]{2,31}$")
+EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+class RegisterRequest(BaseModel):
+    username: str
+    display_name: str
+    email: str
+    password: str
+    organization_name: str | None = None
+
+
+class RegisterResponse(BaseModel):
+    email_sent: bool
+
+
+def _validate_registration(body: RegisterRequest) -> tuple[str, str]:
+    username = body.username.strip().lower()
+    if not USERNAME_PATTERN.match(username):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="username must be 3-32 characters: lowercase letters, digits, dot, dash, or underscore",
+        )
+    email = body.email.strip().lower()
+    if not EMAIL_PATTERN.match(email):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Enter a valid email address")
+    if len(body.password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Password must be at least 8 characters"
+        )
+    return username, email
+
+
+@router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
+async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)) -> RegisterResponse:
+    """Self-service signup (Priority 3, ADR 0074): no admin involved, no
+    LDAP entry or Postgres User row created yet -- just a pending
+    registration + a verification email. The account (and its own new
+    Organization) is only provisioned once /auth/verify-email confirms the
+    address is reachable."""
+    username, email = _validate_registration(body)
+    if not await check_registration_rate_limit(email):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many registration attempts for this email, try again later",
+        )
+
+    display_name = body.display_name.strip() or username
+    organization_name = (body.organization_name or f"{display_name}'s organization").strip()
+
+    # Checked first, before the conflict lookup below: a still-valid pending
+    # registration for this exact username is *this same signup* being
+    # resent, not a conflict with someone else -- username_or_email_taken
+    # would otherwise treat it as "username_taken" and 409 a legitimate retry.
+    existing_pending = await get_pending_registration_for_username(db, username=username)
+    if existing_pending is not None:
+        registration = await refresh_pending_registration(
+            db,
+            record=existing_pending,
+            display_name=display_name,
+            email=email,
+            password=body.password,
+            organization_name=organization_name,
+        )
+    else:
+        conflict = await username_or_email_taken(db, username=username, email=email)
+        if conflict == "username_taken":
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This username is already taken")
+        if conflict == "email_taken":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="An account with this email already exists"
+            )
+
+        registration = await create_pending_registration(
+            db,
+            username=username,
+            display_name=display_name,
+            email=email,
+            password=body.password,
+            organization_name=organization_name,
+        )
+
+    email_sent = await send_verification_email(registration=registration)
+    return RegisterResponse(email_sent=email_sent)
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str
+
+
+@router.post("/verify-email", response_model=Token)
+async def verify_email(body: VerifyEmailRequest, db: AsyncSession = Depends(get_db)) -> Token:
+    """Completes a self-service signup and logs the new user straight in,
+    same as /auth/token -- clicking the emailed link should land in the
+    app already authenticated, not back at a login form."""
+    user = await complete_registration(db, token=body.token)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="This verification link is invalid or has expired"
+        )
     return Token(access_token=create_access_token(user.username, user.role))
 
 

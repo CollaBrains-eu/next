@@ -75,6 +75,12 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from_address: str = "noreply@collabrains.eu"
 
+    # Keyed by email, not IP -- the thing worth bounding is "how many
+    # verification emails can one address be spammed with," which an IP
+    # limit wouldn't catch from a botnet and would over-catch for NAT'd
+    # offices. See registration_service._check_registration_rate_limit.
+    registration_rate_limit_per_hour: int = 5
+
     app_base_url: str = "https://collabrains.eu"
     # Browser CORS only matters for cross-origin callers -- production traffic
     # goes through Caddy same-origin (see infra/caddy/Caddyfile) and never hits

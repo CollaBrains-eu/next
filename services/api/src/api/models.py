@@ -77,6 +77,37 @@ class PendingUserPhoneNumber(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class PendingRegistration(Base):
+    """A self-service signup awaiting email verification (Priority 3
+    commercial SaaS, ADR 0074). No LDAP entry or Postgres `User` row exists
+    yet -- both are created together, in registration_service.complete_registration,
+    once the address is confirmed reachable. `password_hash` is
+    pre-computed at registration time (the same SSHA scheme ldap_auth.py
+    already uses for admin-created users) so verification never needs the
+    plaintext password again.
+
+    No unique constraint on `username`/`email` here (unlike `User.username`)
+    -- uniqueness against real accounts is enforced in
+    registration_service.username_or_email_taken at write time, the same
+    "application-enforced, not a DB constraint" choice `Organization.policies`
+    already made, since a merely pending, unconfirmed row shouldn't
+    permanently squat a name the way a real account does.
+    """
+
+    __tablename__ = "pending_registrations"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    username: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    display_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    email: Mapped[str] = mapped_column(String(255), nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    organization_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    token: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Document(Base):
     """An uploaded file, tracked through OCR (via Paperless-ngx) and embedding.
 
