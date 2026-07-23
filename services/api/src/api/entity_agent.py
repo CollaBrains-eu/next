@@ -19,7 +19,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.address_parser import parse_address
 from api.ai_gateway import chat_completion
-from api.models import AddressDetail, Category, Document, Entity, EntityMention, EntityRelationship, Residency
+from api.contact_parser import looks_like_garbage_title, parse_phone
+from api.models import AddressDetail, Category, ContactDetail, Document, Entity, EntityMention, EntityRelationship, Residency
 
 logger = logging.getLogger(__name__)
 
@@ -70,10 +71,21 @@ fences) with this shape:
 
 {{"entities": [{{"name": str, "type": "person"|"organization"|"location"|"address", \
 "street": str|null, "house_number": str|null, "postal_code": str|null, "city": str|null, \
-"country": str|null}}], "relationships": [{{"source": str, "target": str, "type": str}}]}}
+"country": str|null, "phone": str|null, "po_box": str|null, "visiting_address": str|null}}], \
+"relationships": [{{"source": str, "target": str, "type": str, "title": str|null}}]}}
 
 The "street"/"house_number"/"postal_code"/"city"/"country" fields only apply to \
 type "address" entities; omit or null them for every other type.
+
+"phone" is a candidate phone number mentioned near a "person" or "organization" entity, \
+as raw text exactly as written (e.g. "010-1234567"). "po_box" and "visiting_address" are \
+candidate address text mentioned near an "organization" entity (e.g. a PO box line or a \
+visiting/establishment address on a letterhead), as raw text exactly as written. Omit or \
+null all three for every other type.
+
+"title" on a relationship is the person's job title at the organization, if the document \
+states one (e.g. "Directeur"), otherwise null. Only meaningful for person-to-organization \
+relationships.
 
 "source" and "target" must exactly match a "name" from the entities list. If there are no \
 entities, return {{"entities": [], "relationships": []}}.
@@ -96,6 +108,9 @@ EXTRACTION_SCHEMA = {
                     "postal_code": {"type": ["string", "null"]},
                     "city": {"type": ["string", "null"]},
                     "country": {"type": ["string", "null"]},
+                    "phone": {"type": ["string", "null"]},
+                    "po_box": {"type": ["string", "null"]},
+                    "visiting_address": {"type": ["string", "null"]},
                 },
                 "required": ["name", "type"],
             },
@@ -108,6 +123,7 @@ EXTRACTION_SCHEMA = {
                     "source": {"type": "string"},
                     "target": {"type": "string"},
                     "type": {"type": "string"},
+                    "title": {"type": ["string", "null"]},
                 },
                 "required": ["source", "target", "type"],
             },
@@ -250,6 +266,59 @@ async def _get_or_create_address_entity(db: AsyncSession, item: dict, owner_id: 
     return entity
 
 
+async def _add_mention_if_missing(db: AsyncSession, *, entity_id: UUID, document_id: UUID) -> None:
+    existing = await db.execute(
+        select(EntityMention).where(EntityMention.entity_id == entity_id, EntityMention.document_id == document_id)
+    )
+    if existing.scalar_one_or_none() is None:
+        db.add(EntityMention(entity_id=entity_id, document_id=document_id))
+
+
+async def _upsert_contact_detail(
+    db: AsyncSession, *, entity: Entity, item: dict, owner_id: UUID, document_id: UUID
+) -> None:
+    """Gap-fill ContactDetail for a person/organization entity from one extraction's
+    phone/po_box/visiting_address candidates -- never overwrites an already-populated
+    field, same rule _get_or_create_address_entity uses for AddressDetail. PO box and
+    visiting address become their own deduped address entities via the existing
+    address machinery, each getting an EntityMention on this document for traceability.
+
+    Validates candidates *before* touching the database: if every candidate on this
+    extraction fails validation (e.g. an email mis-slotted into "phone"), no
+    ContactDetail row is created at all -- an all-None row would otherwise serialize
+    as a non-null but empty `contact`, indistinguishable from a real one to callers.
+    """
+    raw_phone = item.get("phone")
+    raw_po_box = item.get("po_box")
+    raw_visiting_address = item.get("visiting_address")
+    if not raw_phone and not raw_po_box and not raw_visiting_address:
+        return
+
+    phone = parse_phone(str(raw_phone)) if raw_phone else None
+    po_box_entity = await _get_or_create_address_entity(db, {"name": str(raw_po_box)}, owner_id) if raw_po_box else None
+    visiting_entity = (
+        await _get_or_create_address_entity(db, {"name": str(raw_visiting_address)}, owner_id)
+        if raw_visiting_address else None
+    )
+    if phone is None and po_box_entity is None and visiting_entity is None:
+        return
+
+    detail = await db.get(ContactDetail, entity.id)
+    if detail is None:
+        detail = ContactDetail(entity_id=entity.id)
+        db.add(detail)
+        await db.flush()
+
+    if detail.phone is None and phone is not None:
+        detail.phone = phone
+    if detail.po_box_address_entity_id is None and po_box_entity is not None:
+        detail.po_box_address_entity_id = po_box_entity.id
+        await _add_mention_if_missing(db, entity_id=po_box_entity.id, document_id=document_id)
+    if detail.visiting_address_entity_id is None and visiting_entity is not None:
+        detail.visiting_address_entity_id = visiting_entity.id
+        await _add_mention_if_missing(db, entity_id=visiting_entity.id, document_id=document_id)
+
+
 async def _update_residency(db: AsyncSession, *, user_id: UUID, address_entity_id: UUID, document_id: UUID) -> Residency:
     """Update the user's residency timeline given a newly-extracted address.
 
@@ -347,11 +416,9 @@ async def extract_entities(db: AsyncSession, *, document_id: UUID, text: str, us
         if entity_type == "address":
             address_entity_ids.append(entity.id)
 
-        existing = await db.execute(
-            select(EntityMention).where(EntityMention.entity_id == entity.id, EntityMention.document_id == document_id)
-        )
-        if existing.scalar_one_or_none() is None:
-            db.add(EntityMention(entity_id=entity.id, document_id=document_id))
+        await _add_mention_if_missing(db, entity_id=entity.id, document_id=document_id)
+        if entity_type in ("person", "organization"):
+            await _upsert_contact_detail(db, entity=entity, item=item, owner_id=user_id, document_id=document_id)
 
     if address_entity_ids:
         if category_slug in RESIDENCE_CATEGORY_SLUGS:
@@ -375,12 +442,15 @@ async def extract_entities(db: AsyncSession, *, document_id: UUID, text: str, us
         target = entities_by_name.get(str(rel["target"]).strip().lower())
         if source is None or target is None:
             continue
+        raw_title = rel.get("title")
+        title = str(raw_title)[:255] if raw_title and not looks_like_garbage_title(str(raw_title)) else None
         db.add(
             EntityRelationship(
                 source_entity_id=source.id,
                 target_entity_id=target.id,
                 relationship_type=str(rel["type"])[:255],
                 document_id=document_id,
+                title=title,
             )
         )
 

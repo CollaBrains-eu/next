@@ -660,3 +660,92 @@ async def test_location_entities_are_now_auto_extracted(client):
     entities = response.json()
     assert len(entities) == 1
     assert entities[0]["entity_type"] == "location"
+
+
+async def test_extraction_creates_contact_detail_for_organization(client):
+    """Karl Zimmer / Umbrella Corp letterhead case: phone + PO box + visiting
+    address attach to the organization entity, with PO box/visiting address
+    becoming their own deduped address entities via the existing machinery."""
+    token = await _login(client, "entityuser-contact1")
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "Umbrella Corp letterhead")
+    fake = (
+        '{"entities": [{"name": "Umbrella Corp", "type": "organization", '
+        '"phone": "010-1234567", "po_box": "Postbus 99, 1000 AB Amsterdam", '
+        '"visiting_address": "Hoofdstraat 1, 1011 AB Amsterdam"}], "relationships": []}'
+    )
+
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        response = await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
+
+    assert response.status_code == 200
+    entities = response.json()
+    assert len(entities) == 1
+    contact = entities[0]["contact"]
+    assert contact["phone"] == "010-1234567"
+    assert contact["po_box_address"] is not None
+    assert contact["po_box_address"]["city"] == "Amsterdam"
+    assert contact["visiting_address"] is not None
+    assert contact["visiting_address"]["street"] == "Hoofdstraat"
+
+
+async def test_contact_detail_gap_fills_across_documents_not_overwrite(client):
+    token = await _login(client, "entityuser-contact2")
+    headers = {"Authorization": f"Bearer {token}"}
+    doc1 = await _upload_ready_document(client, headers, "First letter")
+    fake1 = '{"entities": [{"name": "Acme BV", "type": "organization", "phone": "010-1234567"}], "relationships": []}'
+    with patch("api.entity_agent.chat_completion", return_value=fake1):
+        r1 = await client.post(f"/documents/{doc1}/extract-entities", headers=headers)
+    assert r1.json()[0]["contact"]["phone"] == "010-1234567"
+
+    doc2 = await _upload_ready_document(client, headers, "Second letter")
+    fake2 = '{"entities": [{"name": "Acme BV", "type": "organization", "phone": "999-9999999"}], "relationships": []}'
+    with patch("api.entity_agent.chat_completion", return_value=fake2):
+        r2 = await client.post(f"/documents/{doc2}/extract-entities", headers=headers)
+
+    assert r2.json()[0]["contact"]["phone"] == "010-1234567"
+
+
+async def test_extraction_rejects_garbage_phone_and_title(client):
+    token = await _login(client, "entityuser-contact3")
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "Third letter")
+    fake = (
+        '{"entities": [{"name": "Karl Zimmer", "type": "person", "phone": "info@acme.com"}, '
+        '{"name": "Acme BV", "type": "organization"}], '
+        '"relationships": [{"source": "Karl Zimmer", "target": "Acme BV", "type": "employee_of", '
+        '"title": "https://acme.com"}]}'
+    )
+
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        extracted = await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
+
+    entities_by_name = {e["name"]: e for e in extracted.json()}
+    assert entities_by_name["Karl Zimmer"]["contact"] is None
+
+    person_id = entities_by_name["Karl Zimmer"]["id"]
+    org_id = entities_by_name["Acme BV"]["id"]
+    await client.post(f"/entities/{person_id}/approve", headers=headers)
+    await client.post(f"/entities/{org_id}/approve", headers=headers)
+    graph = await client.get(f"/entities/{person_id}/graph", headers=headers)
+    assert graph.json()["edges"][0]["title"] is None
+
+
+async def test_relationship_title_is_extracted_and_serialized_in_graph(client):
+    token = await _login(client, "entityuser-title1")
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "Karl Zimmer, Directeur bij Umbrella Corp.")
+    fake = (
+        '{"entities": [{"name": "Karl Zimmer", "type": "person"}, {"name": "Umbrella Corp", "type": "organization"}], '
+        '"relationships": [{"source": "Karl Zimmer", "target": "Umbrella Corp", "type": "employee_of", "title": "Directeur"}]}'
+    )
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        extracted = await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
+
+    entities_by_name = {e["name"]: e["id"] for e in extracted.json()}
+    await client.post(f"/entities/{entities_by_name['Karl Zimmer']}/approve", headers=headers)
+    await client.post(f"/entities/{entities_by_name['Umbrella Corp']}/approve", headers=headers)
+
+    graph = await client.get(f"/entities/{entities_by_name['Karl Zimmer']}/graph", headers=headers)
+    edge = graph.json()["edges"][0]
+    assert edge["title"] == "Directeur"
