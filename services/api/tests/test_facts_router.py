@@ -1,5 +1,5 @@
 from datetime import date
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 from uuid import uuid4
 
 from api.db import async_session
