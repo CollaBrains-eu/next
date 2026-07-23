@@ -37,3 +37,16 @@ infra/signal-cli/
 # JWT_SECRET-in-public-repo incident (ADR 0052/0053).
 backups/
 *.dump
+*.rdb
+
+# Python test tooling artifacts -- previously only excluded via their own
+# self-generated nested .gitignore (services/api/.venv-test/.gitignore,
+# .pytest_cache/.gitignore), which is fragile if either tool ever stops
+# writing that file (ADR 0066 audit finding).
+.venv-test/
+.pytest_cache/
+
+# Playwright
+apps/e2e/test-results/
+apps/e2e/playwright-report/
+apps/e2e/.cache/

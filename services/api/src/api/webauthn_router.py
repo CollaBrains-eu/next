@@ -224,8 +224,6 @@ async def login_complete(body: LoginCompleteRequest, db: AsyncSession = Depends(
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Passkey not recognized")
 
-    from datetime import datetime, timezone
-
     stored.sign_count = verification.new_sign_count
     stored.last_used_at = datetime.now(timezone.utc)
     user.last_login_at = datetime.now(timezone.utc)

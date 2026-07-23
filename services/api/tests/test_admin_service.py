@@ -3,7 +3,6 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import httpx
-import pytest
 
 from api.admin_service import (
     CLARIFY_SCHEMA,

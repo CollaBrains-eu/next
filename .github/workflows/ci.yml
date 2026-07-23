@@ -1,0 +1,317 @@
+name: CI
+
+# No repository secrets are required for this workflow. Every credential
+# below is a throwaway value scoped to the ephemeral service containers in
+# this run -- see docs/adr/0068-ci-cd-pipeline.md for why, and for what a
+# future workflow step (e.g. a real deploy, or Sentry release uploads)
+# would need to add as real GitHub Secrets.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PNPM_VERSION: "11.9.0"
+  NODE_VERSION: "22"
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  frontend:
+    name: Frontend (lint, test, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm --filter web lint
+
+      - name: Unit tests
+        run: pnpm --filter web test
+
+      - name: Build (production bundle)
+        # `vite build`, not `tsc -b`: this repo's own Docker/deploy path
+        # already builds this way (ADR 0039/0049) because tsc -b currently
+        # fails on a pre-existing react-router-dom/@types/react version
+        # mismatch unrelated to any one PR's changes. Tracked as a Priority
+        # 3 cleanup item (ADR 0066), not re-litigated here.
+        run: pnpm --filter web exec vite build
+
+  backend:
+    name: Backend (lint, migrations, tests)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: collabrains
+          POSTGRES_PASSWORD: collabrains-ci-test
+          POSTGRES_DB: collabrains
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U collabrains -d collabrains"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      # Throwaway values for ephemeral service containers in this run only --
+      # never real secrets, nothing here is used outside this job.
+      DATABASE_URL: postgresql+asyncpg://collabrains:collabrains-ci-test@localhost:5432/collabrains
+      REDIS_URL: redis://localhost:6379/0
+      JWT_SECRET: ci-test-jwt-secret-not-used-anywhere-real
+      LDAP_URL: ldap://localhost:389
+      LDAP_ADMIN_PASSWORD: ci-test-unused
+      # No real OpenLDAP/Ollama in this job: every test that touches LDAP or
+      # the AI Gateway mocks those calls (confirmed by reading the test
+      # suite) rather than needing a live server -- see ADR 0068.
+    defaults:
+      run:
+        working-directory: services/api
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Lint (ruff)
+        run: uv run ruff check .
+
+      - name: Migration heads check (no branching)
+        run: |
+          heads="$(uv run alembic heads)"
+          count="$(echo "$heads" | grep -c .)"
+          if [ "$count" -ne 1 ]; then
+            echo "::error::Expected exactly one Alembic head, found $count:"
+            echo "$heads"
+            exit 1
+          fi
+          echo "Single head OK: $heads"
+
+      - name: Apply migrations
+        run: uv run alembic upgrade head
+
+      - name: Tests
+        run: uv run pytest -q
+
+  security:
+    name: Security checks (report-only)
+    runs-on: ubuntu-latest
+    # Non-blocking for now: both scans currently report pre-existing findings
+    # unrelated to this pipeline (a transitive brace-expansion advisory in
+    # apps/mobile's Expo/RN tooling chain, and an unfixed-upstream `ecdsa`
+    # advisory) -- see ADR 0068. The scans run and are visible on every PR;
+    # tightening to fail-on-high once those are individually resolved is a
+    # follow-up, not something to silently skip.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: pnpm audit (report only)
+        run: pnpm audit --audit-level=high || true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: astral-sh/setup-uv@v3
+      - name: pip-audit (report only)
+        working-directory: services/api
+        run: |
+          uv sync --group dev
+          uv pip install pip-audit
+          uv run pip-audit --desc off || true
+
+  e2e:
+    name: Playwright smoke suite
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: collabrains
+          POSTGRES_PASSWORD: collabrains-ci-test
+          POSTGRES_DB: collabrains
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U collabrains -d collabrains"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      # Same "throwaway, ephemeral-container-only" values as the backend job.
+      DATABASE_URL: postgresql+asyncpg://collabrains:collabrains-ci-test@localhost:5432/collabrains
+      REDIS_URL: redis://localhost:6379/0
+      JWT_SECRET: ci-test-jwt-secret-not-used-anywhere-real
+      LDAP_URL: ldap://localhost:389
+      LDAP_BASE_DN: dc=collabrains,dc=eu
+      LDAP_BIND_DN_TEMPLATE: "uid={username},ou=people,dc=collabrains,dc=eu"
+      LDAP_ADMIN_GROUP_DN: cn=collabrains-admins,ou=groups,dc=collabrains,dc=eu
+      LDAP_ADMIN_PASSWORD: ci-test-ldap-admin-pw
+    steps:
+      - uses: actions/checkout@v4
+
+      # Unlike the "backend" job, this one drives the real running app
+      # through a browser, so it needs a real LDAP (unlike pytest, nothing
+      # here mocks auth) -- build the same custom image docker-compose.yml
+      # uses, no Ollama/Paperless/Caddy/Signal (nothing this suite's
+      # journeys touch depends on them -- see ADR 0069).
+      - name: Build and start OpenLDAP
+        run: |
+          docker build -t ci-openldap ./infra/ldap
+          docker run -d --name ci-openldap -p 389:389 \
+            -e LDAP_BASE_DN="$LDAP_BASE_DN" -e LDAP_ADMIN_PASSWORD="$LDAP_ADMIN_PASSWORD" \
+            -v "${{ github.workspace }}/infra/ldap/bootstrap:/ldifs:ro" \
+            ci-openldap
+          for i in $(seq 1 30); do
+            docker exec ci-openldap ldapsearch -x -H ldap:/// -s base -b "" >/dev/null 2>&1 && break
+            sleep 1
+          done
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: astral-sh/setup-uv@v3
+
+      - name: Install backend dependencies
+        working-directory: services/api
+        run: uv sync --group dev
+
+      - name: Apply migrations
+        working-directory: services/api
+        run: uv run alembic upgrade head
+
+      - name: Start the API
+        working-directory: services/api
+        run: |
+          uv run uvicorn api.main:app --host 0.0.0.0 --port 8000 --app-dir src &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8000/health >/dev/null && break
+            sleep 1
+          done
+
+      - name: Create disposable test users
+        working-directory: services/api
+        run: |
+          uv run python - <<'PYEOF' >> "$GITHUB_ENV"
+          from api.ldap_auth import create_user
+
+          user = create_user(username="e2e-user", display_name="E2E User", email="e2e-user@example.invalid", is_admin=False)
+          admin = create_user(username="e2e-admin", display_name="E2E Admin", email="e2e-admin@example.invalid", is_admin=True)
+          print("E2E_TEST_USERNAME=e2e-user")
+          print(f"E2E_TEST_PASSWORD={user.temporary_password}")
+          print("E2E_ADMIN_USERNAME=e2e-admin")
+          print(f"E2E_ADMIN_PASSWORD={admin.temporary_password}")
+          PYEOF
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend against the local API
+        # Deliberately not testing through Caddy (see ADR 0069) -- an
+        # absolute VITE_API_URL here, unlike the "frontend" job's build,
+        # which stays same-origin/relative for the real production bundle.
+        working-directory: apps/web
+        env:
+          VITE_API_URL: http://localhost:8000
+        run: pnpm exec vite build
+
+      - name: Serve the built frontend
+        working-directory: apps/web
+        run: |
+          pnpm exec vite preview --port 4173 --host 0.0.0.0 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:4173 >/dev/null && break
+            sleep 1
+          done
+
+      - name: Install Playwright browsers
+        working-directory: apps/e2e
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run Playwright smoke suite
+        working-directory: apps/e2e
+        env:
+          E2E_BASE_URL: http://localhost:4173
+        run: pnpm exec playwright test
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/e2e/playwright-report/
+          retention-days: 14
+
+  docker-build:
+    name: Docker build validation
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: api
+            dockerfile: services/api/Dockerfile
+            context: ./services/api
+          - name: web
+            dockerfile: apps/web/Dockerfile
+            context: .
+          - name: signal-bot
+            dockerfile: apps/signal-bot/Dockerfile
+            context: ./apps/signal-bot
+          - name: openldap
+            dockerfile: infra/ldap/Dockerfile
+            context: ./infra/ldap
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build ${{ matrix.name }} (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: false
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}

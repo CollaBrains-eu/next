@@ -92,8 +92,7 @@ async def test_export_metafield_ics_rejects_unknown_document(client):
 
 
 async def test_export_metafield_ics_rejects_non_owner(client):
-    owner_token = await _login(client, "icsmetaowner1")
-    owner_headers = {"Authorization": f"Bearer {owner_token}"}
+    await _login(client, "icsmetaowner1")
     owner_id = await _user_id("icsmetaowner1")
     document_id = await _create_document(
         owner_id, "Private invoice", doc_type="invoice", metafields={"due_date": "2026-08-01"},

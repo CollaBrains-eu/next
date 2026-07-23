@@ -488,7 +488,7 @@ async def test_partial_and_full_extraction_of_same_address_merge_not_fragment(cl
     # with in the raw name).
     fake_partial = json.dumps({
         "entities": [{
-            "name": f"12, 1012AB", "type": "address",
+            "name": "12, 1012AB", "type": "address",
             "street": None, "house_number": "12", "postal_code": "1012AB", "city": None, "country": None,
         }],
         "relationships": [],
