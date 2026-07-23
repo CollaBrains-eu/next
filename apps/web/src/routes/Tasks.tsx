@@ -94,7 +94,6 @@ export default function Tasks() {
 
   useEffect(() => {
     listTasks().then(setAllTasks).catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadSelectedTask = useCallback(() => {

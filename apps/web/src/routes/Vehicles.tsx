@@ -55,6 +55,7 @@ export default function Vehicles() {
       .finally(() => setLoading(false));
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount; `t` isn't expected to change
   useEffect(refresh, []);
 
   async function handleSearch() {
