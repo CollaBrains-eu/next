@@ -1384,7 +1384,7 @@ git push origin main
 
 **Do not start this task until Tasks 1-4 are deployed and verified against real production documents** (re-run the live diagnostic queries from this plan's Global Constraints section — structured-field population rate and residency-row count — and confirm they've actually improved). This directly reverses the 2026-07-09 decision to pull person/location back due to being "the dominant source of low-quality noise" (`entity_agent.py:26-31`) -- that decision predates any code-level guardrail existing at all (only prompt instructions), so Task 2's guardrail pattern is the actual prerequisite that makes revisiting it reasonable. Expanding scope before confirming the prerequisite fix works in practice would risk reintroducing the exact noise problem that caused the original pullback.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `services/api/tests/test_entities.py`:
 
@@ -1419,7 +1419,7 @@ async def test_location_entities_are_now_auto_extracted(client):
     assert entities[0]["entity_type"] == "location"
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```bash
 cd ~/dev/collabrains-next
@@ -1428,7 +1428,7 @@ ssh root@178.254.22.178 "cd /opt/collabrains && docker compose exec -T -e PYTHON
 ```
 Expected: FAIL — `entities == []` (person/location still filtered out by `AUTO_EXTRACTED_ENTITY_TYPES`).
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 In `services/api/src/api/entity_agent.py`, update `AUTO_EXTRACTED_ENTITY_TYPES` (line 32) and its comment:
 
@@ -1469,18 +1469,18 @@ Update `EXTRACTION_SCHEMA`'s `type` enum (line 68) to match:
                     "type": {"type": "string", "enum": ["person", "organization", "location", "address"]},
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 ```bash
 ssh root@178.254.22.178 "cd /opt/collabrains && docker compose exec -T -e PYTHONPATH=/app/src api pytest tests/test_entities.py -v"
 ```
 Expected: all PASSED **except** `test_extract_entities_does_not_auto_create_person_or_location` (line 112 in the existing file) — this test asserts the *old* behavior being deliberately reversed. Update that test's name and assertion to match the new behavior (or delete it if fully superseded by the two new tests above — check its exact current body first and decide based on whether it tests anything the new tests don't already cover).
 
-- [ ] **Step 5: Live verification (not just unit tests)**
+- [x] **Step 5: Live verification (not just unit tests)**
 
 Upload a handful of real documents already in production (or re-run extraction on existing ones via `POST /documents/{id}/extract-entities`) and manually review the `/entities/review` queue for a few days' worth of real traffic before considering this task done -- the whole point of the 2026-07-09 pullback was noise that only showed up under real usage, not synthetic tests. Watch specifically for: extraction volume becoming unmanageable, low-quality person/location names appearing (partial names, titles without names, etc.).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 cd ~/dev/collabrains-next
