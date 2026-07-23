@@ -17,7 +17,7 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.address_parser import parse_address
+from api.address_parser import find_full_address_matches, parse_address
 from api.ai_gateway import chat_completion
 from api.contact_parser import looks_like_garbage_title, parse_phone
 from api.models import AddressDetail, Category, ContactDetail, Document, Entity, EntityMention, EntityRelationship, Residency
@@ -430,6 +430,19 @@ async def extract_entities(db: AsyncSession, *, document_id: UUID, text: str, us
         await _add_mention_if_missing(db, entity_id=entity.id, document_id=document_id)
         if entity_type in ("person", "organization"):
             await _upsert_contact_detail(db, entity=entity, item=item, owner_id=user_id, document_id=document_id)
+
+    existing_address_names = {e.name.strip().lower() for e in persisted if e.entity_type == "address"}
+    for match in find_full_address_matches(text):
+        if match.strip().lower() in existing_address_names:
+            continue
+        entity = await _get_or_create_address_entity(db, {"name": match}, user_id)
+        if entity is None:
+            continue
+        existing_address_names.add(match.strip().lower())
+        if entity.id not in {e.id for e in persisted}:
+            persisted.append(entity)
+            address_entity_ids.append(entity.id)
+        await _add_mention_if_missing(db, entity_id=entity.id, document_id=document_id)
 
     if address_entity_ids:
         if category_slug in RESIDENCE_CATEGORY_SLUGS:

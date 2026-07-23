@@ -767,3 +767,22 @@ async def test_relationship_title_is_extracted_and_serialized_in_graph(client):
     graph = await client.get(f"/entities/{entities_by_name['Karl Zimmer']}/graph", headers=headers)
     edge = graph.json()["edges"][0]
     assert edge["title"] == "Directeur"
+
+
+async def test_recall_scan_creates_address_missed_by_llm(client):
+    """Live bug found 2026-07-23: a clean, well-formatted address present in the
+    document text was never proposed as a candidate entity by the LLM at all."""
+    token = await _login(client, "entityuser-recallscan")
+    headers = {"Authorization": f"Bearer {token}"}
+    document_text = "Wo?\nJahnstr. 6, 26789 Leer\nRaum: Wartebereich beim Empfang"
+    document_id = await _upload_ready_document(client, headers, document_text)
+    fake = '{"entities": [], "relationships": []}'
+
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        response = await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
+
+    assert response.status_code == 200
+    entities = response.json()
+    assert len(entities) == 1
+    assert entities[0]["entity_type"] == "address"
+    assert entities[0]["maps_url"] is not None
