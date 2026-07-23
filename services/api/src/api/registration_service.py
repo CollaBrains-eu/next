@@ -87,7 +87,14 @@ async def get_pending_registration_for_username(db: AsyncSession, *, username: s
 
 
 async def create_pending_registration(
-    db: AsyncSession, *, username: str, display_name: str, email: str, password: str, organization_name: str
+    db: AsyncSession,
+    *,
+    username: str,
+    display_name: str,
+    email: str,
+    password: str,
+    organization_name: str,
+    invitation_token: str | None = None,
 ) -> PendingRegistration:
     record = PendingRegistration(
         username=username,
@@ -95,6 +102,7 @@ async def create_pending_registration(
         email=email,
         password_hash=hash_password(password),
         organization_name=organization_name,
+        invitation_token=invitation_token,
         token=_generate_token(),
         expires_at=datetime.now(timezone.utc) + timedelta(hours=TOKEN_TTL_HOURS),
     )
@@ -112,6 +120,7 @@ async def refresh_pending_registration(
     email: str,
     password: str,
     organization_name: str,
+    invitation_token: str | None = None,
 ) -> PendingRegistration:
     """A second /auth/register call for a username that already has a
     still-valid pending registration is treated as "resend the
@@ -123,6 +132,7 @@ async def refresh_pending_registration(
     record.email = email
     record.password_hash = hash_password(password)
     record.organization_name = organization_name
+    record.invitation_token = invitation_token
     record.token = _generate_token()
     record.expires_at = datetime.now(timezone.utc) + timedelta(hours=TOKEN_TTL_HOURS)
     await db.commit()
@@ -141,14 +151,28 @@ async def get_valid_pending_registration(db: AsyncSession, *, token: str) -> Pen
 
 
 async def complete_registration(db: AsyncSession, *, token: str) -> User | None:
-    """Verifies the token, then creates the LDAP entry, a brand-new
-    Organization (the registrant is its first admin), and the Postgres
-    User row together -- the point where a signup stops being "pending"
-    and becomes a real account. Returns None if the token is invalid,
-    expired, or already used; the router maps that to a 400."""
+    """Verifies the token, then creates the LDAP entry and the Postgres
+    User row -- the point where a signup stops being "pending" and
+    becomes a real account. Returns None if the registration token (or,
+    for an invited signup, the invitation it carries) is invalid, expired,
+    already used/accepted, or revoked; the router maps that to a 400.
+
+    Two shapes, chosen by whether `record.invitation_token` is set
+    (invitation_service, ADR 0074): an ordinary signup gets a brand-new
+    Organization with itself as owner; an invited signup joins the
+    inviting org instead and is never made its owner.
+    """
     record = await get_valid_pending_registration(db, token=token)
     if record is None:
         return None
+
+    invitation = None
+    if record.invitation_token is not None:
+        from api.invitation_service import get_valid_invitation
+
+        invitation = await get_valid_invitation(db, token=record.invitation_token)
+        if invitation is None:
+            return None
 
     try:
         ldap_register_user(
@@ -165,24 +189,34 @@ async def complete_registration(db: AsyncSession, *, token: str) -> User | None:
         # Postgres commit below -- proceed rather than stranding the user
         # with a directory account they can never finish provisioning.
 
-    organization = Organization(name=record.organization_name)
-    db.add(organization)
-    await db.flush()
+    organization = None
+    if invitation is None:
+        organization = Organization(name=record.organization_name)
+        db.add(organization)
+        await db.flush()
+        organization_id = organization.id
+    else:
+        organization_id = invitation.organization_id
 
     # role stays the "member" default deliberately -- User.role is
     # platform-wide (see Organization.owner_user_id's docstring), so a
     # self-service signup must not grant platform admin. owner_user_id
-    # below is what actually lets this person manage their own org.
+    # below is what actually lets an (uninvited) registrant manage their
+    # own new org; an invited signup gets neither.
     user = User(
         username=record.username,
         display_name=record.display_name,
         email=record.email,
-        organization_id=organization.id,
+        organization_id=organization_id,
     )
     db.add(user)
     await db.flush()
 
-    organization.owner_user_id = user.id
+    if invitation is not None:
+        invitation.accepted_at = datetime.now(timezone.utc)
+    else:
+        organization.owner_user_id = user.id
+
     record.consumed_at = datetime.now(timezone.utc)
     await db.commit()
     await db.refresh(user)

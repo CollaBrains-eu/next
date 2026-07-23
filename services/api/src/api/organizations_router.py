@@ -7,6 +7,7 @@ Admin Dashboard. Still not real per-org RBAC (no separate "member" vs
 "admin-of-this-org" distinction beyond a single owner) -- that's the
 RBAC 2.0 work this phase doesn't build.
 """
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -14,9 +15,18 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.auth import get_current_user
+from api.auth import EMAIL_PATTERN, get_current_user
 from api.db import get_db
-from api.models import Organization, User
+from api.invitation_service import (
+    create_invitation,
+    get_pending_invitation_for_email,
+    is_already_a_member,
+    list_pending_invitations,
+    refresh_invitation,
+    revoke_invitation,
+    send_invitation_email,
+)
+from api.models import Invitation, Organization, User
 from api.organizations import (
     get_organization_for_user,
     list_organization_members,
@@ -100,3 +110,77 @@ async def rename_my_organization(
     _require_org_admin(current_user, organization)
     updated = await rename_organization(db, organization_id=organization.id, name=body.name)
     return OrganizationOut(id=updated.id, name=updated.name, policies=updated.policies)
+
+
+class InvitationCreateIn(BaseModel):
+    email: str
+
+
+class InvitationOut(BaseModel):
+    id: UUID
+    email: str
+    created_at: datetime
+    expires_at: datetime
+
+
+def _invitation_out(invitation: Invitation) -> InvitationOut:
+    return InvitationOut(
+        id=invitation.id, email=invitation.email, created_at=invitation.created_at, expires_at=invitation.expires_at
+    )
+
+
+@router.post("/me/invitations", response_model=InvitationOut, status_code=status.HTTP_201_CREATED)
+async def invite_organization_member(
+    body: InvitationCreateIn,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> InvitationOut:
+    """Sends (or, for a still-pending invite to the same address, resends)
+    an org invitation by email -- the "invite a stranger" gap ADR 0074
+    found missing from cases_router.py/workspace_router.py, which both
+    require the invitee to already be a provisioned platform user."""
+    organization = await _get_org_or_404(db, current_user)
+    _require_org_admin(current_user, organization)
+
+    email = body.email.strip().lower()
+    if not EMAIL_PATTERN.match(email):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Enter a valid email address")
+
+    if await is_already_a_member(db, organization_id=organization.id, email=email):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This person is already a member")
+
+    existing = await get_pending_invitation_for_email(db, organization_id=organization.id, email=email)
+    invitation = (
+        await refresh_invitation(db, invitation=existing)
+        if existing is not None
+        else await create_invitation(
+            db, organization_id=organization.id, email=email, invited_by_user_id=current_user.id
+        )
+    )
+
+    await send_invitation_email(invitation=invitation, organization_name=organization.name)
+    return _invitation_out(invitation)
+
+
+@router.get("/me/invitations", response_model=list[InvitationOut])
+async def list_organization_invitations(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[InvitationOut]:
+    organization = await _get_org_or_404(db, current_user)
+    _require_org_admin(current_user, organization)
+    invitations = await list_pending_invitations(db, organization_id=organization.id)
+    return [_invitation_out(invitation) for invitation in invitations]
+
+
+@router.delete("/me/invitations/{invitation_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def revoke_organization_invitation(
+    invitation_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    organization = await _get_org_or_404(db, current_user)
+    _require_org_admin(current_user, organization)
+    invitation = await revoke_invitation(db, invitation_id=invitation_id, organization_id=organization.id)
+    if invitation is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invitation not found")

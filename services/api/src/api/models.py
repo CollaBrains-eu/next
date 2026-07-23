@@ -116,9 +116,48 @@ class PendingRegistration(Base):
     email: Mapped[str] = mapped_column(String(255), nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     organization_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Set when this registration completes an invitation (invitation_service,
+    # ADR 0074) rather than creating a brand-new org -- nullable because
+    # ordinary self-service signup (registration_service) has no invitation.
+    invitation_token: Mapped[str | None] = mapped_column(String(64), nullable=True)
     token: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Invitation(Base):
+    """An org invitation sent by email (Priority 3 commercial SaaS, ADR
+    0074) -- the "invite a stranger by email" gap that ADR 0074 found
+    missing entirely. Unlike the pre-existing case/workspace sharing
+    (cases_router.py/workspace_router.py), which both require the invitee
+    to already be a provisioned platform user, this works for someone who
+    has never signed up: they register (registration_service, carrying
+    this invitation's token) and land in the inviting org instead of a
+    brand-new one, or -- if they already have an account -- accept
+    directly and switch into it (a user belongs to exactly one org, same
+    constraint `Organization`'s docstring already documents).
+
+    Deliberately has no `role` field: `User.role` is platform-wide (see
+    `Organization.owner_user_id`'s docstring), so an invitation can only
+    ever add someone as an ordinary member of the org, never grant admin
+    of anything.
+    """
+
+    __tablename__ = "invitations"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    email: Mapped[str] = mapped_column(String(255), nullable=False)
+    invited_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
+    token: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

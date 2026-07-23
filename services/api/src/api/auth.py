@@ -25,7 +25,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.config import settings
 from api.db import get_db
 from api.ldap_auth import authenticate as ldap_authenticate
-from api.models import PendingUserPhoneNumber, User
+from api.invitation_service import get_valid_invitation
+from api.models import Organization, PendingUserPhoneNumber, User
 from api.registration_service import (
     check_registration_rate_limit,
     complete_registration,
@@ -132,6 +133,7 @@ class RegisterRequest(BaseModel):
     email: str
     password: str
     organization_name: str | None = None
+    invitation_token: str | None = None
 
 
 class RegisterResponse(BaseModel):
@@ -159,9 +161,11 @@ def _validate_registration(body: RegisterRequest) -> tuple[str, str]:
 async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)) -> RegisterResponse:
     """Self-service signup (Priority 3, ADR 0074): no admin involved, no
     LDAP entry or Postgres User row created yet -- just a pending
-    registration + a verification email. The account (and its own new
-    Organization) is only provisioned once /auth/verify-email confirms the
-    address is reachable."""
+    registration + a verification email. The account is only provisioned
+    once /auth/verify-email confirms the address is reachable -- either
+    into a brand-new Organization (registrant becomes its owner), or, if
+    `invitation_token` names a still-valid invitation addressed to this
+    exact email, into the inviting org instead."""
     username, email = _validate_registration(body)
     if not await check_registration_rate_limit(email):
         raise HTTPException(
@@ -171,6 +175,20 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)) ->
 
     display_name = body.display_name.strip() or username
     organization_name = (body.organization_name or f"{display_name}'s organization").strip()
+
+    if body.invitation_token is not None:
+        invitation = await get_valid_invitation(db, token=body.invitation_token)
+        if invitation is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="This invitation is invalid or has expired"
+            )
+        if invitation.email.lower() != email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This invitation was sent to a different email address",
+            )
+        organization = await db.get(Organization, invitation.organization_id)
+        organization_name = organization.name if organization is not None else organization_name
 
     # Checked first, before the conflict lookup below: a still-valid pending
     # registration for this exact username is *this same signup* being
@@ -185,6 +203,7 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)) ->
             email=email,
             password=body.password,
             organization_name=organization_name,
+            invitation_token=body.invitation_token,
         )
     else:
         conflict = await username_or_email_taken(db, username=username, email=email)
@@ -202,6 +221,7 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)) ->
             email=email,
             password=body.password,
             organization_name=organization_name,
+            invitation_token=body.invitation_token,
         )
 
     email_sent = await send_verification_email(registration=registration)
