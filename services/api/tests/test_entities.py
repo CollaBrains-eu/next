@@ -601,6 +601,24 @@ async def test_extraction_rejects_person_salutation_as_address(client):
     assert response.json() == []
 
 
+async def test_extraction_rejects_phone_number_as_address(client):
+    """Live bug found 2026-07-23 verifying against a real document: the LLM extracted
+    a phone number both as a person's "phone" field (correct) AND as a separate
+    entity_type="address" item with the phone number as its name -- the existing
+    garbage-address guardrail predates phone numbers being a concept in this pipeline
+    and didn't reject them."""
+    token = await _login(client, "entityuser-phonereject")
+    headers = {"Authorization": f"Bearer {token}"}
+    document_id = await _upload_ready_document(client, headers, "form")
+    fake = '{"entities": [{"name": "+31 6 27996943", "type": "address"}], "relationships": []}'
+
+    with patch("api.entity_agent.chat_completion", return_value=fake):
+        response = await client.post(f"/documents/{document_id}/extract-entities", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
 async def test_extraction_fills_structured_fields_when_llm_leaves_them_null(client):
     """The live bug this fixes: the LLM's schema-constrained output is often
     {"name": "Achterweg 15", "type": "address", "street": null, ...} --

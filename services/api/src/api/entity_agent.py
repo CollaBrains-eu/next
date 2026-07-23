@@ -63,6 +63,17 @@ _GARBAGE_ADDRESS_RE = re.compile(
 
 
 def _looks_like_garbage_address(name: str) -> bool:
+    # A phone number extracted as entity_type="address" is the same failure mode as
+    # the email/URL/salutation cases above -- found 2026-07-23 verifying against a
+    # real document, where the LLM extracted the same phone number both as a
+    # person's "phone" field (correct) and as a standalone address entity. Only
+    # rejects names with *no letters at all* that also parse as a phone number --
+    # a real address always has letters (street/city), a bare phone number never
+    # does, so this can't false-positive on e.g. "Achterweg 123, 9671 CT Winschoten"
+    # just for containing several digits.
+    stripped = name.strip()
+    if stripped and not any(c.isalpha() for c in stripped) and parse_phone(stripped) is not None:
+        return True
     return bool(_GARBAGE_ADDRESS_RE.search(name))
 
 EXTRACTION_PROMPT = """Extract people, organizations, locations, and specific addresses \
