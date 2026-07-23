@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Settings from "./Settings";
 import { AuthProvider } from "../lib/auth";
@@ -30,13 +31,15 @@ const MEMBERS = [
   { id: "u2", username: "badmin", display_name: "B Admin", role: "admin" },
 ];
 
-function renderPage() {
+function renderPage(path = "/settings") {
   return render(
-    <AuthProvider>
-      <ToastProvider>
-        <Settings />
-      </ToastProvider>
-    </AuthProvider>
+    <MemoryRouter initialEntries={[path]}>
+      <AuthProvider>
+        <ToastProvider>
+          <Settings />
+        </ToastProvider>
+      </AuthProvider>
+    </MemoryRouter>
   );
 }
 
@@ -253,6 +256,27 @@ describe("Settings", () => {
       await screen.findByText("No active plan yet.");
       expect(screen.queryByRole("button", { name: "Choose Pro" })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Choose Starter" })).not.toBeInTheDocument();
+    });
+
+    it("auto-starts checkout for a plan carried in via ?checkout= for an org admin", async () => {
+      vi.mocked(api.fetchMe).mockResolvedValue({
+        username: "admin1", display_name: "Admin One", email: null, role: "admin",
+        phone_number: null, phone_prompt_dismissed: true,
+      });
+      vi.mocked(api.getOrganization).mockResolvedValue({
+        id: "org1", name: "Acme Legal", policies: { approval_required_goals: ["draft_legal_document"] },
+        is_org_admin: true,
+      });
+      vi.mocked(api.createCheckoutSession).mockResolvedValue("https://checkout.stripe.com/fake");
+      renderPage("/settings?checkout=pro");
+
+      await waitFor(() => expect(api.createCheckoutSession).toHaveBeenCalledWith("pro"));
+    });
+
+    it("does not auto-start checkout from ?checkout= for a plain member", async () => {
+      renderPage("/settings?checkout=pro");
+      await screen.findByText("No active plan yet.");
+      expect(api.createCheckoutSession).not.toHaveBeenCalled();
     });
   });
 });

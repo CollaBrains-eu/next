@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { AddressHistory } from "../components/AddressHistory";
 import Card from "../components/Card";
@@ -384,11 +385,13 @@ function OrganizationSection() {
 
 function BillingSection() {
   const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [isOrgAdmin, setIsOrgAdmin] = useState(false);
   const [subscription, setSubscription] = useState<SubscriptionOut | null>(null);
   const [loading, setLoading] = useState(true);
   const [redirecting, setRedirecting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const autoCheckoutTriggered = useRef(false);
 
   useEffect(() => {
     Promise.all([getOrganization(), getSubscription()])
@@ -400,6 +403,23 @@ function BillingSection() {
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Picks up a plan chosen on Landing.tsx's pricing cards before the visitor
+  // had an account (ADR 0074, lib/pendingPlan.ts) -- VerifyEmail.tsx routes
+  // here with ?checkout=<plan> right after signup completes, so the user
+  // lands straight in Stripe Checkout instead of having to re-pick the plan.
+  useEffect(() => {
+    const checkoutPlan = searchParams.get("checkout");
+    if (!checkoutPlan || loading || !isOrgAdmin || autoCheckoutTriggered.current) return;
+    autoCheckoutTriggered.current = true;
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("checkout");
+      return next;
+    });
+    handleCheckout(checkoutPlan);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, isOrgAdmin, searchParams]);
 
   async function handleCheckout(plan: string) {
     setRedirecting(plan);

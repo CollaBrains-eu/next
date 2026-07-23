@@ -10,6 +10,7 @@ function renderLanding() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<div>Login page</div>} />
+        <Route path="/register" element={<div>Register page</div>} />
       </Routes>
     </MemoryRouter>
   );
@@ -54,10 +55,32 @@ describe("Landing", () => {
     expect(screen.getByText("Login page")).toBeInTheDocument();
   });
 
-  it("navigates to /login when a CTA button is clicked", () => {
+  it("navigates to /register when a CTA button is clicked", () => {
     renderLanding();
     fireEvent.click(screen.getAllByRole("button", { name: "Get started" })[0]);
-    expect(screen.getByText("Login page")).toBeInTheDocument();
+    expect(screen.getByText("Register page")).toBeInTheDocument();
+  });
+
+  it("does not remember a plan when the free tier's CTA is clicked", () => {
+    renderLanding();
+    // Order: hero CTA, then pricing cards Early/Starter/Pro.
+    fireEvent.click(screen.getAllByRole("button", { name: "Get started" })[1]);
+    expect(screen.getByText("Register page")).toBeInTheDocument();
+    expect(window.localStorage.getItem("collabrains_pending_plan")).toBeNull();
+  });
+
+  it("remembers the starter plan when its CTA is clicked", () => {
+    renderLanding();
+    fireEvent.click(screen.getAllByRole("button", { name: "Get started" })[2]);
+    expect(screen.getByText("Register page")).toBeInTheDocument();
+    expect(window.localStorage.getItem("collabrains_pending_plan")).toBe("starter");
+  });
+
+  it("remembers the pro plan when its CTA is clicked", () => {
+    renderLanding();
+    fireEvent.click(screen.getAllByRole("button", { name: "Get started" })[3]);
+    expect(screen.getByText("Register page")).toBeInTheDocument();
+    expect(window.localStorage.getItem("collabrains_pending_plan")).toBe("pro");
   });
 
   it("navigates to /login when the enterprise contact link is clicked", () => {

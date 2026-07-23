@@ -1,9 +1,14 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useSearchParams } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import VerifyEmail from "./VerifyEmail";
 import { AuthProvider } from "../lib/auth";
 import * as api from "../lib/api";
+
+function SettingsStub() {
+  const [searchParams] = useSearchParams();
+  return <div>Settings page (checkout={searchParams.get("checkout") ?? "none"})</div>;
+}
 
 vi.mock("../lib/api", async () => {
   const actual = await vi.importActual<typeof api>("../lib/api");
@@ -12,6 +17,7 @@ vi.mock("../lib/api", async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  window.localStorage.clear();
   vi.mocked(api.getPreferences).mockResolvedValue({ preferred_language: null, date_format: "eu", time_format: "h24" });
 });
 
@@ -19,7 +25,11 @@ function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <AuthProvider>
-        <VerifyEmail />
+        <Routes>
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/settings" element={<SettingsStub />} />
+          <Route path="/" element={<div>Home page</div>} />
+        </Routes>
       </AuthProvider>
     </MemoryRouter>
   );
@@ -36,6 +46,20 @@ describe("VerifyEmail", () => {
 
     await waitFor(() => expect(api.verifyEmail).toHaveBeenCalledWith("good-token"));
     await waitFor(() => expect(localStorage.getItem("collabrains_token")).toBe("fresh-access-token"));
+    expect(await screen.findByText("Home page")).toBeInTheDocument();
+  });
+
+  it("redirects to Settings with the remembered plan when one was chosen on Landing", async () => {
+    window.localStorage.setItem("collabrains_pending_plan", "pro");
+    vi.mocked(api.verifyEmail).mockResolvedValue("fresh-access-token");
+    vi.mocked(api.fetchMe).mockResolvedValue({
+      username: "ada", display_name: "Ada", email: "ada@example.com", role: "member",
+      phone_number: null, phone_prompt_dismissed: true,
+    });
+    renderAt("/verify-email?token=good-token");
+
+    expect(await screen.findByText("Settings page (checkout=pro)")).toBeInTheDocument();
+    expect(window.localStorage.getItem("collabrains_pending_plan")).toBeNull();
   });
 
   it("shows an error message when the token is invalid", async () => {

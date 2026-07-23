@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { verifyEmail } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { consumePendingPlan } from "../lib/pendingPlan";
 import { BrandMark } from "../components/BrandMark";
 import { Button } from "../components/ui/Button";
 import { SkeletonLines } from "../components/ui/Skeleton";
@@ -25,7 +26,8 @@ export default function VerifyEmail() {
     verifyEmail(token)
       .then(async (accessToken) => {
         await loginWithToken(accessToken);
-        navigate("/", { replace: true });
+        const plan = consumePendingPlan();
+        navigate(plan ? `/settings?checkout=${plan}` : "/", { replace: true });
       })
       .catch(() => setStatus("error"));
     // loginWithToken/navigate are stable (useCallback/react-router) --
