@@ -81,6 +81,20 @@ async def test_reprocess_already_ready_document_returns_409(client):
         patch("api.documents.wait_for_paperless_id", return_value=9002),
         patch("api.documents.fetch_document_text", return_value="All good."),
         patch("api.documents.embed_text", return_value=FAKE_EMBEDDING),
+        # This test only needs a document that reaches "ready" -- it doesn't
+        # care about task/entity/vehicle/classification/metafield/fact
+        # extraction, which the real ready-path triggers via the
+        # EMBEDDINGS_CREATED event and which call out to a real (here,
+        # unreachable) Ollama. Every other test that needs a successfully-
+        # uploaded document disables these the same way (see
+        # test_documents.py); this one was missing them, which made the
+        # unmocked AI calls hang instead of failing fast.
+        patch("api.documents.settings.auto_extract_tasks_on_ready", False),
+        patch("api.documents.settings.auto_extract_entities_on_ready", False),
+        patch("api.documents.settings.auto_extract_vehicles_on_ready", False),
+        patch("api.documents.settings.auto_classify_on_ready", False),
+        patch("api.documents.settings.auto_extract_metafields_on_ready", False),
+        patch("api.documents.settings.auto_extract_facts_on_ready", False),
     ):
         response = await client.post(
             "/documents", headers=headers, files={"file": ("ready.txt", b"content", "text/plain")}
@@ -104,6 +118,17 @@ async def test_reprocess_retries_a_failed_document_to_ready(client):
     with (
         patch("api.documents.fetch_document_text", return_value="Recovered text after retry."),
         patch("api.documents.embed_text", return_value=FAKE_EMBEDDING),
+        # Same reason as test_reprocess_already_ready_document_returns_409
+        # above: reaching "ready" via reprocess triggers the same
+        # EMBEDDINGS_CREATED-driven AI extraction pipeline as a first-time
+        # upload, which this test doesn't need and which hangs on the real
+        # (unreachable) Ollama call if left unmocked.
+        patch("api.documents.settings.auto_extract_tasks_on_ready", False),
+        patch("api.documents.settings.auto_extract_entities_on_ready", False),
+        patch("api.documents.settings.auto_extract_vehicles_on_ready", False),
+        patch("api.documents.settings.auto_classify_on_ready", False),
+        patch("api.documents.settings.auto_extract_metafields_on_ready", False),
+        patch("api.documents.settings.auto_extract_facts_on_ready", False),
     ):
         reprocess = await client.post(
             f"/admin/documents/{document_id}/reprocess", headers={"Authorization": f"Bearer {admin_token}"}
@@ -135,6 +160,14 @@ async def test_reprocess_replaces_old_chunks_not_append_to_them(client):
     with (
         patch("api.documents.fetch_document_text", return_value=long_text),
         patch("api.documents.embed_text", return_value=FAKE_EMBEDDING),
+        # Same reason as the other two tests in this file: reaching "ready"
+        # triggers the real AI extraction pipeline unless disabled.
+        patch("api.documents.settings.auto_extract_tasks_on_ready", False),
+        patch("api.documents.settings.auto_extract_entities_on_ready", False),
+        patch("api.documents.settings.auto_extract_vehicles_on_ready", False),
+        patch("api.documents.settings.auto_classify_on_ready", False),
+        patch("api.documents.settings.auto_extract_metafields_on_ready", False),
+        patch("api.documents.settings.auto_extract_facts_on_ready", False),
     ):
         await client.post(
             f"/admin/documents/{document_id}/reprocess", headers={"Authorization": f"Bearer {admin_token}"}
