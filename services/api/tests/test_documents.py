@@ -23,6 +23,17 @@ async def test_upload_processes_document_end_to_end(client):
         patch("api.documents.wait_for_paperless_id", return_value=42),
         patch("api.documents.fetch_document_text", return_value="Hello world, this is a test document."),
         patch("api.documents.embed_text", return_value=FAKE_EMBEDDING),
+        # None of the auto_extract_*/auto_classify_on_ready flags are mocked
+        # or needed by this test -- unmocked, each fires a real chat_completion
+        # call against unreachable Ollama, which fails but only after a slow
+        # 1s/5s/15s retry backoff per handler (events.py). Disabling them all
+        # keeps this test fast and focused on the upload/ready flow itself.
+        patch("api.documents.settings.auto_extract_tasks_on_ready", False),
+        patch("api.documents.settings.auto_extract_entities_on_ready", False),
+        patch("api.documents.settings.auto_extract_vehicles_on_ready", False),
+        patch("api.documents.settings.auto_classify_on_ready", False),
+        patch("api.documents.settings.auto_extract_metafields_on_ready", False),
+        patch("api.documents.settings.auto_extract_facts_on_ready", False),
     ):
         upload = await client.post(
             "/documents",
@@ -68,6 +79,12 @@ async def test_search_ranks_matching_document_first(client):
         patch("api.documents.wait_for_paperless_id", return_value=1),
         patch("api.documents.fetch_document_text", return_value="The quick brown fox jumps over the lazy dog."),
         patch("api.documents.embed_text", return_value=FAKE_EMBEDDING),
+        patch("api.documents.settings.auto_extract_tasks_on_ready", False),
+        patch("api.documents.settings.auto_extract_entities_on_ready", False),
+        patch("api.documents.settings.auto_extract_vehicles_on_ready", False),
+        patch("api.documents.settings.auto_classify_on_ready", False),
+        patch("api.documents.settings.auto_extract_metafields_on_ready", False),
+        patch("api.documents.settings.auto_extract_facts_on_ready", False),
     ):
         await client.post(
             "/documents", headers=headers, files={"file": ("fox.txt", b"fox", "text/plain")}
@@ -101,6 +118,12 @@ async def test_upload_detects_document_language_and_populates_chunk_content_tsv(
         patch("api.documents.wait_for_paperless_id", return_value=3),
         patch("api.documents.fetch_document_text", return_value=dutch_text),
         patch("api.documents.embed_text", return_value=FAKE_EMBEDDING),
+        patch("api.documents.settings.auto_extract_tasks_on_ready", False),
+        patch("api.documents.settings.auto_extract_entities_on_ready", False),
+        patch("api.documents.settings.auto_extract_vehicles_on_ready", False),
+        patch("api.documents.settings.auto_classify_on_ready", False),
+        patch("api.documents.settings.auto_extract_metafields_on_ready", False),
+        patch("api.documents.settings.auto_extract_facts_on_ready", False),
     ):
         upload = await client.post(
             "/documents", headers=headers, files={"file": ("overeenkomst.txt", b"x", "text/plain")}
@@ -126,6 +149,12 @@ async def test_delete_document_removes_it_from_listing(client):
         patch("api.documents.wait_for_paperless_id", return_value=2),
         patch("api.documents.fetch_document_text", return_value="Disposable content."),
         patch("api.documents.embed_text", return_value=FAKE_EMBEDDING),
+        patch("api.documents.settings.auto_extract_tasks_on_ready", False),
+        patch("api.documents.settings.auto_extract_entities_on_ready", False),
+        patch("api.documents.settings.auto_extract_vehicles_on_ready", False),
+        patch("api.documents.settings.auto_classify_on_ready", False),
+        patch("api.documents.settings.auto_extract_metafields_on_ready", False),
+        patch("api.documents.settings.auto_extract_facts_on_ready", False),
     ):
         upload = await client.post(
             "/documents", headers=headers, files={"file": ("temp.txt", b"temp", "text/plain")}
@@ -159,6 +188,12 @@ async def test_summarize_caches_result_and_skips_second_llm_call(client):
         patch("api.documents.wait_for_paperless_id", return_value=3),
         patch("api.documents.fetch_document_text", return_value="Some long policy text to summarize."),
         patch("api.documents.embed_text", return_value=FAKE_EMBEDDING),
+        patch("api.documents.settings.auto_extract_tasks_on_ready", False),
+        patch("api.documents.settings.auto_extract_entities_on_ready", False),
+        patch("api.documents.settings.auto_extract_vehicles_on_ready", False),
+        patch("api.documents.settings.auto_classify_on_ready", False),
+        patch("api.documents.settings.auto_extract_metafields_on_ready", False),
+        patch("api.documents.settings.auto_extract_facts_on_ready", False),
     ):
         upload = await client.post(
             "/documents", headers=headers, files={"file": ("policy.txt", b"policy", "text/plain")}
@@ -186,6 +221,12 @@ async def test_summarize_includes_preferred_language_in_system_prompt(client):
         patch("api.documents.wait_for_paperless_id", return_value=4),
         patch("api.documents.fetch_document_text", return_value="Some long policy text to summarize."),
         patch("api.documents.embed_text", return_value=FAKE_EMBEDDING),
+        patch("api.documents.settings.auto_extract_tasks_on_ready", False),
+        patch("api.documents.settings.auto_extract_entities_on_ready", False),
+        patch("api.documents.settings.auto_extract_vehicles_on_ready", False),
+        patch("api.documents.settings.auto_classify_on_ready", False),
+        patch("api.documents.settings.auto_extract_metafields_on_ready", False),
+        patch("api.documents.settings.auto_extract_facts_on_ready", False),
     ):
         upload = await client.post(
             "/documents", headers=headers, files={"file": ("policy.txt", b"policy", "text/plain")}
@@ -212,6 +253,11 @@ async def test_process_document_notifies_owner_on_ready_when_phone_linked(client
         patch("api.documents.fetch_document_text", return_value="Some content."),
         patch("api.documents.embed_text", return_value=FAKE_EMBEDDING),
         patch("api.documents.settings.auto_extract_tasks_on_ready", False),
+        patch("api.documents.settings.auto_extract_entities_on_ready", False),
+        patch("api.documents.settings.auto_extract_vehicles_on_ready", False),
+        patch("api.documents.settings.auto_classify_on_ready", False),
+        patch("api.documents.settings.auto_extract_metafields_on_ready", False),
+        patch("api.documents.settings.auto_extract_facts_on_ready", False),
         patch("api.documents.send_signal_message") as mock_send,
     ):
         upload = await client.post(
@@ -243,6 +289,11 @@ async def test_process_document_skips_notification_when_no_phone_linked(client):
         patch("api.documents.fetch_document_text", return_value="Some content."),
         patch("api.documents.embed_text", return_value=FAKE_EMBEDDING),
         patch("api.documents.settings.auto_extract_tasks_on_ready", False),
+        patch("api.documents.settings.auto_extract_entities_on_ready", False),
+        patch("api.documents.settings.auto_extract_vehicles_on_ready", False),
+        patch("api.documents.settings.auto_classify_on_ready", False),
+        patch("api.documents.settings.auto_extract_metafields_on_ready", False),
+        patch("api.documents.settings.auto_extract_facts_on_ready", False),
         patch("api.documents.send_signal_message") as mock_send,
     ):
         await client.post("/documents", headers=headers, files={"file": ("note.txt", b"content", "text/plain")})
@@ -290,6 +341,11 @@ async def test_upload_document_on_behalf_of_linked_phone_number(client):
         patch("api.documents.fetch_document_text", return_value="Some content."),
         patch("api.documents.embed_text", return_value=FAKE_EMBEDDING),
         patch("api.documents.settings.auto_extract_tasks_on_ready", False),
+        patch("api.documents.settings.auto_extract_entities_on_ready", False),
+        patch("api.documents.settings.auto_extract_vehicles_on_ready", False),
+        patch("api.documents.settings.auto_classify_on_ready", False),
+        patch("api.documents.settings.auto_extract_metafields_on_ready", False),
+        patch("api.documents.settings.auto_extract_facts_on_ready", False),
         patch("api.documents.send_signal_message"),
     ):
         upload = await client.post(
@@ -340,6 +396,13 @@ async def test_upload_triggers_vehicle_detection_and_creates_entity(client):
         patch("api.documents.embed_text", return_value=FAKE_EMBEDDING),
         patch("api.documents.settings.auto_extract_tasks_on_ready", False),
         patch("api.documents.settings.auto_extract_entities_on_ready", False),
+        # Vehicle detection stays enabled (it's what this test exercises), but
+        # classify/metafields/facts are unrelated to it and unmocked here --
+        # left enabled, they'd fire real chat_completion calls against
+        # unreachable Ollama and slow this test down via events.py's retry backoff.
+        patch("api.documents.settings.auto_classify_on_ready", False),
+        patch("api.documents.settings.auto_extract_metafields_on_ready", False),
+        patch("api.documents.settings.auto_extract_facts_on_ready", False),
         patch("api.vehicle_agent.fetch_vehicle_data", return_value=None),
     ):
         upload = await client.post(
