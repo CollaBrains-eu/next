@@ -206,14 +206,37 @@ jobs:
           # first CI run: this step finished in under a second, then the
           # user-creation step got Connection refused). Wait for the log
           # line that only appears once the real instance is about to exec.
+          ready=false
           for i in $(seq 1 30); do
-            docker logs ci-openldap 2>&1 | grep -q "starting slapd in foreground" && break
+            if docker logs ci-openldap 2>&1 | grep -q "starting slapd in foreground"; then
+              ready=true
+              break
+            fi
             sleep 1
           done
+          echo "log-marker wait: ready=$ready"
+          if [ "$ready" != "true" ]; then
+            echo "::error::openldap never logged 'starting slapd in foreground' within 30s"
+            docker ps -a
+            docker logs ci-openldap 2>&1
+            exit 1
+          fi
+          bound=false
           for i in $(seq 1 15); do
-            docker exec ci-openldap ldapsearch -x -H ldap:/// -s base -b "" >/dev/null 2>&1 && break
+            if docker exec ci-openldap ldapsearch -x -H ldap:/// -s base -b "" >/dev/null 2>&1; then
+              bound=true
+              break
+            fi
             sleep 1
           done
+          echo "ldapsearch wait: bound=$bound"
+          if [ "$bound" != "true" ]; then
+            echo "::error::ldapsearch never succeeded within 15s of the log marker appearing"
+            docker ps -a
+            docker logs ci-openldap 2>&1
+            exit 1
+          fi
+          docker logs ci-openldap 2>&1 | tail -20
 
       - uses: actions/setup-python@v5
         with:
