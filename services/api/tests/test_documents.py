@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from api.ldap_auth import LdapIdentity
+from api.rdw_client import RdwLookupError
 
 FAKE_EMBEDDING = [0.1] * 768
 
@@ -403,7 +404,14 @@ async def test_upload_triggers_vehicle_detection_and_creates_entity(client):
         patch("api.documents.settings.auto_classify_on_ready", False),
         patch("api.documents.settings.auto_extract_metafields_on_ready", False),
         patch("api.documents.settings.auto_extract_facts_on_ready", False),
-        patch("api.vehicle_agent.fetch_vehicle_data", return_value=None),
+        # RdwLookupError (a transient lookup failure) still creates an
+        # unenriched vehicle row -- return_value=None means RDW *confirmed*
+        # the plate doesn't exist, which _get_or_create_validated_vehicle
+        # deliberately does NOT persist (see vehicle_agent.py), so this test
+        # was asserting an entity exists that the code correctly never
+        # created. side_effect models what this test actually means to
+        # exercise: detection succeeds even when RDW enrichment can't.
+        patch("api.vehicle_agent.fetch_vehicle_data", side_effect=RdwLookupError("RDW unreachable")),
     ):
         upload = await client.post(
             "/documents", headers=headers,
@@ -411,7 +419,11 @@ async def test_upload_triggers_vehicle_detection_and_creates_entity(client):
         )
 
     assert upload.status_code == 202
-    response = await client.get("/entities?entity_type=vehicle", headers=headers)
+    # GET /entities defaults to status="confirmed", but every newly-detected
+    # entity (vehicles included) starts "pending_review" (the entity review
+    # queue design) -- this test predates that gate and needs status=all to
+    # see the row it just caused vehicle detection to create.
+    response = await client.get("/entities?entity_type=vehicle&status=all", headers=headers)
     names = {entity["name"] for entity in response.json()}
     assert "VE01HI" in names
 
