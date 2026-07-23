@@ -14,6 +14,9 @@ import Register from "./routes/Register";
 import VerifyEmail from "./routes/VerifyEmail";
 import InvitationLanding from "./routes/InvitationLanding";
 import Onboard from "./routes/Onboard";
+import PrivacyPolicy from "./routes/PrivacyPolicy";
+import TermsOfService from "./routes/TermsOfService";
+import CookiePolicy from "./routes/CookiePolicy";
 import Dashboard from "./routes/Dashboard";
 import Workspace from "./routes/Workspace";
 import Chat from "./routes/Chat";
@@ -222,6 +225,9 @@ export default function App() {
                 <Route path="/verify-email" element={<VerifyEmail />} />
                 <Route path="/invitations/:token" element={<InvitationLanding />} />
                 <Route path="/onboard" element={<Onboard />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
+                <Route path="/terms" element={<TermsOfService />} />
+                <Route path="/cookies" element={<CookiePolicy />} />
                 <Route path="/*" element={<AppShell />} />
               </Routes>
             </CommandCenterStateProvider>

@@ -431,6 +431,42 @@
     "drafting": "Bezig met opstellen…",
     "loadError": "Opstelverzoek mislukt"
   },
+  "legalDocs": {
+    "backToHome": "Terug naar home",
+    "placeholderNoticeTitle": "Deze pagina is een tijdelijke plaatshouder",
+    "placeholderNoticeBody": "CollaBrains heeft nog geen juridisch getoetste versie van dit document gepubliceerd. De onderstaande kopjes geven aan wat het uiteindelijk zal behandelen; geen van de tekst op deze pagina is een bindende juridische verplichting. Vragen in de tussentijd? Neem contact op via info@collabrains.eu.",
+    "sectionPending": "Inhoud in afwachting van juridische toetsing.",
+    "privacy": {
+      "title": "Privacybeleid",
+      "sections": [
+        "Welke gegevens we verzamelen",
+        "Hoe we uw gegevens gebruiken",
+        "Bewaartermijn van gegevens",
+        "Uw rechten",
+        "Contact"
+      ]
+    },
+    "terms": {
+      "title": "Gebruiksvoorwaarden",
+      "sections": [
+        "Aanvaarding van deze voorwaarden",
+        "Gebruik van CollaBrains",
+        "Abonnementen en facturering",
+        "Beëindiging",
+        "Beperking van aansprakelijkheid",
+        "Contact"
+      ]
+    },
+    "cookies": {
+      "title": "Cookiebeleid",
+      "sections": [
+        "Welke cookies we gebruiken",
+        "Waarom we ze gebruiken",
+        "Uw voorkeuren beheren",
+        "Contact"
+      ]
+    }
+  },
   "assistant": {
     "hint": "Vraag de assistent iets te doen — deze kan zelf tools kiezen en aanroepen, in tegenstelling tot AI-chat, die alleen antwoordt op basis van uw documenten.",
     "inputPlaceholder": "Vraag de assistent…",

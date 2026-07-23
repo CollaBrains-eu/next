@@ -431,6 +431,42 @@
     "drafting": "Drafting…",
     "loadError": "Draft request failed"
   },
+  "legalDocs": {
+    "backToHome": "Back to home",
+    "placeholderNoticeTitle": "This page is a placeholder",
+    "placeholderNoticeBody": "CollaBrains has not yet published a legally reviewed version of this document. The section headings below outline what it will eventually cover; none of the text on this page is a binding legal commitment. Questions in the meantime? Contact info@collabrains.eu.",
+    "sectionPending": "Content pending legal review.",
+    "privacy": {
+      "title": "Privacy Policy",
+      "sections": [
+        "Information we collect",
+        "How we use your information",
+        "Data retention",
+        "Your rights",
+        "Contact us"
+      ]
+    },
+    "terms": {
+      "title": "Terms of Service",
+      "sections": [
+        "Acceptance of these terms",
+        "Using CollaBrains",
+        "Subscriptions and billing",
+        "Termination",
+        "Limitation of liability",
+        "Contact us"
+      ]
+    },
+    "cookies": {
+      "title": "Cookie Policy",
+      "sections": [
+        "What cookies we use",
+        "Why we use them",
+        "Managing your preferences",
+        "Contact us"
+      ]
+    }
+  },
   "assistant": {
     "hint": "Ask the assistant to do something — it can choose and call tools on its own, unlike AI Chat which only answers from your documents.",
     "inputPlaceholder": "Ask the assistant…",

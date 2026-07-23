@@ -1,6 +1,6 @@
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   Sparkles,
@@ -568,7 +568,20 @@ export default function Landing() {
         </div>
       </Section>
 
-      <footer className="border-t border-zinc-800 px-6 py-8 text-center text-sm text-zinc-500">{t("landing.footer")}</footer>
+      <footer className="border-t border-zinc-800 px-6 py-8 text-center text-sm text-zinc-500">
+        <p>{t("landing.footer")}</p>
+        <nav className="mt-3 flex items-center justify-center gap-4">
+          <Link to="/privacy" className="hover:text-zinc-300">
+            {t("legalDocs.privacy.title")}
+          </Link>
+          <Link to="/terms" className="hover:text-zinc-300">
+            {t("legalDocs.terms.title")}
+          </Link>
+          <Link to="/cookies" className="hover:text-zinc-300">
+            {t("legalDocs.cookies.title")}
+          </Link>
+        </nav>
+      </footer>
     </div>
   );
 }

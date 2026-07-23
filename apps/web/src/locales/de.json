@@ -431,6 +431,42 @@
     "drafting": "Wird entworfen…",
     "loadError": "Entwurfsanfrage fehlgeschlagen"
   },
+  "legalDocs": {
+    "backToHome": "Zurück zur Startseite",
+    "placeholderNoticeTitle": "Diese Seite ist ein Platzhalter",
+    "placeholderNoticeBody": "CollaBrains hat noch keine rechtlich geprüfte Version dieses Dokuments veröffentlicht. Die folgenden Abschnittsüberschriften zeigen, was es letztendlich abdecken wird; keiner der Texte auf dieser Seite ist eine verbindliche rechtliche Verpflichtung. Fragen in der Zwischenzeit? Kontaktieren Sie info@collabrains.eu.",
+    "sectionPending": "Inhalt wartet auf rechtliche Prüfung.",
+    "privacy": {
+      "title": "Datenschutzerklärung",
+      "sections": [
+        "Welche Daten wir erheben",
+        "Wie wir Ihre Daten verwenden",
+        "Speicherdauer der Daten",
+        "Ihre Rechte",
+        "Kontakt"
+      ]
+    },
+    "terms": {
+      "title": "Nutzungsbedingungen",
+      "sections": [
+        "Annahme dieser Bedingungen",
+        "Nutzung von CollaBrains",
+        "Abonnements und Abrechnung",
+        "Kündigung",
+        "Haftungsbeschränkung",
+        "Kontakt"
+      ]
+    },
+    "cookies": {
+      "title": "Cookie-Richtlinie",
+      "sections": [
+        "Welche Cookies wir verwenden",
+        "Warum wir sie verwenden",
+        "Ihre Einstellungen verwalten",
+        "Kontakt"
+      ]
+    }
+  },
   "assistant": {
     "hint": "Bitten Sie den Assistenten, etwas zu erledigen — er kann selbstständig Tools auswählen und aufrufen, im Gegensatz zum KI-Chat, der nur auf Basis Ihrer Dokumente antwortet.",
     "inputPlaceholder": "Fragen Sie den Assistenten…",
