@@ -20,9 +20,21 @@ async def _upload_ready_document(client, headers, text: str) -> str:
         patch("api.documents.wait_for_paperless_id", return_value=99),
         patch("api.documents.fetch_document_text", return_value=text),
         patch("api.documents.embed_text", return_value=FAKE_EMBEDDING),
-        # disable the auto-extraction workflow trigger for uploads in these tests --
-        # extraction itself is exercised explicitly via the /extract-tasks endpoint
+        # Disable every auto-extraction workflow trigger for uploads in these
+        # tests -- extraction itself is exercised explicitly via the
+        # /extract-tasks endpoint. Only auto_extract_tasks_on_ready was
+        # disabled before; the other five were left enabled by omission,
+        # which meant the EMBEDDINGS_CREATED event this upload publishes
+        # triggered real (unmocked, unreachable) Ollama calls in entity/
+        # vehicle/classification/metafield/fact extraction and hung instead
+        # of failing fast (same root cause as ADR 0066's
+        # test_document_reprocess.py fix).
         patch("api.documents.settings.auto_extract_tasks_on_ready", False),
+        patch("api.documents.settings.auto_extract_entities_on_ready", False),
+        patch("api.documents.settings.auto_extract_vehicles_on_ready", False),
+        patch("api.documents.settings.auto_classify_on_ready", False),
+        patch("api.documents.settings.auto_extract_metafields_on_ready", False),
+        patch("api.documents.settings.auto_extract_facts_on_ready", False),
     ):
         upload = await client.post(
             "/documents", headers=headers, files={"file": ("notes.txt", text.encode(), "text/plain")}
