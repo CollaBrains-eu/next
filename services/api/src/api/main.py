@@ -10,6 +10,7 @@ from api.auth import router as auth_router
 from api.cases_router import router as cases_router
 from api.categories_router import router as categories_router
 from api.chat import router as chat_router
+from api.config import settings
 from api.dashboard_router import router as dashboard_router
 from api.db import engine
 from api.decisions import router as decisions_router
@@ -39,7 +40,7 @@ app = FastAPI(title="CollaBrains API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[origin.strip() for origin in settings.cors_allowed_origins.split(",") if origin.strip()],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

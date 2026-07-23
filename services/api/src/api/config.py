@@ -76,6 +76,14 @@ class Settings(BaseSettings):
     smtp_from_address: str = "noreply@collabrains.eu"
 
     app_base_url: str = "https://collabrains.eu"
+    # Browser CORS only matters for cross-origin callers -- production traffic
+    # goes through Caddy same-origin (see infra/caddy/Caddyfile) and never hits
+    # this check. The one real cross-origin case is the local Vite dev server
+    # talking to a locally-run API on a different port. Comma-separated so an
+    # operator can add a real second origin without a code change if a
+    # legitimate cross-origin browser client ever exists (ADR 0066 P1: this
+    # was hardcoded with no way to override before).
+    cors_allowed_origins: str = "http://localhost:5173"
 
 
 settings = Settings()
