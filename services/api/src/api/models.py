@@ -337,6 +337,7 @@ class EntityRelationship(Base):
     source_entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), nullable=False)
     target_entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), nullable=False)
     relationship_type: Mapped[str] = mapped_column(String(255), nullable=False)
+    title: Mapped[str | None] = mapped_column(String(255), nullable=True)
     document_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("documents.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -379,6 +380,28 @@ class AddressDetail(Base):
     city: Mapped[str | None] = mapped_column(String(255), nullable=True)
     country: Mapped[str | None] = mapped_column(String(100), nullable=True)
     normalized_key: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+
+
+class ContactDetail(Base):
+    """Structured contact fields for an Entity where entity_type is 'person' or
+    'organization'. One row per entity (same 1:1 pattern as AddressDetail) --
+    gap-filled across documents, never fragmented into duplicates. PO box and
+    visiting address are FKs to `entities.id` (type 'address'), not raw text,
+    reusing the same parsing/dedup/maps_url machinery AddressDetail already has.
+    """
+
+    __tablename__ = "contact_details"
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), primary_key=True
+    )
+    phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    po_box_address_entity_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entities.id", ondelete="SET NULL"), nullable=True
+    )
+    visiting_address_entity_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entities.id", ondelete="SET NULL"), nullable=True
+    )
 
 
 class Residency(Base):
