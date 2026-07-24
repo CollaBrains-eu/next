@@ -37,9 +37,19 @@ collabrains.eu {
 	# routes (e.g. GET /documents/:id is both a frontend page and a REST
 	# endpoint). Browser page navigations send Accept: text/html; the
 	# frontend's own fetch() calls don't, so that's what disambiguates them.
+	#
+	# IMPORTANT: this path list must include every FastAPI router's prefix
+	# (see services/api/src/api/main.py's app.include_router(...) calls).
+	# A missing prefix isn't a 404 -- it silently falls through to the SPA
+	# shell below, and every fetch() to it fails to parse as JSON. Found
+	# via live QA: /billing, /invitations, /onboarding, /dashboard, and
+	# /residencies were all missing this way, breaking billing, org
+	# invitations, address-history approval, dashboard activity, and
+	# token-based onboarding in production despite working code and
+	# passing tests -- none of that layer exercises the real Caddy config.
 	@api {
 		not header Accept *text/html*
-		path /auth* /documents* /chat* /legal* /tasks* /entities* /search* /health* /plans* /memories* /tools* /mcp* /decisions* /manager* /preferences* /organizations* /learning* /cases* /vehicles* /admin* /facts* /categories* /appointments* /users* /feedback* /workspace* /activity* /share*
+		path /auth* /documents* /chat* /legal* /tasks* /entities* /search* /health* /plans* /memories* /tools* /mcp* /decisions* /manager* /preferences* /organizations* /learning* /cases* /vehicles* /admin* /facts* /categories* /appointments* /users* /feedback* /workspace* /activity* /share* /billing* /invitations* /onboarding* /dashboard* /residencies*
 	}
 	handle @api {
 		reverse_proxy api:8000
