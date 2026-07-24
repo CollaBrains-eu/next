@@ -31,6 +31,7 @@ import EmptyState from "../components/EmptyState";
 import { useBulkSelection } from "../hooks/useBulkSelection";
 import { BulkActionBar } from "../components/ui/BulkActionBar";
 import { FilterChips } from "../components/ui/FilterChips";
+import Card from "../components/Card";
 import { SkeletonLines } from "../components/ui/Skeleton";
 import { useToast } from "../lib/toast";
 import { useDateFormat } from "../hooks/useDateFormat";
@@ -290,33 +291,37 @@ export default function Workspace() {
         <EmptyState message={t("documents.emptyMessage")} />
       ) : (
         <>
-          <FilterChips
-            label={t("documents.statusFilterLabel")}
-            chips={STATUS_FILTER_OPTIONS.filter((opt) => statusFilters.includes(opt.id))}
-            onRemove={(id) => setStatusFilters((prev) => prev.filter((s) => s !== id))}
-            addOptions={STATUS_FILTER_OPTIONS.filter((opt) => !statusFilters.includes(opt.id))}
-            onAdd={(opt) => setStatusFilters((prev) => [...prev, opt.id])}
-          />
-          {categories.length > 0 && (
-            <div>
-              <p className="mb-2 text-xs font-medium text-ink-3">{t("documents.categoryFilterLabel")}</p>
-              <CategoryFilterGrid
-                categories={categories}
-                activeIds={activeCategoryFilters}
-                onToggleGroup={(childIds) => {
-                  const allActive = childIds.every((id) => activeCategoryFilters.has(id));
-                  setCategoryFilters((prev) =>
-                    allActive
-                      ? prev.filter((id) => !childIds.includes(id))
-                      : [...new Set([...prev, ...childIds])]
-                  );
-                }}
-                onToggleChild={(id) =>
-                  setCategoryFilters((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]))
-                }
+          <div data-testid="documents-filter-card">
+            <Card className="flex flex-col gap-3">
+              <FilterChips
+                label={t("documents.statusFilterLabel")}
+                chips={STATUS_FILTER_OPTIONS.filter((opt) => statusFilters.includes(opt.id))}
+                onRemove={(id) => setStatusFilters((prev) => prev.filter((s) => s !== id))}
+                addOptions={STATUS_FILTER_OPTIONS.filter((opt) => !statusFilters.includes(opt.id))}
+                onAdd={(opt) => setStatusFilters((prev) => [...prev, opt.id])}
               />
-            </div>
-          )}
+              {categories.length > 0 && (
+                <div>
+                  <p className="mb-2 text-xs font-medium text-ink-3">{t("documents.categoryFilterLabel")}</p>
+                  <CategoryFilterGrid
+                    categories={categories}
+                    activeIds={activeCategoryFilters}
+                    onToggleGroup={(childIds) => {
+                      const allActive = childIds.every((id) => activeCategoryFilters.has(id));
+                      setCategoryFilters((prev) =>
+                        allActive
+                          ? prev.filter((id) => !childIds.includes(id))
+                          : [...new Set([...prev, ...childIds])]
+                      );
+                    }}
+                    onToggleChild={(id) =>
+                      setCategoryFilters((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]))
+                    }
+                  />
+                </div>
+              )}
+            </Card>
+          </div>
           <DataTable columns={columns} rows={filteredDocuments} rowKey={(doc) => doc.id} />
           <BulkActionBar
             count={selectedCount}

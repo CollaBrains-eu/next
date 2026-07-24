@@ -79,6 +79,12 @@ describe("Workspace (Documents list)", () => {
     expect(await screen.findByText(/no documents yet/i)).toBeInTheDocument();
   });
 
+  it("wraps the filter row in a Card for visual consistency with the search row", async () => {
+    renderPage();
+    await screen.findByText("document-0.pdf");
+    expect(screen.getByTestId("documents-filter-card")).toBeInTheDocument();
+  });
+
   it("shows a status filter chip for 'failed' documents, and toggling it narrows the table to just that row", async () => {
     renderPage();
     await screen.findByText("document-0.pdf");
