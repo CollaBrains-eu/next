@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { acceptInvitation, checkInvitation, type InvitationCheckOut } from "../lib/api";
 import { useAuth } from "../lib/auth";

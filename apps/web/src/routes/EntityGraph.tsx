@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { ApiError, getEntityGraph, type EntityGraphOut } from "../lib/api";
 import EmptyState from "../components/EmptyState";

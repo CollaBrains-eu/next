@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter, Route, Routes, useSearchParams } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useSearchParams } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import VerifyEmail from "./VerifyEmail";
 import { AuthProvider } from "../lib/auth";

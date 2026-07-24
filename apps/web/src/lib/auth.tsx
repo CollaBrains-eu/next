@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
 import { ApiError, clearToken, fetchMe, getPreferences, login as apiLogin, setToken, type UserOut } from "./api";
 import { toDateFormatPrefs } from "./dateFormat";

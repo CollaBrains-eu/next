@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router";
 import { AuthProvider, ProtectedRoute, useAuth } from "./lib/auth";
 import { AdminRoute } from "./components/AdminRoute";
 import { ToastProvider } from "./lib/toast";

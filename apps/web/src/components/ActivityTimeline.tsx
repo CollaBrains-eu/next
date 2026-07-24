@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import { FileText, CheckSquare, FolderOpen, Users, type LucideIcon } from "lucide-react";
 import { listDashboardActivity, type ActivityItemOut } from "../lib/api";

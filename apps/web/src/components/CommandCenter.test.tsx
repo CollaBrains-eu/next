@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, fireEvent, cleanup, waitFor, act } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter } from "react-router";
 import { CommandCenter } from "./CommandCenter";
 import { CommandCenterStateProvider } from "../lib/commandCenter";
 import * as api from "../lib/api";

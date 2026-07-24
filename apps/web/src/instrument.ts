@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/react";
 import { useEffect } from "react";
-import { createRoutesFromChildren, matchRoutes, useLocation, useNavigationType } from "react-router-dom";
+import { createRoutesFromChildren, matchRoutes, useLocation, useNavigationType } from "react-router";
 
 // ADR 0072 (Priority 2, item 4). Must be imported first in main.tsx, before
 // any other app code, per Sentry's own setup requirement.
@@ -15,7 +15,7 @@ if (dsn) {
     dsn,
     environment: import.meta.env.MODE,
     integrations: [
-      Sentry.reactRouterV6BrowserTracingIntegration({
+      Sentry.reactRouterBrowserTracingIntegration({
         useEffect,
         useLocation,
         useNavigationType,

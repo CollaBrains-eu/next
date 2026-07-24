@@ -1,6 +1,6 @@
 // apps/web/src/components/CommandCenter.tsx
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { NAV_ITEMS } from "../lib/navigation";
 import { CommandPalette, type CommandItem } from "./ui/CommandPalette";
