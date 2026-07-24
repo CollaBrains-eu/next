@@ -23,6 +23,9 @@ vi.mock("../lib/api", async () => {
     getSubscription: vi.fn(),
     createCheckoutSession: vi.fn(),
     createPortalSession: vi.fn(),
+    listFacts: vi.fn(),
+    approveFact: vi.fn(),
+    rejectFact: vi.fn(),
   };
 });
 
@@ -78,6 +81,7 @@ describe("Settings", () => {
     vi.mocked(api.getSubscription).mockResolvedValue({
       plan: null, status: null, current_period_end: null, cancel_at_period_end: false,
     });
+    vi.mocked(api.listFacts).mockResolvedValue([]);
   });
 
   it("loads and selects the saved preferred language", async () => {
@@ -286,6 +290,27 @@ describe("Settings", () => {
       renderPage("/settings?checkout=pro");
       await screen.findByText("No active plan yet.");
       expect(api.createCheckoutSession).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Facts section", () => {
+    it("lists pending facts and approves one", async () => {
+      vi.mocked(api.listFacts).mockResolvedValue([
+        {
+          id: "f1", user_id: "u1", fact_type: "address", value: { city: "Utrecht" },
+          valid_from: "2026-01-01", valid_to: null, confidence: 0.9, status: "pending_review",
+          created_at: "2026-01-01T00:00:00Z",
+        },
+      ]);
+      vi.mocked(api.approveFact).mockResolvedValue({
+        id: "f1", user_id: "u1", fact_type: "address", value: { city: "Utrecht" },
+        valid_from: "2026-01-01", valid_to: null, confidence: 0.9, status: "confirmed",
+        created_at: "2026-01-01T00:00:00Z",
+      });
+      renderPage();
+      expect(await screen.findByText("address")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+      await waitFor(() => expect(api.approveFact).toHaveBeenCalledWith("f1"));
     });
   });
 });

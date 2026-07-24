@@ -3,21 +3,27 @@ import { useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { AddressHistory } from "../components/AddressHistory";
 import Card from "../components/Card";
+import EmptyState from "../components/EmptyState";
 import { PasskeySettings } from "../components/PasskeySettings";
 import { WorkspaceSharing } from "../components/WorkspaceSharing";
+import { Alert } from "../components/ui/Alert";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Combobox, type ComboboxOption } from "../components/ui/Combobox";
+import { SkeletonLines } from "../components/ui/Skeleton";
 import {
   ApiError,
+  approveFact,
   createCheckoutSession,
   createPortalSession,
   getOrganization,
   getPreferences,
   getSubscription,
   inviteOrganizationMember,
+  listFacts,
   listOrganizationInvitations,
   listOrganizationMembers,
+  rejectFact,
   renameOrganization,
   revokeOrganizationInvitation,
   setOrganizationPolicies,
@@ -25,6 +31,7 @@ import {
   type InvitationOut,
   type OrganizationMemberOut,
   type SubscriptionOut,
+  type UserFactOut,
 } from "../lib/api";
 import { syncLanguage } from "../lib/auth";
 import { toDateFormatPrefs, type DateFormat, type TimeFormat } from "../lib/dateFormat";
@@ -182,6 +189,8 @@ export default function Settings() {
       </Card>
 
       <NotificationPreferencesSection />
+
+      <FactsSection />
 
       <PasskeySettings />
 
@@ -406,6 +415,85 @@ function NotificationPreferencesSection() {
         {t("settings.notifDigest")}
       </label>
       <p className="text-xs text-ink-3">{t("settings.notificationsPlaceholder")}</p>
+    </Card>
+  );
+}
+
+function FactsSection() {
+  const { t } = useTranslation();
+  const [facts, setFacts] = useState<UserFactOut[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  function load() {
+    listFacts()
+      .then(setFacts)
+      .catch((err) => setError(err instanceof ApiError ? err.message : t("settings.factsLoadError")));
+  }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
+  useEffect(load, []);
+
+  async function handleApprove(id: string) {
+    setBusyId(id);
+    try {
+      await approveFact(id);
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("settings.factsActionError"));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleReject(id: string) {
+    setBusyId(id);
+    try {
+      await rejectFact(id);
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("settings.factsActionError"));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <Card className="flex max-w-md flex-col gap-3">
+      <h2 className="text-lg font-semibold text-ink">{t("settings.factsTitle")}</h2>
+      <p className="text-xs text-ink-3">{t("settings.factsHint")}</p>
+      {error && (
+        <Alert variant="danger" title={t("settings.factsLoadError")}>
+          {error}
+        </Alert>
+      )}
+      {!facts ? (
+        <SkeletonLines />
+      ) : facts.length === 0 ? (
+        <EmptyState message={t("settings.factsEmpty")} />
+      ) : (
+        facts.map((fact) => (
+          <div key={fact.id} className="flex items-center justify-between gap-2 rounded-xl border border-edge p-3">
+            <div>
+              <p className="text-sm font-medium text-ink">{fact.fact_type}</p>
+              <p className="text-xs text-ink-3">{JSON.stringify(fact.value)}</p>
+              <Badge variant={fact.status === "confirmed" ? "success" : fact.status === "rejected" ? "danger" : "default"}>
+                {fact.status}
+              </Badge>
+            </div>
+            {fact.status === "pending_review" && (
+              <div className="flex gap-2">
+                <Button size="sm" variant="secondary" onClick={() => handleApprove(fact.id)} disabled={busyId === fact.id}>
+                  {t("settings.factsApprove")}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => handleReject(fact.id)} disabled={busyId === fact.id}>
+                  {t("settings.factsReject")}
+                </Button>
+              </div>
+            )}
+          </div>
+        ))
+      )}
     </Card>
   );
 }

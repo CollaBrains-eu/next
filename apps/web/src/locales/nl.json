@@ -716,7 +716,14 @@
     "notificationsHint": "Kies hoe je een melding krijgt als een nieuw document is verwerkt.",
     "notifPerDocument": "Per document",
     "notifDigest": "Dagelijks overzicht",
-    "notificationsPlaceholder": "Dit is een voorbeeld -- het dagelijkse overzicht is nog niet aangesloten."
+    "notificationsPlaceholder": "Dit is een voorbeeld -- het dagelijkse overzicht is nog niet aangesloten.",
+    "factsTitle": "Wat de AI over je weet",
+    "factsHint": "Feiten uit je documenten. Keur goed of af wat nog beoordeeld moet worden.",
+    "factsEmpty": "Nog geen feiten bekend.",
+    "factsApprove": "Goedkeuren",
+    "factsReject": "Afwijzen",
+    "factsLoadError": "Kon je feiten niet laden.",
+    "factsActionError": "Dat is niet gelukt -- probeer het opnieuw."
   },
   "phonePrompt": {
     "title": "Stel uw telefoonnummer in",

@@ -716,7 +716,14 @@
     "notificationsHint": "Wähle, wie du benachrichtigt wirst, wenn ein neues Dokument verarbeitet wurde.",
     "notifPerDocument": "Pro Dokument",
     "notifDigest": "Tägliche Zusammenfassung",
-    "notificationsPlaceholder": "Dies ist eine Vorschau -- der Zeitplan ist noch nicht angebunden."
+    "notificationsPlaceholder": "Dies ist eine Vorschau -- der Zeitplan ist noch nicht angebunden.",
+    "factsTitle": "Was die KI über dich weiß",
+    "factsHint": "Aus deinen Dokumenten extrahierte Fakten. Genehmige oder lehne ausstehende ab.",
+    "factsEmpty": "Noch keine Fakten vorhanden.",
+    "factsApprove": "Genehmigen",
+    "factsReject": "Ablehnen",
+    "factsLoadError": "Deine Fakten konnten nicht geladen werden.",
+    "factsActionError": "Das hat nicht geklappt -- versuch es erneut."
   },
   "phonePrompt": {
     "title": "Telefonnummer festlegen",

@@ -716,7 +716,14 @@
     "notificationsHint": "Choose how you're notified when a new document is processed.",
     "notifPerDocument": "Per document",
     "notifDigest": "Daily digest",
-    "notificationsPlaceholder": "This is a preview -- the digest schedule isn't wired up yet."
+    "notificationsPlaceholder": "This is a preview -- the digest schedule isn't wired up yet.",
+    "factsTitle": "What the AI knows about you",
+    "factsHint": "Facts extracted from your documents. Approve or reject anything pending review.",
+    "factsEmpty": "No facts on file yet.",
+    "factsApprove": "Approve",
+    "factsReject": "Reject",
+    "factsLoadError": "Couldn't load your facts.",
+    "factsActionError": "That didn't go through -- try again."
   },
   "phonePrompt": {
     "title": "Set your phone number",

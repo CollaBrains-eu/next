@@ -879,6 +879,30 @@ export function setPreferences(prefs: {
   });
 }
 
+export interface UserFactOut {
+  id: string;
+  user_id: string;
+  fact_type: string;
+  value: Record<string, unknown>;
+  valid_from: string;
+  valid_to: string | null;
+  confidence: number;
+  status: string;
+  created_at: string;
+}
+
+export function listFacts(): Promise<UserFactOut[]> {
+  return request<UserFactOut[]>("/facts");
+}
+
+export function approveFact(id: string): Promise<UserFactOut> {
+  return request<UserFactOut>(`/facts/${id}/approve`, { method: "POST" });
+}
+
+export function rejectFact(id: string): Promise<UserFactOut> {
+  return request<UserFactOut>(`/facts/${id}/reject`, { method: "POST" });
+}
+
 export interface OrganizationOut {
   id: string;
   name: string;
