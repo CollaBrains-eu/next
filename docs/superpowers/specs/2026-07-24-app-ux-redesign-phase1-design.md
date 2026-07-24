@@ -35,14 +35,31 @@ designing anything (per brainstorming's explore-first step) found:
   prioritization. Confirmed with the user that screenshot is v2's own
   admin panel, reused for UX/feature *ideas* only, not literal scope.
 - **Concrete, reproducible bugs exist in the current app today**,
-  independent of any redesign: a raw `Unexpected server response (0)`
-  browser-native error on PDF load failure, a raw `API 500: Internal
-  Server Error` string shown to admins, a generic `Fout bij
-  verifiëring. Probeer opnieuw.` on onboarding, and (traced to
+  independent of any redesign — but each was individually verified
+  against actual current-app code, not assumed from a screenshot,
+  after the onboarding screenshot turned out to be a false lead (see
+  below): a raw `Unexpected server response (0)` browser-native error
+  on PDF preview, traced to `previewDocumentFile()`
+  (`apps/web/src/lib/api.ts:810-815`) opening a `blob:` URL via
+  `window.open()` in a new tab — a well-documented WebKit/iOS Safari
+  limitation where blob URLs don't reliably survive the handoff to a
+  new browsing context; and (traced to
   `apps/web/src/lib/taskUrgency.ts`) a literal `Invalid Date` label on
   appointment-type tasks with no due date, plus unbounded overdue-day
   counts (e.g. "2780 dagen verlopen") for genuinely old-but-valid
   deadlines.
+- **The onboarding "Fout bij verifiëring. Probeer opnieuw." screenshot
+  is also a false lead, like the 223-bug-reports one.** Current
+  `Onboard.tsx` is a token-link flow (`?token=...` →
+  valid/invalid/loading) with no phone-number field, no verification
+  retry button, and no matching translation string in any of
+  `apps/web/src/locales/{en,nl,de}.json`. The screenshot is v2's
+  phone-based onboarding — dropped from the bug-fix list entirely
+  rather than sending an implementer after a bug that doesn't exist
+  here. The raw `API 500: Internal Server Error` string (admin Email
+  Templates test-send) is real but not independently root-caused —
+  it's covered by the general error-pattern rollout (section 6) rather
+  than as its own numbered bug fix.
 - **An established design system exists and stays.** "Violet"
   (tokens, `CollaButton`/`CollaCard`/etc.) was deliberately chosen in
   an earlier phase over alternatives; user confirmed this redesign
@@ -154,20 +171,24 @@ sentence + a retry action where one makes sense. This is app-wide, not
 limited to the 3 polished pages below — every existing error/empty
 state adopts this pattern as part of the foundation.
 
-### 7. Three concrete bug fixes (real functional bugs, not just visual)
+### 7. Two concrete bug fixes (real functional bugs, not just visual)
 
-- **PDF viewer blob:// failure**: root-cause the fetch failure behind
-  `Unexpected server response (0)`, fix it, and fall back to the new
-  error pattern (with a working "Try again" / "Download instead") if
-  it still fails for a legitimately unavailable file.
+- **PDF viewer blob:// failure**: `previewDocumentFile()`
+  (`apps/web/src/lib/api.ts:810-815`) calls
+  `window.open(URL.createObjectURL(blob), "_blank")`. Fix: navigate the
+  *same* tab to the blob URL instead of opening a new one (or render
+  inline via an `<iframe>`/`<embed>` in the document detail view) so
+  the blob URL never has to cross a browsing-context boundary. Fall
+  back to the new error pattern (section 6) with a working "Try again"
+  / "Download instead" for genuinely unavailable files.
 - **`taskUrgency.ts` date handling**: never render a raw `Invalid
   Date`. A task with no due date shows "No date on file". A valid but
   very old due date shows the actual date (e.g. "Overdue since 9 Apr
   2019") instead of an unbounded, alarming day-count.
-- **Onboarding verification error**: root-cause what actually fails
-  behind the generic `Fout bij verifiëring. Probeer opnieuw.` and
-  either fix it or show a specific, actionable message instead of a
-  catch-all retry prompt.
+
+(A third item, an onboarding verification error, was in the original
+screenshot set but confirmed not reproducible in this codebase — see
+Context above. Dropped rather than fabricated.)
 
 ### 8. Visual polish — Documents list, Document Detail, Tasks list
 
@@ -194,8 +215,8 @@ every existing route is still reachable through the new structure.
   changes (nav grouping, relabeled admin tabs).
 - New coverage: a nav-structure smoke test (every pre-existing route
   reachable via the new grouped sidebar/admin), regression tests for
-  the three bug fixes (`taskUrgency.ts` edge cases: no due date, very
-  old due date; onboarding error path; PDF load failure/retry).
+  the two bug fixes (`taskUrgency.ts` edge cases: no due date, very
+  old due date; PDF preview same-tab navigation / failure-and-retry).
 - Stub pages get a minimal render/smoke test only (they render, nav
   reaches them, no console errors) — no logic exists yet to test.
 - Facts/Memories/AI Tools pages get real coverage against their
