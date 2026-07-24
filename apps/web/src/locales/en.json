@@ -711,7 +711,12 @@
     "billingManage": "Manage billing",
     "billingRedirecting": "Redirecting…",
     "billingCheckoutError": "Failed to start checkout",
-    "billingPortalError": "Failed to open billing portal"
+    "billingPortalError": "Failed to open billing portal",
+    "notificationsTitle": "Notifications",
+    "notificationsHint": "Choose how you're notified when a new document is processed.",
+    "notifPerDocument": "Per document",
+    "notifDigest": "Daily digest",
+    "notificationsPlaceholder": "This is a preview -- the digest schedule isn't wired up yet."
   },
   "phonePrompt": {
     "title": "Set your phone number",

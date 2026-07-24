@@ -711,7 +711,12 @@
     "billingManage": "Facturering beheren",
     "billingRedirecting": "Doorverwijzen…",
     "billingCheckoutError": "Afrekenen kon niet worden gestart",
-    "billingPortalError": "Kon factureringsportaal niet openen"
+    "billingPortalError": "Kon factureringsportaal niet openen",
+    "notificationsTitle": "Meldingen",
+    "notificationsHint": "Kies hoe je een melding krijgt als een nieuw document is verwerkt.",
+    "notifPerDocument": "Per document",
+    "notifDigest": "Dagelijks overzicht",
+    "notificationsPlaceholder": "Dit is een voorbeeld -- het dagelijkse overzicht is nog niet aangesloten."
   },
   "phonePrompt": {
     "title": "Stel uw telefoonnummer in",

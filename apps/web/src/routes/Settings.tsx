@@ -181,6 +181,8 @@ export default function Settings() {
         </Button>
       </Card>
 
+      <NotificationPreferencesSection />
+
       <PasskeySettings />
 
       <div className="flex flex-col gap-2">
@@ -379,6 +381,31 @@ function OrganizationSection() {
           )}
         </>
       )}
+    </Card>
+  );
+}
+
+function NotificationPreferencesSection() {
+  const { t } = useTranslation();
+  const [mode, setMode] = useState<"per-document" | "digest">("per-document");
+  return (
+    <Card className="flex max-w-md flex-col gap-3">
+      <h2 className="text-lg font-semibold text-ink">{t("settings.notificationsTitle")}</h2>
+      <p className="text-xs text-ink-3">{t("settings.notificationsHint")}</p>
+      <label className="flex items-center gap-2 text-sm text-ink">
+        <input
+          type="radio"
+          name="notif-mode"
+          checked={mode === "per-document"}
+          onChange={() => setMode("per-document")}
+        />
+        {t("settings.notifPerDocument")}
+      </label>
+      <label className="flex items-center gap-2 text-sm text-ink">
+        <input type="radio" name="notif-mode" checked={mode === "digest"} onChange={() => setMode("digest")} />
+        {t("settings.notifDigest")}
+      </label>
+      <p className="text-xs text-ink-3">{t("settings.notificationsPlaceholder")}</p>
     </Card>
   );
 }

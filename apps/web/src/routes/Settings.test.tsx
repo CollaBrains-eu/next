@@ -218,6 +218,15 @@ describe("Settings", () => {
     });
   });
 
+  describe("Notification Preferences (stub)", () => {
+    it("renders the digest toggle with no backend call", () => {
+      renderPage();
+      expect(screen.getByText("Notifications")).toBeInTheDocument();
+      expect(screen.getByRole("radio", { name: "Per document" })).toBeChecked();
+      expect(screen.getByRole("radio", { name: "Daily digest" })).not.toBeChecked();
+    });
+  });
+
   describe("Billing section", () => {
     it("shows no active plan for a fresh organization", async () => {
       renderPage();

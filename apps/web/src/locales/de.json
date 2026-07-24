@@ -711,7 +711,12 @@
     "billingManage": "Abrechnung verwalten",
     "billingRedirecting": "Wird weitergeleitet…",
     "billingCheckoutError": "Bezahlvorgang konnte nicht gestartet werden",
-    "billingPortalError": "Abrechnungsportal konnte nicht geöffnet werden"
+    "billingPortalError": "Abrechnungsportal konnte nicht geöffnet werden",
+    "notificationsTitle": "Benachrichtigungen",
+    "notificationsHint": "Wähle, wie du benachrichtigt wirst, wenn ein neues Dokument verarbeitet wurde.",
+    "notifPerDocument": "Pro Dokument",
+    "notifDigest": "Tägliche Zusammenfassung",
+    "notificationsPlaceholder": "Dies ist eine Vorschau -- der Zeitplan ist noch nicht angebunden."
   },
   "phonePrompt": {
     "title": "Telefonnummer festlegen",
