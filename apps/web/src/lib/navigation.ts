@@ -16,6 +16,10 @@ import {
 
 export type NavGroup = "Overview" | "Records" | "Planning" | "AI Tools" | "Account";
 
+export function groupLabelKey(group: NavGroup): string {
+  return `navGroup.${group.toLowerCase().replace(/\s+/g, "")}`;
+}
+
 export const NAV_ITEMS: { to: string; labelKey: string; icon: LucideIcon; group: NavGroup }[] = [
   { to: "/", labelKey: "nav.dashboard", icon: LayoutDashboard, group: "Overview" },
   { to: "/documents", labelKey: "nav.documents", icon: FileText, group: "Records" },

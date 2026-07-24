@@ -4,7 +4,7 @@ import { useAuth } from "../lib/auth";
 import { useDarkMode } from "../hooks/useDarkMode";
 import { useEscapeToClose } from "../hooks/useEscapeToClose";
 import { Button } from "./ui/Button";
-import { navItemsForRole } from "../lib/navigation";
+import { navItemsForRole, groupLabelKey } from "../lib/navigation";
 
 export function MobileNavDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { user, logout } = useAuth();
@@ -39,7 +39,7 @@ export function MobileNavDrawer({ open, onClose }: { open: boolean; onClose: () 
                     data-testid="drawer-group-header"
                     className="px-3 pb-1 pt-3 text-[10.5px] font-semibold uppercase tracking-wide text-ink-3 first:pt-0"
                   >
-                    {t(`navGroup.${item.group.toLowerCase().replace(/\s+/g, "")}`)}
+                    {t(groupLabelKey(item.group))}
                   </div>
                 )}
                 <NavLink

@@ -11,7 +11,7 @@ import { Avatar } from "./ui/Avatar";
 import { AlertsBell } from "./AlertsBell";
 import { BrandMark } from "./BrandMark";
 import { MobileNavDrawer } from "./MobileNavDrawer";
-import { navItemsForRole } from "../lib/navigation";
+import { navItemsForRole, groupLabelKey } from "../lib/navigation";
 
 const PRIMARY_PATHS = ["/", "/documents", "/cases", "/tasks", "/chat"];
 
@@ -57,7 +57,7 @@ export default function Navbar() {
   const moreOptions = secondaryItems.map((item) => ({
     label: t(item.labelKey),
     onSelect: () => navigate(item.to),
-    group: t(`navGroup.${item.group.toLowerCase().replace(/\s+/g, "")}`),
+    group: t(groupLabelKey(item.group)),
   }));
 
   return (
