@@ -15,18 +15,22 @@ collabrains.eu {
 	# single XSS bug anywhere in the SPA or a dependency had no
 	# defense-in-depth backstop). CSP sources are scoped to what the app
 	# actually loads: Google Fonts CSS+files (src/index.css `@import`),
-	# and the one absolute-URL fetch() in Landing.tsx's best-effort IP
-	# geolocation (ipapi.co). `style-src 'unsafe-inline'` is needed for
-	# React/Tailwind/framer-motion's inline `style=` attributes (dynamic
-	# widths, animation values) -- far lower risk than `script-src
-	# 'unsafe-inline'`, which is deliberately not granted anywhere here.
+	# the one absolute-URL fetch() in Landing.tsx's best-effort IP
+	# geolocation (ipapi.co), and the frontend Sentry SDK's error/trace
+	# ingest endpoint (ADR 0072/0074 -- without this the browser silently
+	# blocks every Sentry envelope, so error tracking looks wired up but
+	# never actually delivers anything). `style-src 'unsafe-inline'` is
+	# needed for React/Tailwind/framer-motion's inline `style=` attributes
+	# (dynamic widths, animation values) -- far lower risk than
+	# `script-src 'unsafe-inline'`, which is deliberately not granted
+	# anywhere here.
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		Permissions-Policy "geolocation=(), camera=(), microphone=()"
-		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://ipapi.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://ipapi.co https://*.ingest.de.sentry.io; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
 	}
 
 	# The SPA has client-side routes that share a path prefix with API
