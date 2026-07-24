@@ -318,9 +318,7 @@ export default function Tasks() {
       ) : (
         <div className="flex flex-col divide-y divide-edge rounded-2xl border border-edge bg-surface">
           {tasks.map((task) => {
-            const badge = task.due_date
-              ? { variant: taskUrgency(task.due_date).variant, label: relativeDueLabel(task.due_date, t, formatDate) }
-              : null;
+            const badge = { variant: taskUrgency(task.due_date).variant, label: relativeDueLabel(task.due_date, t, formatDate) };
             return (
               <div
                 key={task.id}
@@ -358,7 +356,7 @@ export default function Tasks() {
                   </p>
                   {task.description && <p className="mt-0.5 text-xs text-ink-2">{task.description}</p>}
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-3">
-                    {badge && <Badge variant={badge.variant}>{badge.label}</Badge>}
+                    <Badge variant={badge.variant === "unknown" ? "default" : badge.variant}>{badge.label}</Badge>
                     {task.assignee && <span>{t("tasks.assignee", { name: task.assignee })}</span>}
                     {task.document_id && (
                       <Link

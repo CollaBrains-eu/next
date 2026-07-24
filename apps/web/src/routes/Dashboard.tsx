@@ -15,7 +15,7 @@ import {
   type ServiceHealthOut,
 } from "../lib/api";
 import { useDateFormat } from "../hooks/useDateFormat";
-import { taskUrgency } from "../lib/taskUrgency";
+import { taskUrgency, relativeDueLabel } from "../lib/taskUrgency";
 import Card from "../components/Card";
 import { DashboardWidgetCard } from "../components/DashboardWidgetCard";
 import { ActivityTimeline } from "../components/ActivityTimeline";
@@ -249,15 +249,14 @@ export default function Dashboard() {
                 <Link to={`/tasks/${task.id}`} className="truncate text-ink hover:text-accent">
                   {task.title}
                 </Link>
-                {task.due_date && (
-                  <Badge variant={taskUrgency(task.due_date).variant}>
-                    {taskUrgency(task.due_date).variant === "danger"
-                      ? t("tasks.dueOverdue", { count: taskUrgency(task.due_date).overdueDays })
-                      : taskUrgency(task.due_date).variant === "warning"
-                        ? t("tasks.dueToday")
-                        : t("tasks.due", { date: formatDate(task.due_date) })}
-                  </Badge>
-                )}
+                {task.due_date && (() => {
+                  const variant = taskUrgency(task.due_date).variant;
+                  return (
+                    <Badge variant={variant === "unknown" ? "default" : variant}>
+                      {relativeDueLabel(task.due_date, t, formatDate)}
+                    </Badge>
+                  );
+                })()}
               </li>
             ))}
           </ul>

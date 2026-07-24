@@ -162,6 +162,12 @@ describe("Tasks", () => {
     expect(row).toHaveClass("border-l-transparent");
   });
 
+  it("shows 'No date on file' for a task with no due date, not a blank space", async () => {
+    vi.mocked(api.listTasks).mockResolvedValue([{ ...OPEN_TASKS[0], due_date: null }]);
+    renderPage();
+    expect(await screen.findByText("No date on file")).toBeInTheDocument();
+  });
+
   it("gives a done task a transparent left border even with a past due date", async () => {
     vi.mocked(api.listTasks).mockResolvedValue([{ ...OPEN_TASKS[0], due_date: isoDate(-1), status: "done" }]);
     renderPage();
