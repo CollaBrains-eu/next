@@ -25,8 +25,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.config import settings
 from api.db import get_db
 from api.ldap_auth import authenticate as ldap_authenticate
-from api.invitation_service import get_valid_invitation
+from api.invitation_service import get_valid_invitation, send_welcome_joined_org_email
 from api.models import Organization, PendingUserPhoneNumber, User
+from api.organizations import get_organization_for_user
+from api.preferences import get_preferences
 from api.registration_service import (
     check_registration_rate_limit,
     complete_registration,
@@ -34,6 +36,7 @@ from api.registration_service import (
     get_pending_registration_for_username,
     refresh_pending_registration,
     send_verification_email,
+    send_welcome_email,
     username_or_email_taken,
 )
 
@@ -242,6 +245,25 @@ async def verify_email(body: VerifyEmailRequest, db: AsyncSession = Depends(get_
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="This verification link is invalid or has expired"
         )
+
+    organization = await get_organization_for_user(db, user.id)
+    if organization is not None:
+        preferences = await get_preferences(db, user_id=user.id)
+        preferred_language = preferences.preferred_language if preferences is not None else None
+        if organization.owner_user_id == user.id:
+            # Brand-new own Organization -- "welcome, your workspace is ready".
+            await send_welcome_email(
+                user=user, organization_name=organization.name, preferred_language=preferred_language
+            )
+        else:
+            # A brand-new invitee (no prior account) joins an existing org
+            # right here rather than through invitations_router.py's accept
+            # endpoint (that's only for an *existing* account accepting an
+            # invitation) -- same "welcome to the team" copy either way.
+            await send_welcome_joined_org_email(
+                user=user, organization_name=organization.name, preferred_language=preferred_language
+            )
+
     return Token(access_token=create_access_token(user.username, user.role))
 
 

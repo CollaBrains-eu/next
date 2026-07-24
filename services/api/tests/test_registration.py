@@ -215,6 +215,28 @@ async def test_verify_email_rejects_unknown_token(client):
     assert response.status_code == 400
 
 
+async def test_verify_email_sends_welcome_email_for_new_org_signup(client, monkeypatch):
+    monkeypatch.setattr(settings, "smtp_host", "")
+    username = _unique("verifywelcome")
+
+    await client.post("/auth/register", json=_register_body(username, organization_name="Welcome Co"))
+    record = await _pending_registration_for(username)
+
+    monkeypatch.setattr(settings, "smtp_host", "smtp.example.com")
+    monkeypatch.setattr(settings, "smtp_username", "user")
+    monkeypatch.setattr(settings, "smtp_password", "pass")
+    with patch("api.registration_service.ldap_register_user", return_value=None), patch(
+        "api.registration_service.send_email", AsyncMock(return_value=True)
+    ) as mock_send:
+        response = await client.post("/auth/verify-email", json={"token": record.token})
+
+    assert response.status_code == 200
+    mock_send.assert_called_once()
+    call_kwargs = mock_send.call_args.kwargs
+    assert "Welcome Co" in call_kwargs["html_body"]
+    assert "Welcome" in call_kwargs["subject"]
+
+
 async def test_verify_email_tolerates_ldap_entry_already_existing(client, monkeypatch):
     """Covers a crash between the LDAP write and the Postgres commit on a
     prior attempt: the directory entry already exists, but this token

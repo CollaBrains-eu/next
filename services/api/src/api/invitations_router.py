@@ -13,8 +13,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth import Token, create_access_token, get_current_user
 from api.db import get_db
-from api.invitation_service import accept_invitation_for_existing_user, get_valid_invitation
+from api.invitation_service import (
+    accept_invitation_for_existing_user,
+    get_valid_invitation,
+    send_welcome_joined_org_email,
+)
 from api.models import Organization, User
+from api.preferences import get_preferences
 
 router = APIRouter(prefix="/invitations", tags=["invitations"])
 
@@ -60,4 +65,13 @@ async def accept_invitation(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="This invitation is invalid or has expired"
         )
+
+    organization = await db.get(Organization, invitation.organization_id)
+    if organization is not None:
+        preferences = await get_preferences(db, user_id=current_user.id)
+        preferred_language = preferences.preferred_language if preferences is not None else None
+        await send_welcome_joined_org_email(
+            user=current_user, organization_name=organization.name, preferred_language=preferred_language
+        )
+
     return Token(access_token=create_access_token(current_user.username, current_user.role))

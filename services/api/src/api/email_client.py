@@ -12,6 +12,7 @@ import logging
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.utils import formataddr
 
 from api.config import settings
 
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 def _send_sync(*, to_address: str, subject: str, html_body: str, text_body: str) -> None:
     message = MIMEMultipart("alternative")
     message["Subject"] = subject
-    message["From"] = settings.smtp_from_address
+    message["From"] = formataddr(("CollaBrains", settings.smtp_from_address))
     message["To"] = to_address
     message.attach(MIMEText(text_body, "plain"))
     message.attach(MIMEText(html_body, "html"))

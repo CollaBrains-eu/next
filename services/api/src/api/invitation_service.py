@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.config import settings
 from api.email_client import send_email
+from api.email_templates import welcome_joined_org_html, welcome_joined_org_subject, welcome_joined_org_text
 from api.models import Invitation, User
 
 TOKEN_TTL_DAYS = 7
@@ -150,4 +151,31 @@ async def send_invitation_email(*, invitation: Invitation, organization_name: st
         subject=f"Uitnodiging voor {organization_name} op CollaBrains",
         html_body=_invitation_html(organization_name=organization_name, accept_url=accept_url),
         text_body=_invitation_text(organization_name=organization_name, accept_url=accept_url),
+    )
+
+
+async def send_welcome_joined_org_email(
+    *, user: User, organization_name: str, preferred_language: str | None
+) -> bool:
+    """Sent right after `accept_invitation_for_existing_user` switches an
+    already-registered user into the inviting org -- a brand-new invitee
+    instead gets `registration_service.send_welcome_email`'s new-workspace
+    copy, since they never had an account to switch.
+
+    `preferred_language` is looked up by the caller (api.preferences,
+    UserPreference is a separate one-row-per-user table, not a User
+    column)."""
+    return await send_email(
+        to_address=user.email,
+        subject=welcome_joined_org_subject(organization_name=organization_name, preferred_language=preferred_language),
+        html_body=welcome_joined_org_html(
+            display_name=user.display_name,
+            organization_name=organization_name,
+            preferred_language=preferred_language,
+        ),
+        text_body=welcome_joined_org_text(
+            display_name=user.display_name,
+            organization_name=organization_name,
+            preferred_language=preferred_language,
+        ),
     )
