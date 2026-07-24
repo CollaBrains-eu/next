@@ -160,16 +160,27 @@ here. Facts/Memories/AI Tools (section 4, above) are explicitly **not**
 under this contract — they get fully working pages against their
 already-complete backends.
 
-### 6. Global error/empty-state pattern
+### 6. Consistent error pattern for everything new in this phase
 
-Replace every raw browser/system-style error currently shown to users
-(`Unexpected server response (0)...`, `API 500: Internal Server
-Error`, and any other unwrapped exception text) with the same
-Card + Badge convention already established in the Bugs admin tab:
-a small status badge (e.g. "Couldn't load") + a plain-language
-sentence + a retry action where one makes sense. This is app-wide, not
-limited to the 3 polished pages below — every existing error/empty
-state adopts this pattern as part of the foundation.
+Correction after implementation research: an `Alert` component
+(`apps/web/src/components/ui/Alert.tsx`, variant `info/success/warning/
+danger`, already used in `DocumentDetailContent.tsx`) already exists
+and is the right reuse target — not a new Card+Badge pattern invented
+for this phase. Every new/changed surface in this phase (Facts,
+Memories, AI Tools, the 3 stub tabs, the Notification Preferences
+stub) uses `Alert` for its error states.
+
+Narrowed from "app-wide" to "everything this phase touches": a grep
+across the current app found 18 existing files rendering errors as a
+plain `<p className="text-danger">{error}</p>` rather than via
+`Alert`. Retrofitting all 18 is a separate, higher-regression-risk
+sweep with its own testing burden, disconnected from any bug this
+phase actually found — the two concrete raw-error screenshots (the
+PDF viewer, and an "API 500" on an Email Templates feature that
+doesn't exist in this app yet, see below) are handled directly by
+their own items (section 7, and the new Email Templates stub
+respectively), not by a blanket retrofit. Flagged as a reasonable
+future cleanup, not done here.
 
 ### 7. Two concrete bug fixes (real functional bugs, not just visual)
 
