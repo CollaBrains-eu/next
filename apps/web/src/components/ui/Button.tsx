@@ -1,4 +1,4 @@
-import { useState, type ButtonHTMLAttributes, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type MouseEvent } from "react";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger";
 type Size = "sm" | "md" | "lg";
@@ -35,6 +35,14 @@ export function Button({
   size?: Size;
 } & ButtonHTMLAttributes<HTMLButtonElement>) {
   const [ripples, setRipples] = useState<RippleSpan[]>([]);
+  const timeoutIdsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  useEffect(() => {
+    const timeoutIds = timeoutIdsRef.current;
+    return () => {
+      for (const timeoutId of timeoutIds) clearTimeout(timeoutId);
+    };
+  }, []);
 
   function handleClick(event: MouseEvent<HTMLButtonElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -44,7 +52,8 @@ export function Button({
       ...prev,
       { id, x: event.clientX - rect.left - size / 2, y: event.clientY - rect.top - size / 2, size },
     ]);
-    setTimeout(() => setRipples((prev) => prev.filter((r) => r.id !== id)), 600);
+    const timeoutId = setTimeout(() => setRipples((prev) => prev.filter((r) => r.id !== id)), 600);
+    timeoutIdsRef.current.push(timeoutId);
     onClick?.(event);
   }
 
