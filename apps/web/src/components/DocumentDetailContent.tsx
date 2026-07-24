@@ -174,54 +174,58 @@ export function DocumentDetailContent({
       )}
 
       {(doc.doc_type || doc.tags.length > 0 || doc.correspondent) && (
-        <Card>
-          <h2 className="text-sm font-medium text-ink-2">{t("documentDetail.classification")}</h2>
-          <div className="mt-2 flex flex-col gap-2">
-            {doc.doc_type && (
-              <MetadataList items={[{ label: t("documentDetail.docType"), value: doc.doc_type }]} />
-            )}
-            {doc.tags.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-xs text-ink-3">{t("documentDetail.tags")}:</span>
-                {doc.tags.map((tag) => (
-                  <Badge key={tag} variant="default">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-            )}
-            {doc.correspondent && (
-              <div>
-                <span className="text-xs text-ink-3">{t("documentDetail.correspondent")}:</span>
-                <p className="text-sm text-ink">{doc.correspondent}</p>
-                {formatCorrespondentAddress(doc) && (
-                  <p className="text-sm text-ink-2">{formatCorrespondentAddress(doc)}</p>
-                )}
-              </div>
-            )}
-          </div>
-        </Card>
+        <div data-testid="doc-detail-section-card">
+          <Card>
+            <h2 className="text-sm font-medium text-ink-2">{t("documentDetail.classification")}</h2>
+            <div className="mt-2 flex flex-col gap-2">
+              {doc.doc_type && (
+                <MetadataList items={[{ label: t("documentDetail.docType"), value: doc.doc_type }]} />
+              )}
+              {doc.tags.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs text-ink-3">{t("documentDetail.tags")}:</span>
+                  {doc.tags.map((tag) => (
+                    <Badge key={tag} variant="default">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              {doc.correspondent && (
+                <div>
+                  <span className="text-xs text-ink-3">{t("documentDetail.correspondent")}:</span>
+                  <p className="text-sm text-ink">{doc.correspondent}</p>
+                  {formatCorrespondentAddress(doc) && (
+                    <p className="text-sm text-ink-2">{formatCorrespondentAddress(doc)}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
       )}
 
       {doc.metafields && Object.keys(doc.metafields).length > 0 && (
-        <Card>
-          <h2 className="text-sm font-medium text-ink-2">{t("documentDetail.metafields")}</h2>
-          <div className="mt-2 flex flex-col gap-2">
-            {Object.entries(doc.metafields).map(([key, value]) => (
-              <div key={key} className="flex items-center justify-between gap-2 text-sm">
-                <span className="text-ink-3">{humanizeFieldKey(key)}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-ink">{value}</span>
-                  {isDateLikeKey(key) && (
-                    <Button variant="ghost" size="sm" onClick={() => handleDownloadMetafieldIcs(key)}>
-                      {t("documentDetail.addToCalendar")}
-                    </Button>
-                  )}
+        <div data-testid="doc-detail-section-card">
+          <Card>
+            <h2 className="text-sm font-medium text-ink-2">{t("documentDetail.metafields")}</h2>
+            <div className="mt-2 flex flex-col gap-2">
+              {Object.entries(doc.metafields).map(([key, value]) => (
+                <div key={key} className="flex items-center justify-between gap-2 text-sm">
+                  <span className="text-ink-3">{humanizeFieldKey(key)}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-ink">{value}</span>
+                    {isDateLikeKey(key) && (
+                      <Button variant="ghost" size="sm" onClick={() => handleDownloadMetafieldIcs(key)}>
+                        {t("documentDetail.addToCalendar")}
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </Card>
+              ))}
+            </div>
+          </Card>
+        </div>
       )}
 
       {doc.summary && (

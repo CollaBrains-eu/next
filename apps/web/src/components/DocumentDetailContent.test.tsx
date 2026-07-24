@@ -159,6 +159,15 @@ describe("DocumentDetailContent", () => {
     expect(screen.queryByText("Invoice Number")).not.toBeInTheDocument();
   });
 
+  it("groups classification and extracted-field metadata into separate labeled cards", () => {
+    renderContent({
+      ...mockDoc,
+      doc_type: "invoice",
+      metafields: { amount: "500.00", due_date: "2026-08-15", invoice_number: "INV-123" },
+    });
+    expect(screen.getAllByTestId("doc-detail-section-card")).toHaveLength(2);
+  });
+
   it("shows an add-to-calendar button for date-like metafields and downloads on click", async () => {
     vi.mocked(api.downloadMetafieldIcs).mockResolvedValue(undefined);
     renderContent({
