@@ -16,7 +16,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.config import settings
 from api.email_client import send_email
+from api.email_templates import onboarding_welcome_html, onboarding_welcome_subject, onboarding_welcome_text
 from api.models import OnboardingToken, User
+from api.preferences import get_preferences
 from api.signal_client import send_signal_message
 
 TOKEN_TTL_DAYS = 7
@@ -60,26 +62,6 @@ async def consume_onboarding_token(db: AsyncSession, *, token: str) -> Onboardin
     return record
 
 
-def _welcome_text(*, display_name: str, onboard_url: str) -> str:
-    return (
-        f"Hallo {display_name},\n\n"
-        "Welkom bij CollaBrains. Klik op onderstaande link om te beginnen:\n"
-        f"{onboard_url}\n\n"
-        "Deze link is 7 dagen geldig.\n\n"
-        "Met vriendelijke groet,\nCollaBrains"
-    )
-
-
-def _welcome_html(*, display_name: str, onboard_url: str) -> str:
-    return (
-        f"<p>Hallo {display_name},</p>"
-        "<p>Welkom bij CollaBrains. Klik op onderstaande link om te beginnen:</p>"
-        f'<p><a href="{onboard_url}">{onboard_url}</a></p>'
-        "<p>Deze link is 7 dagen geldig.</p>"
-        "<p>Met vriendelijke groet,<br>CollaBrains</p>"
-    )
-
-
 async def send_welcome(db: AsyncSession, *, user: User) -> bool:
     """Creates a fresh onboarding token and sends it via email (if the
     user has one) and Signal (if they have a phone number). Returns
@@ -90,11 +72,17 @@ async def send_welcome(db: AsyncSession, *, user: User) -> bool:
 
     email_sent = False
     if user.email:
+        preferences = await get_preferences(db, user_id=user.id)
+        preferred_language = preferences.preferred_language if preferences is not None else None
         email_sent = await send_email(
             to_address=user.email,
-            subject="Welkom bij CollaBrains",
-            html_body=_welcome_html(display_name=user.display_name, onboard_url=onboard_url),
-            text_body=_welcome_text(display_name=user.display_name, onboard_url=onboard_url),
+            subject=onboarding_welcome_subject(display_name=user.display_name, preferred_language=preferred_language),
+            html_body=onboarding_welcome_html(
+                display_name=user.display_name, onboard_url=onboard_url, preferred_language=preferred_language
+            ),
+            text_body=onboarding_welcome_text(
+                display_name=user.display_name, onboard_url=onboard_url, preferred_language=preferred_language
+            ),
         )
 
     if user.phone_number:
