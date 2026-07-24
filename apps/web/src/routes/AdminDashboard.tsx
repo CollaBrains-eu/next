@@ -699,7 +699,25 @@ function UsersTab() {
 
 function ProductAnalyticsTab() {
   const { t } = useTranslation();
-  return <EmptyState message={t("admin.productAnalyticsPlaceholder")} />;
+  const stats = [
+    t("admin.paTotalUsersTrend"),
+    t("admin.paDocsProcessedTrend"),
+    t("admin.paAvgResponseTime"),
+  ];
+  return (
+    <div className="flex flex-col gap-3">
+      <h2 className="text-lg font-semibold text-ink">{t("admin.tabProductAnalytics")}</h2>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {stats.map((label) => (
+          <Card key={label} className="flex flex-col gap-1">
+            <span className="text-xs text-ink-3">{label}</span>
+            <span className="text-2xl font-semibold text-ink">—</span>
+          </Card>
+        ))}
+      </div>
+      <p className="text-xs text-ink-3">{t("admin.productAnalyticsPlaceholder")}</p>
+    </div>
+  );
 }
 
 function SupportTicketsTab() {
