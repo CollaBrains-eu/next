@@ -704,7 +704,17 @@ function ProductAnalyticsTab() {
 
 function SupportTicketsTab() {
   const { t } = useTranslation();
-  return <EmptyState message={t("admin.supportTicketsPlaceholder")} />;
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-ink">{t("admin.tabSupportTickets")}</h2>
+        <Button size="sm" variant="secondary" disabled>
+          {t("admin.newTicket")}
+        </Button>
+      </div>
+      <EmptyState heading={t("admin.supportTicketsEmptyHeading")} message={t("admin.supportTicketsEmptyBody")} />
+    </div>
+  );
 }
 
 function EmailTemplatesTab() {

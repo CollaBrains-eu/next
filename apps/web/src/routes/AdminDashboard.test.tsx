@@ -538,6 +538,17 @@ describe("AdminDashboard Feedback tab", () => {
   });
 });
 
+describe("AdminDashboard Support Tickets tab", () => {
+  it("shows a dry placeholder with no API calls", () => {
+    vi.mocked(api.getAdminStats).mockResolvedValue({
+      total_users: 0, total_documents: 0, documents_by_status: {}, ai_calls_last_24h: 0,
+    });
+    render(<AdminDashboard />);
+    fireEvent.click(screen.getByRole("tab", { name: "Support Tickets" }));
+    expect(screen.getByText("No support tickets yet")).toBeInTheDocument();
+  });
+});
+
 describe("AdminDashboard grouped tabs", () => {
   it("renders group headers in the tab bar", () => {
     vi.mocked(api.getAdminStats).mockResolvedValue({
