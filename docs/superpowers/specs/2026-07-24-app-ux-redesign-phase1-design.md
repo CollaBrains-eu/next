@@ -46,7 +46,26 @@ designing anything (per brainstorming's explore-first step) found:
 - **An established design system exists and stays.** "Violet"
   (tokens, `CollaButton`/`CollaCard`/etc.) was deliberately chosen in
   an earlier phase over alternatives; user confirmed this redesign
-  evolves it rather than replacing the visual identity.
+  evolves it rather than replacing the visual identity. The user
+  separately shared their own Violet DS reference artifact (colors,
+  motion tokens, full component catalog) — this is the definitive
+  visual source for every mockup and every implementation task below,
+  not an approximation of it.
+- **Full router audit, not just screenshot-derived ideas** (per
+  explicit instruction to "check every option," not only what the
+  screenshots showed): every backend router in `main.py` was checked
+  against the frontend's actual routes. Two real backends have **zero
+  frontend surface** — not stubs, fully working: `api/facts.py`
+  (list/approve/reject `UserFact` rows) and `api/memories.py`
+  (list/delete AI `Memory` rows). Nothing in `apps/web/src` references
+  either. This is exactly the "AI knowledge about you" gap the user
+  named directly. `api/tools_router.py` (`GET /tools`, listing
+  available AI tools) is also frontend-less — lower priority, a
+  transparency nice-to-have rather than something to manage.
+  `decisions_router` (AI decision rationale) already has a real
+  consumer (`CaseDetailContent.tsx`) — not a gap. `preferences_router`
+  is exactly what Settings' general-prefs card already calls — not a
+  gap either.
 
 ## Decision
 
@@ -92,7 +111,27 @@ security, address history, org, billing, sharing). Splitting it into
 sub-tabs is a reasonable future idea, flagged here, not designed or
 built now.
 
-### 4. Stub-area contract
+### 4. Settings — AI & Knowledge (new, real, not a stub)
+
+Unlike the stub areas above, this wires up backends that already
+exist and work — it's real functionality, not a placeholder:
+
+- **Facts** — list the user's reviewed/pending `UserFact` rows
+  (address, employer, etc. extracted by the AI), approve or reject
+  pending ones. Backend (`api/facts.py`) is complete; only the page
+  is missing.
+- **Memories** — list what the AI has stored about the user, delete
+  any entry. Backend (`api/memories.py`) is complete; only the page
+  is missing.
+- **AI Tools** (lower priority, same section) — read-only list of
+  tools the AI assistant can currently use, for transparency. Backend
+  (`api/tools_router.py`) is complete; only the page is missing.
+
+Placed in Settings, grouped under a new "AI & Knowledge" heading,
+after Notification Preferences and before Passkeys — the user
+explicitly asked for this under profile settings.
+
+### 5. Stub-area contract
 
 Per explicit instruction: new areas (Support Tickets, Email Templates,
 Product Analytics, Notification Preferences) ship as **dry
@@ -100,9 +139,11 @@ placeholders** — real nav entry, real page shell, real empty state,
 Violet-styled — but with **no working backend, no persisted state,
 and no functional buttons/links**. They exist so the information
 architecture is complete; wiring them up is future work, out of scope
-here.
+here. Facts/Memories/AI Tools (section 4, above) are explicitly **not**
+under this contract — they get fully working pages against their
+already-complete backends.
 
-### 5. Global error/empty-state pattern
+### 6. Global error/empty-state pattern
 
 Replace every raw browser/system-style error currently shown to users
 (`Unexpected server response (0)...`, `API 500: Internal Server
@@ -113,7 +154,7 @@ sentence + a retry action where one makes sense. This is app-wide, not
 limited to the 3 polished pages below — every existing error/empty
 state adopts this pattern as part of the foundation.
 
-### 6. Three concrete bug fixes (real functional bugs, not just visual)
+### 7. Three concrete bug fixes (real functional bugs, not just visual)
 
 - **PDF viewer blob:// failure**: root-cause the fetch failure behind
   `Unexpected server response (0)`, fix it, and fall back to the new
@@ -128,7 +169,7 @@ state adopts this pattern as part of the foundation.
   either fix it or show a specific, actionable message instead of a
   catch-all retry prompt.
 
-### 7. Visual polish — Documents list, Document Detail, Tasks list
+### 8. Visual polish — Documents list, Document Detail, Tasks list
 
 The three pages the provided screenshots feature most. Existing
 Violet DS components and tokens only — tighter grouping and spacing
@@ -157,6 +198,10 @@ every existing route is still reachable through the new structure.
   old due date; onboarding error path; PDF load failure/retry).
 - Stub pages get a minimal render/smoke test only (they render, nav
   reaches them, no console errors) — no logic exists yet to test.
+- Facts/Memories/AI Tools pages get real coverage against their
+  existing backends: list rendering, Facts approve/reject, Memories
+  delete, matching the rigor of any other functional page — they are
+  not stubs.
 
 ## Out of scope (this phase)
 
