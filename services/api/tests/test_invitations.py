@@ -243,6 +243,39 @@ async def test_accept_invitation_switches_existing_user_into_the_org(client, mon
         assert refreshed.accepted_at is not None
 
 
+async def test_accept_invitation_sends_joined_org_welcome_email(client, monkeypatch):
+    monkeypatch.setattr(settings, "smtp_host", "smtp.example.com")
+    monkeypatch.setattr(settings, "smtp_username", "user")
+    monkeypatch.setattr(settings, "smtp_password", "pass")
+    admin_username = _unique("inviteacceptwelcomeadmin")
+    admin_token = await _login(client, admin_username, is_admin=True)
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+    await _move_to_new_org(admin_username)
+
+    invitee_username = _unique("inviteacceptwelcomeuser")
+    invitee_token = await _login(client, invitee_username)
+    invitee_headers = {"Authorization": f"Bearer {invitee_token}"}
+    invitee_user = await _user_by_username(invitee_username)
+
+    org_response = await client.get("/organizations/me", headers=admin_headers)
+    org_name = org_response.json()["name"]
+
+    with patch("api.invitation_service.send_email", AsyncMock(return_value=True)):
+        await client.post(
+            "/organizations/me/invitations", headers=admin_headers, json={"email": invitee_user.email}
+        )
+    invitation = await _invitation_by_email(invitee_user.email)
+
+    with patch("api.invitation_service.send_email", AsyncMock(return_value=True)) as mock_send:
+        accept_response = await client.post(f"/invitations/{invitation.token}/accept", headers=invitee_headers)
+
+    assert accept_response.status_code == 200
+    mock_send.assert_called_once()
+    call_kwargs = mock_send.call_args.kwargs
+    assert org_name in call_kwargs["html_body"]
+    assert org_name in call_kwargs["subject"]
+
+
 async def test_accept_invitation_twice_fails_the_second_time(client, monkeypatch):
     monkeypatch.setattr(settings, "smtp_host", "")
     admin_username = _unique("inviteaccepttwiceadmin")
@@ -322,6 +355,57 @@ async def test_register_with_invitation_token_joins_the_inviting_org_not_a_new_o
 
         refreshed_invitation = await db.get(Invitation, invitation.id)
         assert refreshed_invitation.accepted_at is not None
+
+
+async def test_verify_email_with_invitation_token_sends_joined_org_welcome_not_new_org_welcome(client, monkeypatch):
+    """A brand-new invitee (no prior account) never hits
+    POST /invitations/{token}/accept -- they complete registration via
+    /auth/verify-email instead, joining the inviting org there. They should
+    still get the "welcome to the team" copy, not the "your new workspace is
+    ready" copy meant for an uninvited signup's own brand-new Organization."""
+    monkeypatch.setattr(settings, "smtp_host", "")
+    admin_token = await _login(client, _unique("invitedregwelcomeadmin"), is_admin=True)
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+    org_response = await client.get("/organizations/me", headers=admin_headers)
+    org_name = org_response.json()["name"]
+
+    invitee_username = _unique("invitedregwelcomeuser")
+    invitee_email = f"{invitee_username}@example.com"
+    with patch("api.invitation_service.send_email", AsyncMock(return_value=True)):
+        await client.post(
+            "/organizations/me/invitations", headers=admin_headers, json={"email": invitee_email}
+        )
+    invitation = await _invitation_by_email(invitee_email)
+
+    register_response = await client.post(
+        "/auth/register",
+        json=_register_body(invitee_username, email=invitee_email, invitation_token=invitation.token),
+    )
+    assert register_response.status_code == 201
+
+    async with async_session() as db:
+        from api.models import PendingRegistration
+
+        pending = (
+            await db.execute(select(PendingRegistration).where(PendingRegistration.username == invitee_username))
+        ).scalars().one()
+
+    monkeypatch.setattr(settings, "smtp_host", "smtp.example.com")
+    monkeypatch.setattr(settings, "smtp_username", "user")
+    monkeypatch.setattr(settings, "smtp_password", "pass")
+    with patch("api.registration_service.ldap_register_user", return_value=None), patch(
+        "api.registration_service.send_email", AsyncMock(return_value=True)
+    ) as mock_new_org_send, patch(
+        "api.invitation_service.send_email", AsyncMock(return_value=True)
+    ) as mock_joined_org_send:
+        verify_response = await client.post("/auth/verify-email", json={"token": pending.token})
+
+    assert verify_response.status_code == 200
+    mock_new_org_send.assert_not_called()
+    mock_joined_org_send.assert_called_once()
+    call_kwargs = mock_joined_org_send.call_args.kwargs
+    assert org_name in call_kwargs["html_body"]
+    assert org_name in call_kwargs["subject"]
 
 
 async def test_register_with_invitation_token_rejects_mismatched_email(client, monkeypatch):

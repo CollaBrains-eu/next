@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.config import settings
 from api.email_client import send_email
+from api.email_templates import welcome_new_org_html, welcome_new_org_subject, welcome_new_org_text
 from api.ldap_auth import LdapAdminError
 from api.ldap_auth import register_user as ldap_register_user
 from api.models import Organization, PendingRegistration, User
@@ -250,4 +251,25 @@ async def send_verification_email(*, registration: PendingRegistration) -> bool:
         subject="Bevestig je CollaBrains-account",
         html_body=_verification_html(display_name=registration.display_name, verify_url=verify_url),
         text_body=_verification_text(display_name=registration.display_name, verify_url=verify_url),
+    )
+
+
+async def send_welcome_email(*, user: User, organization_name: str) -> bool:
+    """Sent once, right after `complete_registration` provisions a brand-new
+    self-service signup's own Organization -- not sent for an invited
+    signup, which gets `invitation_service.send_welcome_joined_org_email`
+    instead (different copy: joining a team vs. starting a workspace)."""
+    return await send_email(
+        to_address=user.email,
+        subject=welcome_new_org_subject(display_name=user.display_name, preferred_language=user.preferred_language),
+        html_body=welcome_new_org_html(
+            display_name=user.display_name,
+            organization_name=organization_name,
+            preferred_language=user.preferred_language,
+        ),
+        text_body=welcome_new_org_text(
+            display_name=user.display_name,
+            organization_name=organization_name,
+            preferred_language=user.preferred_language,
+        ),
     )
