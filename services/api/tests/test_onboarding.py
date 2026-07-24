@@ -162,6 +162,28 @@ async def test_resend_welcome_email_link_uses_configured_app_base_url(client, mo
     assert expected_url in call_kwargs["html_body"]
 
 
+async def test_resend_welcome_uses_the_branded_email_template(client, monkeypatch):
+    monkeypatch.setattr(settings, "smtp_host", "smtp.example.com")
+    monkeypatch.setattr(settings, "smtp_username", "user")
+    monkeypatch.setattr(settings, "smtp_password", "pass")
+
+    target_username = _unique("resendwelcomebranded")
+    await _login(client, target_username)
+    target_id = await _user_id_for(target_username)
+
+    admin_token = await _login(client, _unique("resendwelcomebrandedadmin"), is_admin=True)
+    with patch("api.onboarding_service.send_email", AsyncMock(return_value=True)) as mock_send:
+        response = await client.post(
+            f"/admin/users/{target_id}/resend-welcome", headers={"Authorization": f"Bearer {admin_token}"}
+        )
+    assert response.status_code == 200
+
+    call_kwargs = mock_send.call_args.kwargs
+    assert "<html>" in call_kwargs["html_body"]
+    assert "Activate your account" in call_kwargs["html_body"]
+    assert "Welcome to CollaBrains" in call_kwargs["subject"]
+
+
 async def test_resend_welcome_reports_email_not_sent_when_unconfigured(client, monkeypatch):
     monkeypatch.setattr(settings, "smtp_host", "")
 

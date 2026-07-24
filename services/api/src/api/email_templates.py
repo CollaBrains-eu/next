@@ -229,3 +229,70 @@ def welcome_joined_org_text(*, display_name: str, organization_name: str, prefer
     copy = _JOINED_ORG_COPY[_locale(preferred_language)]
     body = copy["body_text"].format(display_name=display_name, organization_name=organization_name)
     return f"{copy['heading']}\n\n{body}\n\n{copy['cta']}: {settings.app_base_url}/\n\n{copy['footer']}"
+
+
+_ONBOARDING_WELCOME_COPY = {
+    "en": {
+        "subject": "Welcome to CollaBrains, {display_name}!",
+        "preheader": "Activate your CollaBrains account to get started.",
+        "heading": "Welcome to CollaBrains \U0001F44B",
+        "body_html": (
+            "<p>An account has been created for you on CollaBrains. Click below to activate it "
+            "and get started.</p>"
+        ),
+        "body_text": "An account has been created for you on CollaBrains. Activate it to get started.",
+        "cta": "Activate your account",
+        "footer": (
+            "This link is valid for 7 days. If you weren't expecting this, you can safely ignore "
+            "this email."
+        ),
+    },
+    "nl": {
+        "subject": "Welkom bij CollaBrains, {display_name}!",
+        "preheader": "Activeer je CollaBrains-account om te beginnen.",
+        "heading": "Welkom bij CollaBrains \U0001F44B",
+        "body_html": (
+            "<p>Er is een account voor je aangemaakt op CollaBrains. Klik hieronder om het te "
+            "activeren en te beginnen.</p>"
+        ),
+        "body_text": "Er is een account voor je aangemaakt op CollaBrains. Activeer het om te beginnen.",
+        "cta": "Activeer je account",
+        "footer": "Deze link is 7 dagen geldig. Als je dit niet verwachtte, kun je deze e-mail negeren.",
+    },
+    "de": {
+        "subject": "Willkommen bei CollaBrains, {display_name}!",
+        "preheader": "Aktiviere dein CollaBrains-Konto, um loszulegen.",
+        "heading": "Willkommen bei CollaBrains \U0001F44B",
+        "body_html": (
+            "<p>Für dich wurde ein Konto bei CollaBrains erstellt. Klicke unten, um es zu "
+            "aktivieren und loszulegen.</p>"
+        ),
+        "body_text": "Für dich wurde ein Konto bei CollaBrains erstellt. Aktiviere es, um loszulegen.",
+        "cta": "Konto aktivieren",
+        "footer": (
+            "Dieser Link ist 7 Tage gültig. Falls du dies nicht erwartet hast, kannst du diese "
+            "E-Mail ignorieren."
+        ),
+    },
+}
+
+
+def onboarding_welcome_subject(*, display_name: str, preferred_language: str | None) -> str:
+    return _ONBOARDING_WELCOME_COPY[_locale(preferred_language)]["subject"].format(display_name=display_name)
+
+
+def onboarding_welcome_html(*, display_name: str, onboard_url: str, preferred_language: str | None) -> str:
+    copy = _ONBOARDING_WELCOME_COPY[_locale(preferred_language)]
+    return render_branded_email_html(
+        preheader=copy["preheader"],
+        heading=copy["heading"],
+        body_html=copy["body_html"],
+        cta_label=copy["cta"],
+        cta_url=onboard_url,
+        footer_note=copy["footer"],
+    )
+
+
+def onboarding_welcome_text(*, display_name: str, onboard_url: str, preferred_language: str | None) -> str:
+    copy = _ONBOARDING_WELCOME_COPY[_locale(preferred_language)]
+    return f"{copy['heading']}\n\n{copy['body_text']}\n\n{copy['cta']}: {onboard_url}\n\n{copy['footer']}"
