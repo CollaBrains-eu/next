@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 
 interface ToastItem {
   id: number;
@@ -16,11 +16,20 @@ let nextId = 0;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const timeoutIdsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  useEffect(() => {
+    const timeoutIds = timeoutIdsRef.current;
+    return () => {
+      for (const timeoutId of timeoutIds) clearTimeout(timeoutId);
+    };
+  }, []);
 
   const showToast = useCallback((text: string, options?: { onUndo?: () => void }) => {
     const id = nextId++;
     setToasts((prev) => [...prev, { id, text, onUndo: options?.onUndo }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+    const timeoutId = setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+    timeoutIdsRef.current.push(timeoutId);
   }, []);
 
   function handleUndo(toast: ToastItem) {
