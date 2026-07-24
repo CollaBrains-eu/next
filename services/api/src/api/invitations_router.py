@@ -19,6 +19,7 @@ from api.invitation_service import (
     send_welcome_joined_org_email,
 )
 from api.models import Organization, User
+from api.preferences import get_preferences
 
 router = APIRouter(prefix="/invitations", tags=["invitations"])
 
@@ -67,6 +68,10 @@ async def accept_invitation(
 
     organization = await db.get(Organization, invitation.organization_id)
     if organization is not None:
-        await send_welcome_joined_org_email(user=current_user, organization_name=organization.name)
+        preferences = await get_preferences(db, user_id=current_user.id)
+        preferred_language = preferences.preferred_language if preferences is not None else None
+        await send_welcome_joined_org_email(
+            user=current_user, organization_name=organization.name, preferred_language=preferred_language
+        )
 
     return Token(access_token=create_access_token(current_user.username, current_user.role))
