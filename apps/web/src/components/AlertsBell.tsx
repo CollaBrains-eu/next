@@ -63,6 +63,7 @@ export function AlertsBell() {
           </span>
         }
         options={options}
+        align="right"
       />
     </Tooltip>
   );

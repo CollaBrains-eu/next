@@ -144,6 +144,7 @@ export default function Navbar() {
                   </span>
                 }
                 options={accountOptions}
+                align="right"
               />
             )}
           </div>
