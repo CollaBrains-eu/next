@@ -8,7 +8,8 @@ test("document listing renders for an authenticated user", async ({ authedPage: 
   // A fresh disposable test user has no documents -- the empty state is the
   // correct, expected render here, not a list. Either a populated list or
   // the empty state is a legitimate pass; a crash/blank page is not.
-  const hasEmptyState = await page.getByText(/no documents/i).isVisible().catch(() => false);
-  const hasTable = await page.getByRole("table").isVisible().catch(() => false);
-  expect(hasEmptyState || hasTable, "expected either the empty state or a document list").toBeTruthy();
+  // `.or()` auto-retries against whichever locator matches, unlike a
+  // one-shot `.isVisible()` check, which can race the initial data fetch.
+  const emptyStateOrTable = page.getByText(/no documents/i).or(page.getByRole("table"));
+  await expect(emptyStateOrTable, "expected either the empty state or a document list").toBeVisible();
 });

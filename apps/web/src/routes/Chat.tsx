@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import { ApiError, chat, submitFeedback, type ChatTurn, type Citation } from "../lib/api";
 import { Button } from "../components/ui/Button";

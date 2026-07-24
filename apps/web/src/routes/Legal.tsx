@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import { ApiError, legalDraft, listDocuments, type Citation, type DocumentOut } from "../lib/api";
 import Card from "../components/Card";
