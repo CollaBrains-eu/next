@@ -7,6 +7,7 @@ import { LoadingBarProvider, useLoadingBar } from "./lib/loadingBar";
 import { CommandCenter } from "./components/CommandCenter";
 import { CommandCenterStateProvider } from "./lib/commandCenter";
 import { PhonePromptModal } from "./components/PhonePromptModal";
+import { trackPageview } from "./lib/analytics";
 import Layout from "./components/Layout";
 import Landing from "./routes/Landing";
 import Login from "./routes/Login";
@@ -35,6 +36,16 @@ import Assistant from "./routes/Assistant";
 import Settings from "./routes/Settings";
 import AdminDashboard from "./routes/AdminDashboard";
 import NotFound from "./routes/NotFound";
+
+function AnalyticsPageviews() {
+  const location = useLocation();
+
+  useEffect(() => {
+    trackPageview();
+  }, [location.pathname]);
+
+  return null;
+}
 
 function RouteChangeLoadingBar() {
   const location = useLocation();
@@ -220,6 +231,7 @@ export default function App() {
               <CommandCenter />
               <PhonePromptModal />
               <RouteChangeLoadingBar />
+              <AnalyticsPageviews />
               <Routes>
                 <Route path="/" element={<RootRoute />} />
                 <Route path="/login" element={<Login />} />
