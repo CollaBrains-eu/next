@@ -19,12 +19,12 @@ export function MobileNavDrawer({ open, onClose }: { open: boolean; onClose: () 
       {open && (
         <div
           data-testid="mobile-nav-backdrop"
-          className="fixed inset-0 z-[70] bg-[#0D0C1A]/35 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-[70] bg-[#0D0C1A]/35 backdrop-blur-sm lg:hidden"
           onClick={onClose}
         />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-[71] flex w-64 flex-col justify-between border-r border-edge bg-sidebar-surface px-4 py-6 transition-transform duration-base ease-spring md:hidden ${
+        className={`fixed inset-y-0 left-0 z-[71] flex w-64 flex-col justify-between border-r border-edge bg-sidebar-surface px-4 py-6 transition-transform duration-base ease-spring lg:hidden ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
