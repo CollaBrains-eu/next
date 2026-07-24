@@ -91,6 +91,13 @@ describe("Navbar", () => {
     expect(screen.getByTestId("mobile-header-title")).toHaveTextContent("Vehicles");
   });
 
+  it("groups the More dropdown items under labeled section headers", () => {
+    renderAt("/");
+    fireEvent.click(screen.getByText("More"));
+    const headers = screen.getAllByTestId("dropdown-group-header");
+    expect(headers.map((h) => h.textContent)).toEqual(["Records", "Planning", "AI Tools"]);
+  });
+
   it("renders the AlertsBell", async () => {
     renderAt("/");
     expect((await screen.findAllByLabelText("Alerts")).length).toBeGreaterThan(0);

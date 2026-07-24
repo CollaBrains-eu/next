@@ -36,36 +36,70 @@ import {
 
 const USERS_PAGE_SIZE = 50;
 
-type Tab = "overview" | "ai-usage" | "health" | "bugs" | "users" | "feedback";
+type Tab =
+  | "overview"
+  | "users"
+  | "health"
+  | "ai-usage"
+  | "product-analytics"
+  | "bugs"
+  | "feedback"
+  | "support-tickets"
+  | "email-templates";
+
+const TAB_GROUPS: { labelKey: string; tabs: Tab[] }[] = [
+  { labelKey: "admin.groupUsers", tabs: ["users"] },
+  { labelKey: "admin.groupMonitoring", tabs: ["health", "ai-usage", "product-analytics"] },
+  { labelKey: "admin.groupFeedback", tabs: ["bugs", "feedback", "support-tickets"] },
+  { labelKey: "admin.groupCommunication", tabs: ["email-templates"] },
+];
+
+const TAB_LABEL_KEYS: Record<Tab, string> = {
+  overview: "admin.tabOverview",
+  users: "admin.tabUsers",
+  health: "admin.tabHealth",
+  "ai-usage": "admin.tabAiUsage",
+  "product-analytics": "admin.tabProductAnalytics",
+  bugs: "admin.tabBugs",
+  feedback: "admin.tabFeedback",
+  "support-tickets": "admin.tabSupportTickets",
+  "email-templates": "admin.tabEmailTemplates",
+};
 
 export default function AdminDashboard() {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("overview");
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: "overview", label: t("admin.tabOverview") },
-    { id: "ai-usage", label: t("admin.tabAiUsage") },
-    { id: "health", label: t("admin.tabHealth") },
-    { id: "bugs", label: t("admin.tabBugs") },
-    { id: "users", label: t("admin.tabUsers") },
-    { id: "feedback", label: t("admin.tabFeedback") },
-  ];
-
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-2xl font-semibold text-ink">{t("admin.title")}</h1>
 
-      <div className="flex gap-2 overflow-x-auto border-b border-edge">
-        {tabs.map((tabOption) => (
-          <button
-            key={tabOption.id}
-            onClick={() => setTab(tabOption.id)}
-            className={`shrink-0 px-3 py-2 text-sm font-medium ${
-              tab === tabOption.id ? "border-b-2 border-accent text-accent" : "text-ink-3 hover:text-ink"
-            }`}
-          >
-            {tabOption.label}
-          </button>
+      <div role="tablist" className="flex flex-wrap items-center gap-1 border-b border-edge pb-0">
+        <button
+          role="tab"
+          aria-selected={tab === "overview"}
+          onClick={() => setTab("overview")}
+          className={`px-3 py-2 text-sm ${tab === "overview" ? "border-b-2 border-accent font-semibold text-accent" : "text-ink-3 hover:text-ink"}`}
+        >
+          {t("admin.tabOverview")}
+        </button>
+        {TAB_GROUPS.map((groupDef) => (
+          <div key={groupDef.labelKey} className="flex items-center gap-1">
+            <span data-testid="admin-tab-group-header" className="px-2 text-[10.5px] font-semibold uppercase tracking-wide text-ink-3">
+              {t(groupDef.labelKey)}
+            </span>
+            {groupDef.tabs.map((tabId) => (
+              <button
+                key={tabId}
+                role="tab"
+                aria-selected={tab === tabId}
+                onClick={() => setTab(tabId)}
+                className={`px-3 py-2 text-sm ${tab === tabId ? "border-b-2 border-accent font-semibold text-accent" : "text-ink-3 hover:text-ink"}`}
+              >
+                {t(TAB_LABEL_KEYS[tabId])}
+              </button>
+            ))}
+          </div>
         ))}
       </div>
 
@@ -75,6 +109,9 @@ export default function AdminDashboard() {
       {tab === "bugs" && <BugsTab />}
       {tab === "users" && <UsersTab />}
       {tab === "feedback" && <FeedbackTab />}
+      {tab === "product-analytics" && <ProductAnalyticsTab />}
+      {tab === "support-tickets" && <SupportTicketsTab />}
+      {tab === "email-templates" && <EmailTemplatesTab />}
     </div>
   );
 }
@@ -656,6 +693,67 @@ function UsersTab() {
           )}
         </>
       )}
+    </div>
+  );
+}
+
+function ProductAnalyticsTab() {
+  const { t } = useTranslation();
+  const stats = [
+    t("admin.paTotalUsersTrend"),
+    t("admin.paDocsProcessedTrend"),
+    t("admin.paAvgResponseTime"),
+  ];
+  return (
+    <div className="flex flex-col gap-3">
+      <h2 className="text-lg font-semibold text-ink">{t("admin.tabProductAnalytics")}</h2>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {stats.map((label) => (
+          <Card key={label} className="flex flex-col gap-1">
+            <span className="text-xs text-ink-3">{label}</span>
+            <span className="text-2xl font-semibold text-ink">—</span>
+          </Card>
+        ))}
+      </div>
+      <p className="text-xs text-ink-3">{t("admin.productAnalyticsPlaceholder")}</p>
+    </div>
+  );
+}
+
+function SupportTicketsTab() {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-ink">{t("admin.tabSupportTickets")}</h2>
+        <Button size="sm" variant="secondary" disabled>
+          {t("admin.newTicket")}
+        </Button>
+      </div>
+      <EmptyState heading={t("admin.supportTicketsEmptyHeading")} message={t("admin.supportTicketsEmptyBody")} />
+    </div>
+  );
+}
+
+function EmailTemplatesTab() {
+  const { t } = useTranslation();
+  return (
+    <div className="flex max-w-md flex-col gap-3">
+      <h2 className="text-lg font-semibold text-ink">{t("admin.tabEmailTemplates")}</h2>
+      <div>
+        <label className="text-sm font-medium text-ink">{t("admin.emailTemplateLabel")}</label>
+        <select disabled className="mt-1 w-full rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink-3">
+          <option>{t("admin.emailTemplateWelcome")}</option>
+        </select>
+      </div>
+      <div>
+        <label className="text-sm font-medium text-ink">{t("admin.emailTestRecipient")}</label>
+        <input disabled placeholder="you@example.com" className="mt-1 w-full rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink-3" />
+      </div>
+      <Button size="sm" disabled className="self-start">
+        {t("admin.sendTest")}
+      </Button>
+      <p className="text-xs text-ink-3">{t("admin.emailTemplatesPlaceholder")}</p>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { taskUrgency, daysUntil, relativeDueLabel } from "./taskUrgency";
 
 function isoDate(offsetDays: number): string {
@@ -62,5 +62,42 @@ describe("relativeDueLabel", () => {
 
   it("falls back to the formatted date beyond a week out", () => {
     expect(relativeDueLabel(isoDate(10), t, formatDate)).toBe(`Due ${isoDate(10)}`);
+  });
+});
+
+describe("taskUrgency — null/invalid dates and overdue cap", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-24T00:00:00Z"));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("returns 'unknown' for a missing due date instead of crashing", () => {
+    expect(taskUrgency(null).variant).toBe("unknown");
+    expect(taskUrgency(undefined).variant).toBe("unknown");
+    expect(taskUrgency("").variant).toBe("unknown");
+  });
+
+  it("returns 'unknown' for an unparseable due date instead of NaN", () => {
+    expect(taskUrgency("not-a-date").variant).toBe("unknown");
+  });
+
+  it("computes overdueDays correctly for a genuinely old valid date", () => {
+    const result = taskUrgency("2019-04-09");
+    expect(result.variant).toBe("danger");
+    expect(result.overdueDays).toBeGreaterThan(2000);
+  });
+
+  it("relativeDueLabel shows 'No date on file' for missing/invalid dates", () => {
+    const t = (key: string) => ({ "tasks.dueUnknown": "No date on file" } as Record<string, string>)[key] ?? key;
+    expect(relativeDueLabel(null, t, (d) => d)).toBe("No date on file");
+    expect(relativeDueLabel("garbage", t, (d) => d)).toBe("No date on file");
+  });
+
+  it("relativeDueLabel shows the absolute date, not a raw day count, past 365 days overdue", () => {
+    const t = (key: string, opts?: Record<string, unknown>) =>
+      key === "tasks.dueOverdueSince" ? `Overdue since ${opts?.date}` : key;
+    const formatDate = (_d: string) => "9 Apr 2019";
+    expect(relativeDueLabel("2019-04-09", t, formatDate)).toBe("Overdue since 9 Apr 2019");
   });
 });

@@ -3,28 +3,40 @@ import { useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { AddressHistory } from "../components/AddressHistory";
 import Card from "../components/Card";
+import EmptyState from "../components/EmptyState";
 import { PasskeySettings } from "../components/PasskeySettings";
 import { WorkspaceSharing } from "../components/WorkspaceSharing";
+import { Alert } from "../components/ui/Alert";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Combobox, type ComboboxOption } from "../components/ui/Combobox";
+import { SkeletonLines } from "../components/ui/Skeleton";
 import {
   ApiError,
+  approveFact,
   createCheckoutSession,
   createPortalSession,
   getOrganization,
   getPreferences,
   getSubscription,
+  deleteMemory,
   inviteOrganizationMember,
+  listAiTools,
+  listFacts,
+  listMemories,
   listOrganizationInvitations,
   listOrganizationMembers,
+  rejectFact,
   renameOrganization,
   revokeOrganizationInvitation,
   setOrganizationPolicies,
   setPreferences,
   type InvitationOut,
+  type MemoryOut,
   type OrganizationMemberOut,
   type SubscriptionOut,
+  type ToolOut,
+  type UserFactOut,
 } from "../lib/api";
 import { syncLanguage } from "../lib/auth";
 import { toDateFormatPrefs, type DateFormat, type TimeFormat } from "../lib/dateFormat";
@@ -180,6 +192,14 @@ export default function Settings() {
           {t("settings.save")}
         </Button>
       </Card>
+
+      <NotificationPreferencesSection />
+
+      <FactsSection />
+
+      <MemoriesSection />
+
+      <AiToolsSection />
 
       <PasskeySettings />
 
@@ -378,6 +398,201 @@ function OrganizationSection() {
             </Button>
           )}
         </>
+      )}
+    </Card>
+  );
+}
+
+function NotificationPreferencesSection() {
+  const { t } = useTranslation();
+  const [mode, setMode] = useState<"per-document" | "digest">("per-document");
+  return (
+    <Card className="flex max-w-md flex-col gap-3">
+      <h2 className="text-lg font-semibold text-ink">{t("settings.notificationsTitle")}</h2>
+      <p className="text-xs text-ink-3">{t("settings.notificationsHint")}</p>
+      <label className="flex items-center gap-2 text-sm text-ink">
+        <input
+          type="radio"
+          name="notif-mode"
+          checked={mode === "per-document"}
+          onChange={() => setMode("per-document")}
+        />
+        {t("settings.notifPerDocument")}
+      </label>
+      <label className="flex items-center gap-2 text-sm text-ink">
+        <input type="radio" name="notif-mode" checked={mode === "digest"} onChange={() => setMode("digest")} />
+        {t("settings.notifDigest")}
+      </label>
+      <p className="text-xs text-ink-3">{t("settings.notificationsPlaceholder")}</p>
+    </Card>
+  );
+}
+
+function FactsSection() {
+  const { t } = useTranslation();
+  const [facts, setFacts] = useState<UserFactOut[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  function load() {
+    listFacts()
+      .then(setFacts)
+      .catch((err) => setError(err instanceof ApiError ? err.message : t("settings.factsLoadError")));
+  }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
+  useEffect(load, []);
+
+  async function handleApprove(id: string) {
+    setBusyId(id);
+    try {
+      await approveFact(id);
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("settings.factsActionError"));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleReject(id: string) {
+    setBusyId(id);
+    try {
+      await rejectFact(id);
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("settings.factsActionError"));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <Card className="flex max-w-md flex-col gap-3">
+      <h2 className="text-lg font-semibold text-ink">{t("settings.factsTitle")}</h2>
+      <p className="text-xs text-ink-3">{t("settings.factsHint")}</p>
+      {error && (
+        <Alert variant="danger" title={t("settings.factsLoadError")}>
+          {error}
+        </Alert>
+      )}
+      {!facts ? (
+        <SkeletonLines />
+      ) : facts.length === 0 ? (
+        <EmptyState message={t("settings.factsEmpty")} />
+      ) : (
+        facts.map((fact) => (
+          <div key={fact.id} className="flex items-center justify-between gap-2 rounded-xl border border-edge p-3">
+            <div>
+              <p className="text-sm font-medium text-ink">{fact.fact_type}</p>
+              <p className="text-xs text-ink-3">{JSON.stringify(fact.value)}</p>
+              <Badge variant={fact.status === "confirmed" ? "success" : fact.status === "rejected" ? "danger" : "default"}>
+                {fact.status}
+              </Badge>
+            </div>
+            {fact.status === "pending_review" && (
+              <div className="flex gap-2">
+                <Button size="sm" variant="secondary" onClick={() => handleApprove(fact.id)} disabled={busyId === fact.id}>
+                  {t("settings.factsApprove")}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => handleReject(fact.id)} disabled={busyId === fact.id}>
+                  {t("settings.factsReject")}
+                </Button>
+              </div>
+            )}
+          </div>
+        ))
+      )}
+    </Card>
+  );
+}
+
+function MemoriesSection() {
+  const { t } = useTranslation();
+  const [memories, setMemories] = useState<MemoryOut[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  function load() {
+    listMemories()
+      .then(setMemories)
+      .catch((err) => setError(err instanceof ApiError ? err.message : t("settings.memoriesLoadError")));
+  }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
+  useEffect(load, []);
+
+  async function handleDelete(id: string) {
+    setBusyId(id);
+    try {
+      await deleteMemory(id);
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("settings.memoriesActionError"));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <Card className="flex max-w-md flex-col gap-3">
+      <h2 className="text-lg font-semibold text-ink">{t("settings.memoriesTitle")}</h2>
+      <p className="text-xs text-ink-3">{t("settings.memoriesHint")}</p>
+      {error && (
+        <Alert variant="danger" title={t("settings.memoriesLoadError")}>
+          {error}
+        </Alert>
+      )}
+      {!memories ? (
+        <SkeletonLines />
+      ) : memories.length === 0 ? (
+        <EmptyState message={t("settings.memoriesEmpty")} />
+      ) : (
+        memories.map((memory) => (
+          <div key={memory.id} className="flex items-center justify-between gap-2 rounded-xl border border-edge p-3">
+            <p className="text-sm text-ink">{memory.summary}</p>
+            <Button size="sm" variant="ghost" onClick={() => handleDelete(memory.id)} disabled={busyId === memory.id}>
+              {t("settings.memoriesForget")}
+            </Button>
+          </div>
+        ))
+      )}
+    </Card>
+  );
+}
+
+function AiToolsSection() {
+  const { t } = useTranslation();
+  const [tools, setTools] = useState<ToolOut[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    listAiTools()
+      .then(setTools)
+      .catch((err) => setError(err instanceof ApiError ? err.message : t("settings.aiToolsLoadError")));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
+  }, []);
+
+  return (
+    <Card className="flex max-w-md flex-col gap-3">
+      <h2 className="text-lg font-semibold text-ink">{t("settings.aiToolsTitle")}</h2>
+      <p className="text-xs text-ink-3">{t("settings.aiToolsHint")}</p>
+      {error && (
+        <Alert variant="danger" title={t("settings.aiToolsLoadError")}>
+          {error}
+        </Alert>
+      )}
+      {!tools ? (
+        <SkeletonLines />
+      ) : tools.length === 0 ? (
+        <EmptyState message={t("settings.aiToolsEmpty")} />
+      ) : (
+        tools.map((tool) => (
+          <div key={tool.name} className="rounded-xl border border-edge p-3">
+            <p className="text-sm font-medium text-ink">{tool.name}</p>
+            <p className="text-xs text-ink-3">{tool.description}</p>
+          </div>
+        ))
       )}
     </Card>
   );

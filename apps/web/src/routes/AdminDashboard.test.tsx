@@ -28,7 +28,7 @@ function goToUsersTab() {
   });
   vi.mocked(api.listAdminUsers).mockResolvedValue([]);
   render(<AdminDashboard />);
-  fireEvent.click(screen.getByRole("button", { name: "Users" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Users" }));
 }
 
 describe("AdminDashboard Users tab", () => {
@@ -136,7 +136,7 @@ describe("AdminDashboard Users tab", () => {
       },
     ]);
     render(<AdminDashboard />);
-    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Users" }));
 
     expect(await screen.findByText("alice")).toBeInTheDocument();
     expect(screen.getByText("Alice")).toBeInTheDocument();
@@ -162,7 +162,7 @@ describe("AdminDashboard Users tab", () => {
         },
       ]);
     render(<AdminDashboard />);
-    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Users" }));
 
     const loadMore = await screen.findByRole("button", { name: "Load more" });
     fireEvent.click(loadMore);
@@ -188,7 +188,7 @@ describe("AdminDashboard Users tab", () => {
       is_active: true,
     });
     render(<AdminDashboard />);
-    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Users" }));
 
     await screen.findByText("bob");
     fireEvent.click(screen.getByRole("button", { name: "Actions" }));
@@ -210,7 +210,7 @@ describe("AdminDashboard Users tab", () => {
     ]);
     vi.mocked(api.setUserRole).mockRejectedValue(new api.ApiError(500, "boom"));
     render(<AdminDashboard />);
-    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Users" }));
 
     await screen.findByText("bob");
     fireEvent.click(screen.getByRole("button", { name: "Actions" }));
@@ -236,7 +236,7 @@ describe("AdminDashboard Users tab", () => {
       is_active: true,
     });
     render(<AdminDashboard />);
-    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Users" }));
 
     await screen.findByText("bob");
     fireEvent.click(screen.getByRole("button", { name: "Actions" }));
@@ -262,7 +262,7 @@ describe("AdminDashboard Users tab", () => {
     ]);
     vi.mocked(api.setUserPhone).mockRejectedValue(new api.ApiError(409, "Already linked"));
     render(<AdminDashboard />);
-    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Users" }));
 
     await screen.findByText("bob");
     fireEvent.click(screen.getByRole("button", { name: "Actions" }));
@@ -290,7 +290,7 @@ describe("AdminDashboard Users tab", () => {
       username: "bob", temporary_password: "reset-pw-456",
     });
     render(<AdminDashboard />);
-    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Users" }));
 
     await screen.findByText("bob");
     fireEvent.click(screen.getByRole("button", { name: "Actions" }));
@@ -314,7 +314,7 @@ describe("AdminDashboard Users tab", () => {
     ]);
     vi.mocked(api.resetUserPassword).mockRejectedValue(new api.ApiError(502, "LDAP unreachable"));
     render(<AdminDashboard />);
-    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Users" }));
 
     await screen.findByText("bob");
     fireEvent.click(screen.getByRole("button", { name: "Actions" }));
@@ -336,7 +336,7 @@ describe("AdminDashboard Users tab", () => {
     ]);
     vi.mocked(api.resendWelcome).mockResolvedValue({ ok: true, email_sent: true });
     render(<AdminDashboard />);
-    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Users" }));
 
     await screen.findByText("bob");
     fireEvent.click(screen.getByRole("button", { name: "Actions" }));
@@ -359,7 +359,7 @@ describe("AdminDashboard Users tab", () => {
     ]);
     vi.mocked(api.resendWelcome).mockResolvedValue({ ok: true, email_sent: false });
     render(<AdminDashboard />);
-    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Users" }));
 
     await screen.findByText("bob");
     fireEvent.click(screen.getByRole("button", { name: "Actions" }));
@@ -381,7 +381,7 @@ describe("AdminDashboard Users tab", () => {
     ]);
     vi.mocked(api.resendWelcome).mockRejectedValue(new api.ApiError(404, "User not found"));
     render(<AdminDashboard />);
-    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Users" }));
 
     await screen.findByText("bob");
     fireEvent.click(screen.getByRole("button", { name: "Actions" }));
@@ -403,7 +403,7 @@ describe("AdminDashboard Users tab", () => {
     ]);
     vi.mocked(api.deactivateUser).mockResolvedValue(undefined);
     render(<AdminDashboard />);
-    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Users" }));
 
     await screen.findByText("bob");
     fireEvent.click(screen.getByRole("button", { name: "Actions" }));
@@ -431,7 +431,7 @@ describe("AdminDashboard Users tab", () => {
     ]);
     vi.mocked(api.deactivateUser).mockRejectedValue(new api.ApiError(502, "LDAP unreachable"));
     render(<AdminDashboard />);
-    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Users" }));
 
     await screen.findByText("bob");
     fireEvent.click(screen.getByRole("button", { name: "Actions" }));
@@ -454,7 +454,7 @@ describe("AdminDashboard Users tab", () => {
       },
     ]);
     render(<AdminDashboard />);
-    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Users" }));
 
     await screen.findByText("bob");
     fireEvent.click(screen.getByRole("button", { name: "Actions" }));
@@ -477,7 +477,7 @@ describe("AdminDashboard Users tab", () => {
       },
     ]);
     render(<AdminDashboard />);
-    fireEvent.click(screen.getByRole("button", { name: "Users" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Users" }));
 
     await screen.findByText("signal-bot");
     expect(screen.queryByRole("button", { name: "Actions" })).not.toBeInTheDocument();
@@ -495,7 +495,7 @@ describe("AdminDashboard Feedback tab", () => {
 
   function goToFeedbackTab() {
     render(<AdminDashboard />);
-    fireEvent.click(screen.getByRole("button", { name: "Feedback" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Feedback" }));
   }
 
   it("lists feedback rows with question, answer, rating, and confidence", async () => {
@@ -535,5 +535,52 @@ describe("AdminDashboard Feedback tab", () => {
 
     fireEvent.change(screen.getByLabelText("Min. confidence"), { target: { value: "70" } });
     await waitFor(() => expect(api.getAdminFeedback).toHaveBeenCalledWith({ rating: undefined, minConfidence: 70 }));
+  });
+});
+
+describe("AdminDashboard Product Analytics tab", () => {
+  it("shows placeholder stat tiles with dashes, not real numbers", () => {
+    vi.mocked(api.getAdminStats).mockResolvedValue({
+      total_users: 0, total_documents: 0, documents_by_status: {}, ai_calls_last_24h: 0,
+    });
+    render(<AdminDashboard />);
+    fireEvent.click(screen.getByRole("tab", { name: "Product Analytics" }));
+    expect(screen.getAllByText("—")).toHaveLength(3);
+  });
+});
+
+describe("AdminDashboard Support Tickets tab", () => {
+  it("shows a dry placeholder with no API calls", () => {
+    vi.mocked(api.getAdminStats).mockResolvedValue({
+      total_users: 0, total_documents: 0, documents_by_status: {}, ai_calls_last_24h: 0,
+    });
+    render(<AdminDashboard />);
+    fireEvent.click(screen.getByRole("tab", { name: "Support Tickets" }));
+    expect(screen.getByText("No support tickets yet")).toBeInTheDocument();
+  });
+});
+
+describe("AdminDashboard Email Templates tab", () => {
+  it("shows a dry placeholder with a disabled test-send button", () => {
+    vi.mocked(api.getAdminStats).mockResolvedValue({
+      total_users: 0, total_documents: 0, documents_by_status: {}, ai_calls_last_24h: 0,
+    });
+    render(<AdminDashboard />);
+    fireEvent.click(screen.getByRole("tab", { name: "Email Templates" }));
+    expect(screen.getByRole("button", { name: "Send test" })).toBeDisabled();
+  });
+});
+
+describe("AdminDashboard grouped tabs", () => {
+  it("renders group headers in the tab bar", () => {
+    vi.mocked(api.getAdminStats).mockResolvedValue({
+      total_users: 0, total_documents: 0, documents_by_status: {}, ai_calls_last_24h: 0,
+    });
+    render(<AdminDashboard />);
+    const tabBar = screen.getByRole("tablist");
+    expect(tabBar.querySelectorAll("[data-testid='admin-tab-group-header']")).toHaveLength(4);
+    expect(screen.getByRole("tab", { name: "Support Tickets" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Email Templates" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Product Analytics" })).toBeInTheDocument();
   });
 });

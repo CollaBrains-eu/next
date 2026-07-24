@@ -4,7 +4,7 @@ import { useAuth } from "../lib/auth";
 import { useDarkMode } from "../hooks/useDarkMode";
 import { useEscapeToClose } from "../hooks/useEscapeToClose";
 import { Button } from "./ui/Button";
-import { navItemsForRole } from "../lib/navigation";
+import { navItemsForRole, groupLabelKey } from "../lib/navigation";
 
 export function MobileNavDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { user, logout } = useAuth();
@@ -29,23 +29,33 @@ export function MobileNavDrawer({ open, onClose }: { open: boolean; onClose: () 
         }`}
       >
         <nav className="flex flex-col gap-1 text-sm">
-          {navItems.map((item) => {
+          {navItems.map((item, index) => {
             const Icon = item.icon;
+            const showHeader = item.group !== navItems[index - 1]?.group;
             return (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.to === "/"}
-                onClick={onClose}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-lg px-3 py-2 transition-colors duration-fast ${
-                    isActive ? "bg-accent-soft font-semibold text-accent" : "text-ink-2 hover:bg-hover hover:text-ink"
-                  }`
-                }
-              >
-                <Icon className="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
-                {t(item.labelKey)}
-              </NavLink>
+              <div key={item.to}>
+                {showHeader && (
+                  <div
+                    data-testid="drawer-group-header"
+                    className="px-3 pb-1 pt-3 text-[10.5px] font-semibold uppercase tracking-wide text-ink-3 first:pt-0"
+                  >
+                    {t(groupLabelKey(item.group))}
+                  </div>
+                )}
+                <NavLink
+                  to={item.to}
+                  end={item.to === "/"}
+                  onClick={onClose}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 rounded-lg px-3 py-2 transition-colors duration-fast ${
+                      isActive ? "bg-accent-soft font-semibold text-accent" : "text-ink-2 hover:bg-hover hover:text-ink"
+                    }`
+                  }
+                >
+                  <Icon className="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
+                  {t(item.labelKey)}
+                </NavLink>
+              </div>
             );
           })}
         </nav>

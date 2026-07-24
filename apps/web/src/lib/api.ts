@@ -810,8 +810,11 @@ export async function downloadDocumentFile(id: string, filename: string): Promis
 export async function previewDocumentFile(id: string): Promise<void> {
   const blob = await fetchDocumentFileBlob(id, "inline");
   const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  // Navigate the current tab rather than window.open(url, "_blank") -- blob: URLs
+  // don't reliably survive the handoff to a newly opened browsing context on
+  // mobile Safari/iOS (a documented WebKit limitation), which surfaced as
+  // "Unexpected server response (0)" in the native PDF viewer.
+  window.location.assign(url);
 }
 
 async function downloadCsv(path: string, filename: string): Promise<void> {
@@ -877,6 +880,48 @@ export function setPreferences(prefs: {
       time_format: prefs.timeFormat,
     }),
   });
+}
+
+export interface UserFactOut {
+  id: string;
+  user_id: string;
+  fact_type: string;
+  value: Record<string, unknown>;
+  valid_from: string;
+  valid_to: string | null;
+  confidence: number;
+  status: string;
+  created_at: string;
+}
+
+export function listFacts(): Promise<UserFactOut[]> {
+  return request<UserFactOut[]>("/facts");
+}
+
+export interface MemoryOut {
+  id: string;
+  memory_type: string;
+  importance: number;
+  summary: string;
+  created_at: string;
+  last_used_at: string | null;
+  expires_at: string | null;
+}
+
+export function listMemories(): Promise<MemoryOut[]> {
+  return request<MemoryOut[]>("/memories");
+}
+
+export function deleteMemory(id: string): Promise<void> {
+  return request<void>(`/memories/${id}`, { method: "DELETE" });
+}
+
+export function approveFact(id: string): Promise<UserFactOut> {
+  return request<UserFactOut>(`/facts/${id}/approve`, { method: "POST" });
+}
+
+export function rejectFact(id: string): Promise<UserFactOut> {
+  return request<UserFactOut>(`/facts/${id}/reject`, { method: "POST" });
 }
 
 export interface OrganizationOut {
@@ -1202,4 +1247,18 @@ export function createCheckoutSession(plan: string): Promise<string> {
 
 export function createPortalSession(): Promise<string> {
   return request<{ url: string }>("/billing/portal-session", { method: "POST" }).then((result) => result.url);
+}
+
+// --- AI tool transparency (Phase 9a, ADR 0021) -----------------------------
+
+export interface ToolOut {
+  name: string;
+  description: string;
+  permissions: string[];
+  input_schema: Record<string, string>;
+  output_schema: Record<string, string>;
+}
+
+export function listAiTools(): Promise<ToolOut[]> {
+  return request<ToolOut[]>("/tools");
 }

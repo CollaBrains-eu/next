@@ -23,6 +23,12 @@ vi.mock("../lib/api", async () => {
     getSubscription: vi.fn(),
     createCheckoutSession: vi.fn(),
     createPortalSession: vi.fn(),
+    listFacts: vi.fn(),
+    approveFact: vi.fn(),
+    rejectFact: vi.fn(),
+    listMemories: vi.fn(),
+    deleteMemory: vi.fn(),
+    listAiTools: vi.fn(),
   };
 });
 
@@ -78,6 +84,9 @@ describe("Settings", () => {
     vi.mocked(api.getSubscription).mockResolvedValue({
       plan: null, status: null, current_period_end: null, cancel_at_period_end: false,
     });
+    vi.mocked(api.listFacts).mockResolvedValue([]);
+    vi.mocked(api.listMemories).mockResolvedValue([]);
+    vi.mocked(api.listAiTools).mockResolvedValue([]);
   });
 
   it("loads and selects the saved preferred language", async () => {
@@ -218,6 +227,15 @@ describe("Settings", () => {
     });
   });
 
+  describe("Notification Preferences (stub)", () => {
+    it("renders the digest toggle with no backend call", () => {
+      renderPage();
+      expect(screen.getByText("Notifications")).toBeInTheDocument();
+      expect(screen.getByRole("radio", { name: "Per document" })).toBeChecked();
+      expect(screen.getByRole("radio", { name: "Daily digest" })).not.toBeChecked();
+    });
+  });
+
   describe("Billing section", () => {
     it("shows no active plan for a fresh organization", async () => {
       renderPage();
@@ -277,6 +295,54 @@ describe("Settings", () => {
       renderPage("/settings?checkout=pro");
       await screen.findByText("No active plan yet.");
       expect(api.createCheckoutSession).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Facts section", () => {
+    it("lists pending facts and approves one", async () => {
+      vi.mocked(api.listFacts).mockResolvedValue([
+        {
+          id: "f1", user_id: "u1", fact_type: "address", value: { city: "Utrecht" },
+          valid_from: "2026-01-01", valid_to: null, confidence: 0.9, status: "pending_review",
+          created_at: "2026-01-01T00:00:00Z",
+        },
+      ]);
+      vi.mocked(api.approveFact).mockResolvedValue({
+        id: "f1", user_id: "u1", fact_type: "address", value: { city: "Utrecht" },
+        valid_from: "2026-01-01", valid_to: null, confidence: 0.9, status: "confirmed",
+        created_at: "2026-01-01T00:00:00Z",
+      });
+      renderPage();
+      expect(await screen.findByText("address")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+      await waitFor(() => expect(api.approveFact).toHaveBeenCalledWith("f1"));
+    });
+  });
+
+  describe("Memories section", () => {
+    it("lists memories and deletes one", async () => {
+      vi.mocked(api.listMemories).mockResolvedValue([
+        {
+          id: "m1", memory_type: "preference", importance: 5, summary: "Prefers Dutch responses",
+          created_at: "2026-01-01T00:00:00Z", last_used_at: null, expires_at: null,
+        },
+      ]);
+      vi.mocked(api.deleteMemory).mockResolvedValue(undefined);
+      renderPage();
+      expect(await screen.findByText("Prefers Dutch responses")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Forget this" }));
+      await waitFor(() => expect(api.deleteMemory).toHaveBeenCalledWith("m1"));
+    });
+  });
+
+  describe("AI Tools section", () => {
+    it("lists available AI tools read-only", async () => {
+      vi.mocked(api.listAiTools).mockResolvedValue([
+        { name: "web_search", description: "Searches the web", permissions: [], input_schema: {}, output_schema: {} },
+      ]);
+      renderPage();
+      expect(await screen.findByText("web_search")).toBeInTheDocument();
+      expect(screen.getByText("Searches the web")).toBeInTheDocument();
     });
   });
 });
