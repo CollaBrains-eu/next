@@ -719,5 +719,23 @@ function SupportTicketsTab() {
 
 function EmailTemplatesTab() {
   const { t } = useTranslation();
-  return <EmptyState message={t("admin.emailTemplatesPlaceholder")} />;
+  return (
+    <div className="flex max-w-md flex-col gap-3">
+      <h2 className="text-lg font-semibold text-ink">{t("admin.tabEmailTemplates")}</h2>
+      <div>
+        <label className="text-sm font-medium text-ink">{t("admin.emailTemplateLabel")}</label>
+        <select disabled className="mt-1 w-full rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink-3">
+          <option>{t("admin.emailTemplateWelcome")}</option>
+        </select>
+      </div>
+      <div>
+        <label className="text-sm font-medium text-ink">{t("admin.emailTestRecipient")}</label>
+        <input disabled placeholder="you@example.com" className="mt-1 w-full rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink-3" />
+      </div>
+      <Button size="sm" disabled className="self-start">
+        {t("admin.sendTest")}
+      </Button>
+      <p className="text-xs text-ink-3">{t("admin.emailTemplatesPlaceholder")}</p>
+    </div>
+  );
 }

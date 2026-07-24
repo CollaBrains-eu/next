@@ -549,6 +549,17 @@ describe("AdminDashboard Support Tickets tab", () => {
   });
 });
 
+describe("AdminDashboard Email Templates tab", () => {
+  it("shows a dry placeholder with a disabled test-send button", () => {
+    vi.mocked(api.getAdminStats).mockResolvedValue({
+      total_users: 0, total_documents: 0, documents_by_status: {}, ai_calls_last_24h: 0,
+    });
+    render(<AdminDashboard />);
+    fireEvent.click(screen.getByRole("tab", { name: "Email Templates" }));
+    expect(screen.getByRole("button", { name: "Send test" })).toBeDisabled();
+  });
+});
+
 describe("AdminDashboard grouped tabs", () => {
   it("renders group headers in the tab bar", () => {
     vi.mocked(api.getAdminStats).mockResolvedValue({
