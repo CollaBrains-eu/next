@@ -895,6 +895,24 @@ export function listFacts(): Promise<UserFactOut[]> {
   return request<UserFactOut[]>("/facts");
 }
 
+export interface MemoryOut {
+  id: string;
+  memory_type: string;
+  importance: number;
+  summary: string;
+  created_at: string;
+  last_used_at: string | null;
+  expires_at: string | null;
+}
+
+export function listMemories(): Promise<MemoryOut[]> {
+  return request<MemoryOut[]>("/memories");
+}
+
+export function deleteMemory(id: string): Promise<void> {
+  return request<void>(`/memories/${id}`, { method: "DELETE" });
+}
+
 export function approveFact(id: string): Promise<UserFactOut> {
   return request<UserFactOut>(`/facts/${id}/approve`, { method: "POST" });
 }

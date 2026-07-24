@@ -26,6 +26,8 @@ vi.mock("../lib/api", async () => {
     listFacts: vi.fn(),
     approveFact: vi.fn(),
     rejectFact: vi.fn(),
+    listMemories: vi.fn(),
+    deleteMemory: vi.fn(),
   };
 });
 
@@ -82,6 +84,7 @@ describe("Settings", () => {
       plan: null, status: null, current_period_end: null, cancel_at_period_end: false,
     });
     vi.mocked(api.listFacts).mockResolvedValue([]);
+    vi.mocked(api.listMemories).mockResolvedValue([]);
   });
 
   it("loads and selects the saved preferred language", async () => {
@@ -311,6 +314,22 @@ describe("Settings", () => {
       expect(await screen.findByText("address")).toBeInTheDocument();
       fireEvent.click(screen.getByRole("button", { name: "Approve" }));
       await waitFor(() => expect(api.approveFact).toHaveBeenCalledWith("f1"));
+    });
+  });
+
+  describe("Memories section", () => {
+    it("lists memories and deletes one", async () => {
+      vi.mocked(api.listMemories).mockResolvedValue([
+        {
+          id: "m1", memory_type: "preference", importance: 5, summary: "Prefers Dutch responses",
+          created_at: "2026-01-01T00:00:00Z", last_used_at: null, expires_at: null,
+        },
+      ]);
+      vi.mocked(api.deleteMemory).mockResolvedValue(undefined);
+      renderPage();
+      expect(await screen.findByText("Prefers Dutch responses")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Forget this" }));
+      await waitFor(() => expect(api.deleteMemory).toHaveBeenCalledWith("m1"));
     });
   });
 });

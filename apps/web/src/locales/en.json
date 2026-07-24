@@ -723,7 +723,13 @@
     "factsApprove": "Approve",
     "factsReject": "Reject",
     "factsLoadError": "Couldn't load your facts.",
-    "factsActionError": "That didn't go through -- try again."
+    "factsActionError": "That didn't go through -- try again.",
+    "memoriesTitle": "What the AI remembers",
+    "memoriesHint": "Things the assistant has picked up from your conversations. Delete anything you'd rather it forgot.",
+    "memoriesEmpty": "Nothing on file yet.",
+    "memoriesForget": "Forget this",
+    "memoriesLoadError": "Couldn't load your memories.",
+    "memoriesActionError": "That didn't go through -- try again."
   },
   "phonePrompt": {
     "title": "Set your phone number",

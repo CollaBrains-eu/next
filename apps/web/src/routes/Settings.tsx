@@ -19,8 +19,10 @@ import {
   getOrganization,
   getPreferences,
   getSubscription,
+  deleteMemory,
   inviteOrganizationMember,
   listFacts,
+  listMemories,
   listOrganizationInvitations,
   listOrganizationMembers,
   rejectFact,
@@ -29,6 +31,7 @@ import {
   setOrganizationPolicies,
   setPreferences,
   type InvitationOut,
+  type MemoryOut,
   type OrganizationMemberOut,
   type SubscriptionOut,
   type UserFactOut,
@@ -191,6 +194,8 @@ export default function Settings() {
       <NotificationPreferencesSection />
 
       <FactsSection />
+
+      <MemoriesSection />
 
       <PasskeySettings />
 
@@ -491,6 +496,60 @@ function FactsSection() {
                 </Button>
               </div>
             )}
+          </div>
+        ))
+      )}
+    </Card>
+  );
+}
+
+function MemoriesSection() {
+  const { t } = useTranslation();
+  const [memories, setMemories] = useState<MemoryOut[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  function load() {
+    listMemories()
+      .then(setMemories)
+      .catch((err) => setError(err instanceof ApiError ? err.message : t("settings.memoriesLoadError")));
+  }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
+  useEffect(load, []);
+
+  async function handleDelete(id: string) {
+    setBusyId(id);
+    try {
+      await deleteMemory(id);
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("settings.memoriesActionError"));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <Card className="flex max-w-md flex-col gap-3">
+      <h2 className="text-lg font-semibold text-ink">{t("settings.memoriesTitle")}</h2>
+      <p className="text-xs text-ink-3">{t("settings.memoriesHint")}</p>
+      {error && (
+        <Alert variant="danger" title={t("settings.memoriesLoadError")}>
+          {error}
+        </Alert>
+      )}
+      {!memories ? (
+        <SkeletonLines />
+      ) : memories.length === 0 ? (
+        <EmptyState message={t("settings.memoriesEmpty")} />
+      ) : (
+        memories.map((memory) => (
+          <div key={memory.id} className="flex items-center justify-between gap-2 rounded-xl border border-edge p-3">
+            <p className="text-sm text-ink">{memory.summary}</p>
+            <Button size="sm" variant="ghost" onClick={() => handleDelete(memory.id)} disabled={busyId === memory.id}>
+              {t("settings.memoriesForget")}
+            </Button>
           </div>
         ))
       )}

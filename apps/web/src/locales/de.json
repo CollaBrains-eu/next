@@ -723,7 +723,13 @@
     "factsApprove": "Genehmigen",
     "factsReject": "Ablehnen",
     "factsLoadError": "Deine Fakten konnten nicht geladen werden.",
-    "factsActionError": "Das hat nicht geklappt -- versuch es erneut."
+    "factsActionError": "Das hat nicht geklappt -- versuch es erneut.",
+    "memoriesTitle": "Was die KI sich merkt",
+    "memoriesHint": "Dinge, die der Assistent aus deinen Gesprächen aufgeschnappt hat. Lösche, was er lieber vergessen soll.",
+    "memoriesEmpty": "Noch nichts vorhanden.",
+    "memoriesForget": "Vergessen",
+    "memoriesLoadError": "Deine Erinnerungen konnten nicht geladen werden.",
+    "memoriesActionError": "Das hat nicht geklappt -- versuch es erneut."
   },
   "phonePrompt": {
     "title": "Telefonnummer festlegen",

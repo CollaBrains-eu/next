@@ -723,7 +723,13 @@
     "factsApprove": "Goedkeuren",
     "factsReject": "Afwijzen",
     "factsLoadError": "Kon je feiten niet laden.",
-    "factsActionError": "Dat is niet gelukt -- probeer het opnieuw."
+    "factsActionError": "Dat is niet gelukt -- probeer het opnieuw.",
+    "memoriesTitle": "Wat de AI onthoudt",
+    "memoriesHint": "Dingen die de assistent heeft opgepikt uit je gesprekken. Verwijder wat je liever vergeten ziet.",
+    "memoriesEmpty": "Nog niets bekend.",
+    "memoriesForget": "Vergeten",
+    "memoriesLoadError": "Kon je herinneringen niet laden.",
+    "memoriesActionError": "Dat is niet gelukt -- probeer het opnieuw."
   },
   "phonePrompt": {
     "title": "Stel uw telefoonnummer in",
