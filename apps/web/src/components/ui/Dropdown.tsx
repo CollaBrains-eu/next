@@ -8,7 +8,15 @@ export interface DropdownOption {
   danger?: boolean;
 }
 
-export function Dropdown({ trigger, options }: { trigger: ReactNode; options: DropdownOption[] }) {
+export function Dropdown({
+  trigger,
+  options,
+  align = "left",
+}: {
+  trigger: ReactNode;
+  options: DropdownOption[];
+  align?: "left" | "right";
+}) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -22,7 +30,7 @@ export function Dropdown({ trigger, options }: { trigger: ReactNode; options: Dr
       </button>
       <div
         role="menu"
-        className={`absolute left-0 top-[calc(100%+6px)] z-20 min-w-[170px] rounded-xl border border-edge bg-surface p-1.5 shadow-overlay transition-all duration-base ease-spring ${
+        className={`absolute ${align === "right" ? "right-0" : "left-0"} top-[calc(100%+6px)] z-20 min-w-[170px] rounded-xl border border-edge bg-surface p-1.5 shadow-overlay transition-all duration-base ease-spring ${
           open ? "pointer-events-auto translate-y-0 scale-100 opacity-100" : "pointer-events-none -translate-y-1.5 scale-[.97] opacity-0"
         }`}
       >

@@ -25,4 +25,14 @@ describe("Dropdown", () => {
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.getByRole("menu")).toHaveClass("pointer-events-none");
   });
+
+  it("defaults to opening left-aligned, matching the trigger's left edge", () => {
+    render(<Dropdown trigger="Options" options={[{ label: "Edit", onSelect: () => {} }]} />);
+    expect(screen.getByRole("menu")).toHaveClass("left-0");
+  });
+
+  it("opens right-aligned when align is 'right', so it never overflows past a right-edge trigger", () => {
+    render(<Dropdown trigger="Options" options={[{ label: "Edit", onSelect: () => {} }]} align="right" />);
+    expect(screen.getByRole("menu")).toHaveClass("right-0");
+  });
 });

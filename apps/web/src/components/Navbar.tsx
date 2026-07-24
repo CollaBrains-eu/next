@@ -63,7 +63,7 @@ export default function Navbar() {
     <>
       <header className="sticky top-0 z-30 glass-surface border-b border-edge">
         {/* Desktop bar */}
-        <div className="mx-auto hidden h-16 max-w-screen-2xl items-center justify-between gap-4 px-6 md:flex">
+        <div className="mx-auto hidden h-16 max-w-screen-2xl items-center justify-between gap-4 px-6 lg:flex">
           <NavLink to="/" className="flex shrink-0 items-center gap-2">
             <BrandMark size={28} />
             <span className="whitespace-nowrap text-lg font-semibold text-ink">
@@ -144,13 +144,14 @@ export default function Navbar() {
                   </span>
                 }
                 options={accountOptions}
+                align="right"
               />
             )}
           </div>
         </div>
 
         {/* Mobile compact header */}
-        <div className="flex items-center justify-between gap-2 px-4 py-3 md:hidden">
+        <div className="flex items-center justify-between gap-2 px-4 py-3 lg:hidden">
           <div className="flex min-w-0 items-center gap-2">
             {user && (
               <NavLink to="/settings" aria-label={t("common.profile")}>
