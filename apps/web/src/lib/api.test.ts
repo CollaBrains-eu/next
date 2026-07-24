@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ApiError, approveEntity, clearToken, downloadAppointmentIcs, downloadMetafieldIcs, downloadTaskIcs, login, request, setToken } from "./api";
+import { ApiError, approveEntity, clearToken, downloadAppointmentIcs, downloadMetafieldIcs, downloadTaskIcs, login, previewDocumentFile, request, setToken } from "./api";
 
 const IPHONE_UA =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
@@ -193,5 +193,23 @@ describe("downloadMetafieldIcs", () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(new Response("", { status: 404, statusText: "Not Found" }));
 
     await expect(downloadMetafieldIcs("missing", "due_date", "x.ics")).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
+describe("previewDocumentFile", () => {
+  beforeEach(() => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      blob: () => Promise.resolve(new Blob(["pdf-bytes"], { type: "application/pdf" })),
+    });
+    global.URL.createObjectURL = vi.fn().mockReturnValue("blob:http://localhost/abc");
+    global.URL.revokeObjectURL = vi.fn();
+  });
+
+  it("navigates the current window to the blob URL instead of opening a new tab", async () => {
+    const assignSpy = vi.fn();
+    Object.defineProperty(window, "location", { value: { assign: assignSpy }, writable: true });
+    await previewDocumentFile("doc-1");
+    expect(assignSpy).toHaveBeenCalledWith("blob:http://localhost/abc");
   });
 });

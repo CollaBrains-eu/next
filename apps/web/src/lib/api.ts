@@ -810,8 +810,11 @@ export async function downloadDocumentFile(id: string, filename: string): Promis
 export async function previewDocumentFile(id: string): Promise<void> {
   const blob = await fetchDocumentFileBlob(id, "inline");
   const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  // Navigate the current tab rather than window.open(url, "_blank") -- blob: URLs
+  // don't reliably survive the handoff to a newly opened browsing context on
+  // mobile Safari/iOS (a documented WebKit limitation), which surfaced as
+  // "Unexpected server response (0)" in the native PDF viewer.
+  window.location.assign(url);
 }
 
 async function downloadCsv(path: string, filename: string): Promise<void> {
