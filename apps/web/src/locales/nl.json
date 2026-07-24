@@ -729,7 +729,11 @@
     "memoriesEmpty": "Nog niets bekend.",
     "memoriesForget": "Vergeten",
     "memoriesLoadError": "Kon je herinneringen niet laden.",
-    "memoriesActionError": "Dat is niet gelukt -- probeer het opnieuw."
+    "memoriesActionError": "Dat is niet gelukt -- probeer het opnieuw.",
+    "aiToolsTitle": "Wat de AI kan doen",
+    "aiToolsHint": "Tools die de assistent momenteel kan gebruiken, ter transparantie.",
+    "aiToolsEmpty": "Geen tools geregistreerd.",
+    "aiToolsLoadError": "Kon de toolslijst niet laden."
   },
   "phonePrompt": {
     "title": "Stel uw telefoonnummer in",

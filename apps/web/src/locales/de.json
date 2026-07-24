@@ -729,7 +729,11 @@
     "memoriesEmpty": "Noch nichts vorhanden.",
     "memoriesForget": "Vergessen",
     "memoriesLoadError": "Deine Erinnerungen konnten nicht geladen werden.",
-    "memoriesActionError": "Das hat nicht geklappt -- versuch es erneut."
+    "memoriesActionError": "Das hat nicht geklappt -- versuch es erneut.",
+    "aiToolsTitle": "Was die KI tun kann",
+    "aiToolsHint": "Werkzeuge, die der Assistent derzeit nutzen kann, zur Transparenz.",
+    "aiToolsEmpty": "Keine Werkzeuge registriert.",
+    "aiToolsLoadError": "Werkzeugliste konnte nicht geladen werden."
   },
   "phonePrompt": {
     "title": "Telefonnummer festlegen",

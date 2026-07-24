@@ -1245,3 +1245,17 @@ export function createCheckoutSession(plan: string): Promise<string> {
 export function createPortalSession(): Promise<string> {
   return request<{ url: string }>("/billing/portal-session", { method: "POST" }).then((result) => result.url);
 }
+
+// --- AI tool transparency (Phase 9a, ADR 0021) -----------------------------
+
+export interface ToolOut {
+  name: string;
+  description: string;
+  permissions: string[];
+  input_schema: Record<string, string>;
+  output_schema: Record<string, string>;
+}
+
+export function listAiTools(): Promise<ToolOut[]> {
+  return request<ToolOut[]>("/tools");
+}

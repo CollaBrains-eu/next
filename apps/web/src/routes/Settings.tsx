@@ -21,6 +21,7 @@ import {
   getSubscription,
   deleteMemory,
   inviteOrganizationMember,
+  listAiTools,
   listFacts,
   listMemories,
   listOrganizationInvitations,
@@ -34,6 +35,7 @@ import {
   type MemoryOut,
   type OrganizationMemberOut,
   type SubscriptionOut,
+  type ToolOut,
   type UserFactOut,
 } from "../lib/api";
 import { syncLanguage } from "../lib/auth";
@@ -196,6 +198,8 @@ export default function Settings() {
       <FactsSection />
 
       <MemoriesSection />
+
+      <AiToolsSection />
 
       <PasskeySettings />
 
@@ -550,6 +554,43 @@ function MemoriesSection() {
             <Button size="sm" variant="ghost" onClick={() => handleDelete(memory.id)} disabled={busyId === memory.id}>
               {t("settings.memoriesForget")}
             </Button>
+          </div>
+        ))
+      )}
+    </Card>
+  );
+}
+
+function AiToolsSection() {
+  const { t } = useTranslation();
+  const [tools, setTools] = useState<ToolOut[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    listAiTools()
+      .then(setTools)
+      .catch((err) => setError(err instanceof ApiError ? err.message : t("settings.aiToolsLoadError")));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
+  }, []);
+
+  return (
+    <Card className="flex max-w-md flex-col gap-3">
+      <h2 className="text-lg font-semibold text-ink">{t("settings.aiToolsTitle")}</h2>
+      <p className="text-xs text-ink-3">{t("settings.aiToolsHint")}</p>
+      {error && (
+        <Alert variant="danger" title={t("settings.aiToolsLoadError")}>
+          {error}
+        </Alert>
+      )}
+      {!tools ? (
+        <SkeletonLines />
+      ) : tools.length === 0 ? (
+        <EmptyState message={t("settings.aiToolsEmpty")} />
+      ) : (
+        tools.map((tool) => (
+          <div key={tool.name} className="rounded-xl border border-edge p-3">
+            <p className="text-sm font-medium text-ink">{tool.name}</p>
+            <p className="text-xs text-ink-3">{tool.description}</p>
           </div>
         ))
       )}

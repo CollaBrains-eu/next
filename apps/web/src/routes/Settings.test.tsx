@@ -28,6 +28,7 @@ vi.mock("../lib/api", async () => {
     rejectFact: vi.fn(),
     listMemories: vi.fn(),
     deleteMemory: vi.fn(),
+    listAiTools: vi.fn(),
   };
 });
 
@@ -85,6 +86,7 @@ describe("Settings", () => {
     });
     vi.mocked(api.listFacts).mockResolvedValue([]);
     vi.mocked(api.listMemories).mockResolvedValue([]);
+    vi.mocked(api.listAiTools).mockResolvedValue([]);
   });
 
   it("loads and selects the saved preferred language", async () => {
@@ -330,6 +332,17 @@ describe("Settings", () => {
       expect(await screen.findByText("Prefers Dutch responses")).toBeInTheDocument();
       fireEvent.click(screen.getByRole("button", { name: "Forget this" }));
       await waitFor(() => expect(api.deleteMemory).toHaveBeenCalledWith("m1"));
+    });
+  });
+
+  describe("AI Tools section", () => {
+    it("lists available AI tools read-only", async () => {
+      vi.mocked(api.listAiTools).mockResolvedValue([
+        { name: "web_search", description: "Searches the web", permissions: [], input_schema: {}, output_schema: {} },
+      ]);
+      renderPage();
+      expect(await screen.findByText("web_search")).toBeInTheDocument();
+      expect(screen.getByText("Searches the web")).toBeInTheDocument();
     });
   });
 });
