@@ -57,4 +57,10 @@ describe("MobileNavDrawer", () => {
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).toHaveBeenCalledOnce();
   });
+
+  it("renders one group header per section, in order, above the nav items", () => {
+    renderAt("/", true);
+    const headers = screen.getAllByTestId("drawer-group-header");
+    expect(headers.map((h) => h.textContent)).toEqual(["Overview", "Records", "Planning", "AI Tools", "Account"]);
+  });
 });

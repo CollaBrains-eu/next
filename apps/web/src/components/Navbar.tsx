@@ -57,6 +57,7 @@ export default function Navbar() {
   const moreOptions = secondaryItems.map((item) => ({
     label: t(item.labelKey),
     onSelect: () => navigate(item.to),
+    group: t(`navGroup.${item.group.toLowerCase().replace(/\s+/g, "")}`),
   }));
 
   return (

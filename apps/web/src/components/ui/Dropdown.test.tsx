@@ -36,3 +36,25 @@ describe("Dropdown", () => {
     expect(screen.getByRole("menu")).toHaveClass("right-0");
   });
 });
+
+describe("Dropdown grouping", () => {
+  it("renders a group header once before its options, and none for ungrouped options", () => {
+    render(
+      <Dropdown
+        trigger={<span>Open</span>}
+        options={[
+          { label: "Vehicles", onSelect: () => {}, group: "Records" },
+          { label: "Calendar", onSelect: () => {}, group: "Planning" },
+          { label: "Assistant", onSelect: () => {}, group: "Planning" },
+          { label: "Sign out", onSelect: () => {} },
+        ]}
+      />
+    );
+    fireEvent.click(screen.getByText("Open"));
+    const menu = screen.getByRole("menu");
+    const headers = menu.querySelectorAll("[data-testid='dropdown-group-header']");
+    expect(headers).toHaveLength(2);
+    expect(headers[0]).toHaveTextContent("Records");
+    expect(headers[1]).toHaveTextContent("Planning");
+  });
+});

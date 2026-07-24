@@ -13,6 +13,13 @@
     "settings": "Settings",
     "admin": "Admin"
   },
+  "navGroup": {
+    "overview": "Overview",
+    "records": "Records",
+    "planning": "Planning",
+    "aitools": "AI Tools",
+    "account": "Account"
+  },
   "commandCenter": {
     "groupNavigation": "Navigation",
     "groupDocuments": "Documents",

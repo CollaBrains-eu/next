@@ -6,6 +6,7 @@ export interface DropdownOption {
   label: string;
   onSelect: () => void;
   danger?: boolean;
+  group?: string;
 }
 
 export function Dropdown({
@@ -34,22 +35,34 @@ export function Dropdown({
           open ? "pointer-events-auto translate-y-0 scale-100 opacity-100" : "pointer-events-none -translate-y-1.5 scale-[.97] opacity-0"
         }`}
       >
-        {options.map((option) => (
-          <button
-            key={option.label}
-            role="menuitem"
-            type="button"
-            onClick={() => {
-              option.onSelect();
-              setOpen(false);
-            }}
-            className={`block w-full rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors duration-fast ${
-              option.danger ? "text-danger hover:bg-danger-soft" : "text-ink-2 hover:bg-hover hover:text-ink"
-            }`}
-          >
-            {option.label}
-          </button>
-        ))}
+        {options.map((option, index) => {
+          const showHeader = option.group && option.group !== options[index - 1]?.group;
+          return (
+            <div key={option.label}>
+              {showHeader && (
+                <div
+                  data-testid="dropdown-group-header"
+                  className="px-2.5 pb-1 pt-2 text-[10.5px] font-semibold uppercase tracking-wide text-ink-3"
+                >
+                  {option.group}
+                </div>
+              )}
+              <button
+                role="menuitem"
+                type="button"
+                onClick={() => {
+                  option.onSelect();
+                  setOpen(false);
+                }}
+                className={`block w-full rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors duration-fast ${
+                  option.danger ? "text-danger hover:bg-danger-soft" : "text-ink-2 hover:bg-hover hover:text-ink"
+                }`}
+              >
+                {option.label}
+              </button>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
