@@ -233,6 +233,8 @@
     "dueTomorrow": "Fällig morgen",
     "dueInDays_one": "Fällig in {{count}} Tag",
     "dueInDays_other": "Fällig in {{count}} Tagen",
+    "dueUnknown": "Kein Datum hinterlegt",
+    "dueOverdueSince": "Überfällig seit {{date}}",
     "assignee": "Zuständig: {{name}}",
     "sourceDocument": "Quelldokument",
     "loadError": "Aufgaben konnten nicht geladen werden",

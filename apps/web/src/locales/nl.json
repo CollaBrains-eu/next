@@ -233,6 +233,8 @@
     "dueTomorrow": "Morgen te doen",
     "dueInDays_one": "Over {{count}} dag",
     "dueInDays_other": "Over {{count}} dagen",
+    "dueUnknown": "Geen datum bekend",
+    "dueOverdueSince": "Verlopen sinds {{date}}",
     "assignee": "Toegewezen aan: {{name}}",
     "sourceDocument": "Brondocument",
     "loadError": "Kon taken niet laden",

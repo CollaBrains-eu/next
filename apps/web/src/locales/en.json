@@ -233,6 +233,8 @@
     "dueTomorrow": "Due tomorrow",
     "dueInDays_one": "Due in {{count}} day",
     "dueInDays_other": "Due in {{count}} days",
+    "dueUnknown": "No date on file",
+    "dueOverdueSince": "Overdue since {{date}}",
     "assignee": "Assignee: {{name}}",
     "sourceDocument": "Source document",
     "loadError": "Failed to load tasks",

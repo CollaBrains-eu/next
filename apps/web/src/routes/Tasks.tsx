@@ -333,7 +333,12 @@ export default function Tasks() {
                 }}
                 className={`flex cursor-pointer items-start gap-3 border-l-2 px-4 py-3 ${
                   task.due_date && task.status !== "done"
-                    ? { danger: "border-l-danger", warning: "border-l-warning", default: "border-l-transparent" }[taskUrgency(task.due_date).variant]
+                    ? {
+                        danger: "border-l-danger",
+                        warning: "border-l-warning",
+                        default: "border-l-transparent",
+                        unknown: "border-l-transparent",
+                      }[taskUrgency(task.due_date).variant]
                     : "border-l-transparent"
                 }`}
               >
