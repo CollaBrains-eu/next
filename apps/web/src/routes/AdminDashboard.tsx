@@ -85,7 +85,7 @@ export default function AdminDashboard() {
           {t("admin.tabOverview")}
         </button>
         {TAB_GROUPS.map((groupDef) => (
-          <div key={groupDef.labelKey} className="flex items-center gap-1">
+          <div key={groupDef.labelKey} className="flex flex-wrap items-center gap-1">
             <span data-testid="admin-tab-group-header" className="px-2 text-[10.5px] font-semibold uppercase tracking-wide text-ink-3">
               {t(groupDef.labelKey)}
             </span>
