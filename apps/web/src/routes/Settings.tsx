@@ -38,7 +38,7 @@ import {
   type ToolOut,
   type UserFactOut,
 } from "../lib/api";
-import { syncLanguage, useAuth } from "../lib/auth";
+import { syncLanguage } from "../lib/auth";
 import { toDateFormatPrefs, type DateFormat, type TimeFormat } from "../lib/dateFormat";
 import { setDateFormatPrefs } from "../hooks/useDateFormat";
 import { useToast } from "../lib/toast";
@@ -58,7 +58,6 @@ const GOAL_TYPES = [
 
 export default function Settings() {
   const { t } = useTranslation();
-  const { user } = useAuth();
   const [language, setLanguage] = useState("");
   const [dateFormat, setDateFormat] = useState<DateFormat>("eu");
   const [timeFormat, setTimeFormat] = useState<TimeFormat>("h24");
@@ -212,13 +211,7 @@ export default function Settings() {
         <AddressHistory />
       </div>
 
-      {/* Gated to platform admins: there is no "enterprise" subscription
-          plan anywhere in the backend to gate on as an alternative
-          (billing_service.py's SEAT_LIMITS/_price_id_for_plan only ever
-          produce "starter"/"pro" from Stripe; "enterprise" doesn't even
-          appear as pricing-page copy) -- role === "admin" is the only
-          real signal available today. */}
-      {user?.role === "admin" && <OrganizationSection />}
+      <OrganizationSection />
 
       <BillingSection />
 

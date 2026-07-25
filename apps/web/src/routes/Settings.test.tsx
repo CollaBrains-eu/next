@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Settings from "./Settings";
@@ -131,17 +131,15 @@ describe("Settings", () => {
   });
 
   describe("Organization section", () => {
-    it("is not rendered at all for a non-admin (no enterprise tier exists to gate on instead)", async () => {
+    it("shows a read-only name and member list for a non-admin, non-org-owner member", async () => {
       renderPage();
-      // Wait for some other section to finish loading so we know the page
-      // settled, then assert the org card never mounted.
-      await screen.findByText("No active plan yet.");
-      expect(screen.queryByText("Acme Legal")).not.toBeInTheDocument();
-      expect(screen.queryByText("Organization")).not.toBeInTheDocument();
-      // listOrganizationMembers is only ever called by OrganizationSection
-      // (BillingSection calls getOrganization/getSubscription but not
-      // this), so its absence confirms the section never mounted.
-      expect(api.listOrganizationMembers).not.toHaveBeenCalled();
+      const orgCard = (await screen.findByRole("heading", { name: "Organization" })).closest("div")!;
+      expect(within(orgCard).getByText("Acme Legal")).toBeInTheDocument();
+      expect(within(orgCard).queryByLabelText("Name")).not.toBeInTheDocument();
+      expect(within(orgCard).queryByLabelText("Invite a teammate")).not.toBeInTheDocument();
+      expect(within(orgCard).queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+      expect(api.listOrganizationMembers).toHaveBeenCalled();
+      expect(api.listOrganizationInvitations).not.toHaveBeenCalled();
     });
 
     it("shows an editable name field and policy picker for an admin", async () => {
