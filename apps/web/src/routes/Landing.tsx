@@ -1,4 +1,4 @@
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
@@ -20,6 +20,8 @@ import {
   Building2,
   ShieldCheck,
   Globe,
+  MessageSquare,
+  CalendarClock,
 } from "lucide-react";
 import { useClickOutside } from "../hooks/useClickOutside";
 import { useEscapeToClose } from "../hooks/useEscapeToClose";
@@ -169,6 +171,122 @@ function Section({ children, className = "" }: { children: ReactNode; className?
   );
 }
 
+// Faint animated grid + drifting light sweep behind the hero -- reads as
+// "instrument panel" depth without a canvas/WebGL dependency. Disabled to a
+// static grid when the visitor prefers reduced motion.
+function MeshBackdrop() {
+  const prefersReducedMotion = useReducedMotion();
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 opacity-[0.35]"
+      style={{
+        backgroundImage:
+          "linear-gradient(to right, rgba(167,139,250,0.14) 1px, transparent 1px), linear-gradient(to bottom, rgba(167,139,250,0.14) 1px, transparent 1px)",
+        backgroundSize: "56px 56px",
+        maskImage: "radial-gradient(ellipse 60% 55% at 50% 40%, black 40%, transparent 80%)",
+        WebkitMaskImage: "radial-gradient(ellipse 60% 55% at 50% 40%, black 40%, transparent 80%)",
+      }}
+    >
+      {!prefersReducedMotion && (
+        <motion.div
+          animate={{ x: ["-20%", "20%", "-20%"] }}
+          transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-violet-400/10 to-transparent"
+        />
+      )}
+    </div>
+  );
+}
+
+// The same four sources of scattered knowledge (icon + i18n label) drive both
+// the "chaos" visual in the Problem section and the "connected" visual in the
+// Transformation section right after it -- one motif, two states, so the
+// scroll itself performs the "before / after" the copy is describing.
+type KnowledgeSource = { icon: typeof Mail; label: string };
+
+const CHAOS_TRANSFORMS = [
+  { x: -6, y: 10, rotate: -7 },
+  { x: 8, y: -6, rotate: 5 },
+  { x: -10, y: -10, rotate: 8 },
+  { x: 6, y: 12, rotate: -5 },
+];
+
+function ChaosCloud({ sources }: { sources: KnowledgeSource[] }) {
+  const prefersReducedMotion = useReducedMotion();
+  return (
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      {sources.map(({ icon: Icon, label }, i) => {
+        const t = CHAOS_TRANSFORMS[i % CHAOS_TRANSFORMS.length];
+        return (
+          <motion.div
+            key={label}
+            initial={{ opacity: 0, scale: 0.7, rotate: 0, x: 0, y: 0 }}
+            whileInView={{ opacity: 1, scale: 1, rotate: t.rotate, x: t.x, y: t.y }}
+            viewport={{ once: true }}
+            transition={{ delay: i * 0.1, duration: 0.5, ease: "easeOut" }}
+          >
+            <motion.div
+              animate={
+                prefersReducedMotion
+                  ? undefined
+                  : { rotate: [t.rotate, t.rotate + 3, t.rotate - 3, t.rotate], y: [t.y, t.y - 4, t.y + 2, t.y] }
+              }
+              transition={{ duration: 5 + i, repeat: Infinity, ease: "easeInOut" }}
+              className="flex flex-col items-center gap-2 rounded-xl border border-zinc-700/50 bg-zinc-800/60 px-4 py-5 shadow-lg shadow-black/20"
+            >
+              <Icon className="h-6 w-6 text-zinc-400" />
+              <span className="text-sm text-zinc-300">{label}</span>
+            </motion.div>
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ConnectedGraph({ sources }: { sources: KnowledgeSource[] }) {
+  return (
+    <div className="flex flex-col items-center">
+      <div className="grid w-full grid-cols-2 gap-4 sm:grid-cols-4">
+        {sources.map(({ icon: Icon, label }, i) => (
+          <motion.div
+            key={label}
+            initial={{ opacity: 0, y: -16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: i * 0.1, duration: 0.5, ease: "easeOut" }}
+            className="flex flex-col items-center gap-2 rounded-xl border border-violet-500/30 bg-zinc-900/80 px-4 py-5 shadow-lg shadow-violet-900/20"
+          >
+            <Icon className="h-6 w-6 text-violet-300" />
+            <span className="text-sm text-zinc-200">{label}</span>
+          </motion.div>
+        ))}
+      </div>
+
+      <motion.div
+        initial={{ scaleY: 0 }}
+        whileInView={{ scaleY: 1 }}
+        viewport={{ once: true }}
+        transition={{ delay: 0.5, duration: 0.5 }}
+        style={{ transformOrigin: "top" }}
+        className="h-10 w-px bg-gradient-to-b from-violet-500/60 to-violet-500/10"
+      />
+
+      <motion.div
+        initial={{ opacity: 0, scale: 0.85 }}
+        whileInView={{ opacity: 1, scale: 1 }}
+        viewport={{ once: true }}
+        transition={{ delay: 0.7, duration: 0.4, ease: "easeOut" }}
+        className="relative flex items-center gap-2 rounded-full border border-violet-400/50 bg-gradient-to-r from-violet-600 to-violet-500 px-6 py-3 shadow-xl shadow-violet-600/30"
+      >
+        <span className="absolute inset-0 -z-10 animate-pulse rounded-full bg-violet-500/40 blur-xl" />
+        <Brain className="h-4 w-4 text-white" />
+        <span className="text-sm font-semibold text-white">CollaBrains</span>
+      </motion.div>
+    </div>
+  );
+}
+
 export default function Landing() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -176,6 +294,7 @@ export default function Landing() {
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   const heroY = useTransform(scrollYProgress, [0, 1], [0, -80]);
   const heroOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0]);
+  const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
     const saved = window.localStorage.getItem(LANDING_LANG_STORAGE_KEY);
@@ -201,11 +320,13 @@ export default function Landing() {
     { icon: Brain, title: t("landing.featureAiTitle"), desc: t("landing.featureAiDesc") },
   ];
 
-  const PROBLEM_CHIPS = [
-    t("landing.problemChipEmail"),
-    t("landing.problemChipFiles"),
-    t("landing.problemChipChats"),
-    t("landing.problemChipMeetings"),
+  // Shared by the Problem section (chaos) and the Transformation section
+  // (connected) right after it -- same four sources, two states.
+  const KNOWLEDGE_SOURCES: KnowledgeSource[] = [
+    { icon: Mail, label: t("landing.problemChipEmail") },
+    { icon: FileText, label: t("landing.problemChipFiles") },
+    { icon: MessageSquare, label: t("landing.problemChipChats") },
+    { icon: CalendarClock, label: t("landing.problemChipMeetings") },
   ];
 
   const PREMIUM_FEATURES = [
@@ -310,38 +431,43 @@ export default function Landing() {
       </nav>
 
       <div ref={heroRef} className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 text-center">
+        <MeshBackdrop />
         <GradientOrb className="-left-20 -top-20 h-96 w-96 bg-violet-600/40" delay={0} />
         <GradientOrb className="-bottom-10 -right-10 h-80 w-80 bg-blue-600/30" delay={3} />
         <GradientOrb className="left-1/4 top-1/3 h-64 w-64 bg-violet-400/20" delay={6} />
 
-        <motion.div style={{ y: heroY, opacity: heroOpacity }} className="relative z-10 max-w-3xl">
+        <motion.div style={{ y: heroY, opacity: heroOpacity }} className="relative z-10 max-w-4xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="mb-4 inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-600/10 px-4 py-1.5 text-xs font-medium text-violet-300"
+            className="mb-6 inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-600/10 px-4 py-1.5 text-xs font-medium text-violet-300"
           >
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-violet-400 opacity-75" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-violet-400" />
+            </span>
             <Sparkles className="h-3 w-3" /> {t("landing.badge")}
           </motion.div>
 
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.1 }}
-            className="mb-6 text-5xl font-bold leading-tight tracking-tight md:text-6xl"
+            transition={{ duration: 0.8, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+            className="mb-7 text-6xl font-bold leading-[1.05] tracking-tight md:text-7xl lg:text-8xl"
           >
             {t("landing.heroTitleLine1")}{" "}
-            <span className="bg-gradient-to-r from-violet-400 to-blue-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-violet-400 via-fuchsia-300 to-blue-400 bg-clip-text text-transparent">
               {t("landing.heroTitleHighlight")}
             </span>{" "}
             <br />
-            {t("landing.heroTitleLine2")}
+            <span className="text-zinc-300">{t("landing.heroTitleLine2")}</span>
           </motion.h1>
 
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.2 }}
+            transition={{ duration: 0.7, delay: 0.3 }}
             className="mx-auto mb-10 max-w-xl text-lg text-zinc-400"
           >
             {t("landing.heroSubtitle")}
@@ -350,7 +476,7 @@ export default function Landing() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.3 }}
+            transition={{ duration: 0.7, delay: 0.4 }}
             className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center"
           >
             <MagneticButton onClick={() => goToRegister()}>
@@ -360,11 +486,12 @@ export default function Landing() {
         </motion.div>
 
         <motion.div
-          animate={{ y: [0, 8, 0] }}
+          animate={prefersReducedMotion ? undefined : { y: [0, 8, 0] }}
           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute bottom-10 left-1/2 -translate-x-1/2"
+          className="absolute bottom-10 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2"
         >
-          <ArrowDown className="h-5 w-5 text-zinc-500" />
+          <span className="text-[11px] uppercase tracking-[0.2em] text-zinc-600">{t("landing.scrollCue")}</span>
+          <ArrowDown className="h-4 w-4 text-zinc-500" />
         </motion.div>
       </div>
 
@@ -375,21 +502,16 @@ export default function Landing() {
             {t("landing.problemTitle")} <span className="text-zinc-400">{t("landing.problemTitleMuted")}</span>
           </h2>
           <p className="mx-auto mb-12 max-w-2xl text-lg text-zinc-400">{t("landing.problemSubtitle")}</p>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {PROBLEM_CHIPS.map((item, i) => (
-              <motion.div
-                key={item}
-                initial={{ opacity: 0, scale: 0.8 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="flex flex-col items-center gap-2 rounded-xl border border-zinc-700/50 bg-zinc-800/50 px-4 py-5"
-              >
-                <div className="h-8 w-8 rounded-lg bg-zinc-700" />
-                <span className="text-sm text-zinc-300">{item}</span>
-              </motion.div>
-            ))}
-          </div>
+          <ChaosCloud sources={KNOWLEDGE_SOURCES} />
+        </div>
+      </Section>
+
+      <Section>
+        <div className="mx-auto max-w-4xl text-center">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-violet-400">{t("landing.transformationEyebrow")}</p>
+          <h2 className="mb-6 text-3xl font-bold md:text-4xl">{t("landing.transformationTitle")}</h2>
+          <p className="mx-auto mb-14 max-w-2xl text-lg text-zinc-400">{t("landing.transformationSubtitle")}</p>
+          <ConnectedGraph sources={KNOWLEDGE_SOURCES} />
         </div>
       </Section>
 
