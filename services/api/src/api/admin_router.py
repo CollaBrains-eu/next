@@ -26,6 +26,7 @@ from api.admin_service import (
     ServiceHealth,
     analyze_all_is_running,
     analyze_bug_report,
+    backfill_residency_detection,
     bulk_delete_bug_reports,
     create_bug_report,
     create_bug_report_from_text,
@@ -436,6 +437,30 @@ async def admin_reprocess_document(
     )
     await publish(EventType.DOCUMENT_REPROCESS_REQUESTED, {"document_id": document_id})
     return DocumentReprocessOut(status="reprocess_queued")
+
+
+class ResidencyBackfillOut(BaseModel):
+    documents_scanned: int
+
+
+@router.post("/documents/backfill-residency", response_model=ResidencyBackfillOut)
+async def admin_backfill_residency(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ResidencyBackfillOut:
+    """Retroactively re-run residency/contract-linking detection (see
+    entity_agent.py's module docstring) over already-classified, `ready`
+    documents. Needed because entity extraction is dispatched ahead of
+    classification for every `EmbeddingsCreated` event, so `category_id` was
+    essentially always still NULL when residency detection's gating check
+    ran -- silently skipping it, with nothing to retry it later, for any
+    document processed before this fix shipped. Full document reprocessing
+    (`/documents/{id}/reprocess`) can't fix these -- it refuses documents
+    already `ready` -- so this targets just the missing residency/contract
+    linking step instead."""
+    _require_admin(current_user)
+    count = await backfill_residency_detection(db)
+    return ResidencyBackfillOut(documents_scanned=count)
 
 
 @router.get("/users", response_model=list[AdminUserOut])

@@ -47,7 +47,7 @@ from api.db import async_session, get_db
 from api.document_classification import classify_and_persist
 from api.document_metafields import extract_and_persist_metafields, is_date_field
 from api.embeddings import embed_text
-from api.entity_agent import extract_entities
+from api.entity_agent import extract_entities, reconcile_residency_for_document
 from api.events import Event, EventType, publish, subscribe
 from api.ics_utils import build_vevent_calendar, format_ics_date, ics_slug
 from api.models import Document, DocumentChunk, User
@@ -308,6 +308,23 @@ async def _handle_extract_metafields(event: Event) -> None:
         await extract_and_persist_metafields(
             db, document_id=document_id, doc_type=doc_type, text=document.ocr_text, user_id=document.owner_id
         )
+
+
+@subscribe(EventType.DOCUMENT_CLASSIFIED)
+async def _handle_reconcile_residency(event: Event) -> None:
+    """`_handle_extract_entities` above is registered before
+    `_handle_classify_document`, so it normally runs before `category_id` is
+    set -- and classification can also fail/retry on its own under Ollama
+    load. Either way, residency detection (which is gated on `category_id`)
+    can be silently skipped during the first pass. Catch up here, once
+    classification has actually succeeded, using whatever address entities
+    extraction already found for this document -- see the ordering note in
+    entity_agent.py's module docstring."""
+    if not settings.auto_extract_entities_on_ready:
+        return
+    document_id = event.payload["document_id"]
+    async with async_session() as db:
+        await reconcile_residency_for_document(db, document_id=document_id)
 
 
 @subscribe(EventType.EMBEDDINGS_CREATED)
