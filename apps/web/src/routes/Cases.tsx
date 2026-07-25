@@ -244,9 +244,9 @@ export default function Cases() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold text-ink">{t("cases.title")}</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {cases.length > 0 && (
             <div className="flex gap-1 border-r border-edge pr-2">
               {(["cards", "table"] as ViewMode[]).map((mode) => (
