@@ -24,10 +24,21 @@ function isoDate(offsetDays: number): string {
   return new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
 }
 
+// relativeDueLabel (lib/taskUrgency.ts) only shows the raw date once a task
+// is more than 7 days out -- anything closer renders as "Due in N days"
+// instead, so this fixture must stay offset from "today" rather than a
+// fixed calendar date that eventually drifts inside that window.
+const FAR_FUTURE_DUE_DATE = isoDate(30);
+
+function euDate(iso: string): string {
+  const [year, month, day] = iso.split("-");
+  return `${day}/${month}/${year}`;
+}
+
 const OPEN_TASKS: api.TaskOut[] = [
   {
     id: "t1", document_id: "d1", title: "Review lease", description: "Check termination clause",
-    due_date: "2026-08-01", assignee: "Ada", status: "open", position: 0, source: "manual",
+    due_date: FAR_FUTURE_DUE_DATE, assignee: "Ada", status: "open", position: 0, source: "manual",
     created_at: "2026-01-01T00:00:00Z", recurrence_rule: null, category: null,
   },
 ];
@@ -56,7 +67,7 @@ describe("Tasks", () => {
     renderPage();
     expect(await screen.findByText("Review lease")).toBeInTheDocument();
     expect(screen.getByText("Check termination clause")).toBeInTheDocument();
-    expect(screen.getByText("Due 01/08/2026")).toBeInTheDocument();
+    expect(screen.getByText(`Due ${euDate(FAR_FUTURE_DUE_DATE)}`)).toBeInTheDocument();
     expect(screen.getByText("Assignee: Ada")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Source document" })).toHaveAttribute("href", "/documents/d1");
   });

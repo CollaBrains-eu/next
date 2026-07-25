@@ -553,6 +553,107 @@ async def test_deactivate_refuses_service_account(client):
     assert response.status_code == 403
 
 
+async def test_hard_delete_requires_admin_role(client):
+    token = await _login(client, _unique("harddeletemember"))
+    response = await client.delete(
+        f"/admin/users/{uuid4()}/permanent", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 403
+
+
+async def test_hard_delete_unknown_user_returns_404(client):
+    admin_token = await _login(client, _unique("harddelete404admin"), is_admin=True)
+    response = await client.delete(
+        f"/admin/users/{uuid4()}/permanent", headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    assert response.status_code == 404
+
+
+async def test_hard_delete_refuses_self_delete(client):
+    admin_username = _unique("harddeleteself")
+    admin_token = await _login(client, admin_username, is_admin=True)
+
+    users = (await client.get(
+        "/admin/users", headers={"Authorization": f"Bearer {admin_token}"}, params={"limit": 200}
+    )).json()
+    self_row = next(u for u in users if u["username"] == admin_username)
+
+    response = await client.delete(
+        f"/admin/users/{self_row['id']}/permanent", headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    assert response.status_code == 403
+
+
+async def test_hard_delete_refuses_service_account(client):
+    admin_token = await _login(client, _unique("harddeletesvcadmin"), is_admin=True)
+    users = (await client.get(
+        "/admin/users", headers={"Authorization": f"Bearer {admin_token}"}, params={"limit": 200}
+    )).json()
+    service_user = next((u for u in users if u["role"] == "service"), None)
+    if service_user is None:
+        return
+    response = await client.delete(
+        f"/admin/users/{service_user['id']}/permanent", headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    assert response.status_code == 403
+
+
+async def test_hard_delete_removes_ldap_and_postgres_row_and_personal_data(client):
+    from sqlalchemy import select
+
+    from api.db import async_session
+    from api.models import AiCallLog, User
+
+    username = _unique("harddeleteuser")
+    await _login(client, username)
+    admin_token = await _login(client, _unique("harddeleteadmin"), is_admin=True)
+
+    async with async_session() as db:
+        target = (await db.execute(select(User).where(User.username == username))).scalar_one()
+        target_id = target.id
+        db.add(AiCallLog(user_id=target_id, endpoint="chat", model="test-model", duration_ms=10))
+        await db.commit()
+
+    with patch("api.admin_router.ldap_delete_user") as mock_delete:
+        response = await client.delete(
+            f"/admin/users/{target_id}/permanent", headers={"Authorization": f"Bearer {admin_token}"}
+        )
+    assert response.status_code == 204
+    mock_delete.assert_called_once_with(username=username)
+
+    async with async_session() as db:
+        assert await db.get(User, target_id) is None
+        remaining_logs = (await db.execute(select(AiCallLog).where(AiCallLog.user_id == target_id))).scalars().all()
+        assert remaining_logs == []
+
+
+async def test_hard_delete_blocked_when_user_still_owns_documents(client):
+    from sqlalchemy import select
+
+    from api.db import async_session
+    from api.models import Document, User
+
+    username = _unique("harddeleteblocked")
+    await _login(client, username)
+    admin_token = await _login(client, _unique("harddeleteblockedadmin"), is_admin=True)
+
+    async with async_session() as db:
+        target = (await db.execute(select(User).where(User.username == username))).scalar_one()
+        target_id = target.id
+        db.add(Document(owner_id=target_id, title="t", filename="t.pdf", mime_type="application/pdf", status="ready"))
+        await db.commit()
+
+    with patch("api.admin_router.ldap_delete_user") as mock_delete:
+        response = await client.delete(
+            f"/admin/users/{target_id}/permanent", headers={"Authorization": f"Bearer {admin_token}"}
+        )
+    assert response.status_code == 409
+    mock_delete.assert_not_called()
+
+    async with async_session() as db:
+        assert await db.get(User, target_id) is not None
+
+
 async def test_set_phone_requires_admin_role(client):
     token = await _login(client, _unique("setphonemember"), is_admin=False)
     response = await client.put(

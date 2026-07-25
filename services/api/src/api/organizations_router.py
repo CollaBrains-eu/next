@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth import EMAIL_PATTERN, get_current_user
+from api.billing_service import get_seat_limit
 from api.db import get_db
 from api.invitation_service import (
     create_invitation,
@@ -157,6 +158,16 @@ async def invite_organization_member(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This person is already a member")
 
     existing = await get_pending_invitation_for_email(db, organization_id=organization.id, email=email)
+    seat_limit = await get_seat_limit(db, organization_id=organization.id)
+    if seat_limit is not None and existing is None:
+        members = await list_organization_members(db, organization.id)
+        pending = await list_pending_invitations(db, organization_id=organization.id)
+        if len(members) + len(pending) >= seat_limit:
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail=f"Your plan allows up to {seat_limit} user(s). Upgrade to invite more teammates.",
+            )
+
     invitation = (
         await refresh_invitation(db, invitation=existing)
         if existing is not None

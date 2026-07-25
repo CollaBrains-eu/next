@@ -110,6 +110,63 @@ async def test_org_owner_without_platform_admin_can_send_invitation(client, monk
             await db.commit()
 
 
+async def test_starter_plan_blocks_invites_past_one_seat(client, monkeypatch):
+    """Landing page copy (planStarterFeature3) promises Starter = 1 user --
+    the org owner alone already fills that seat, so any invite while on an
+    active Starter subscription must be blocked until they upgrade."""
+    monkeypatch.setattr(settings, "smtp_host", "")
+    from api.models import Subscription
+
+    admin_username = _unique("inviteseatstarter")
+    admin_token = await _login(client, admin_username, is_admin=True)
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    org_id = await _move_to_new_org(admin_username)
+
+    async with async_session() as db:
+        db.add(Subscription(organization_id=org_id, plan="starter", status="active"))
+        await db.commit()
+
+    response = await client.post(
+        "/organizations/me/invitations", headers=headers, json={"email": f"{_unique('blocked')}@example.com"}
+    )
+    assert response.status_code == 402
+
+
+async def test_pro_plan_has_no_seat_limit(client, monkeypatch):
+    monkeypatch.setattr(settings, "smtp_host", "")
+    from api.models import Subscription
+
+    admin_username = _unique("inviteseatpro")
+    admin_token = await _login(client, admin_username, is_admin=True)
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    org_id = await _move_to_new_org(admin_username)
+
+    async with async_session() as db:
+        db.add(Subscription(organization_id=org_id, plan="pro", status="active"))
+        await db.commit()
+
+    response = await client.post(
+        "/organizations/me/invitations", headers=headers, json={"email": f"{_unique('unblocked')}@example.com"}
+    )
+    assert response.status_code == 201
+
+
+async def test_org_without_active_subscription_has_no_seat_limit(client, monkeypatch):
+    """No Subscription row at all (never subscribed) must stay unrestricted
+    -- the cap is a consequence of being on a paid plan, not a default
+    ceiling applied before an org has chosen one."""
+    monkeypatch.setattr(settings, "smtp_host", "")
+    admin_username = _unique("inviteseatnone")
+    admin_token = await _login(client, admin_username, is_admin=True)
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    await _move_to_new_org(admin_username)
+
+    response = await client.post(
+        "/organizations/me/invitations", headers=headers, json={"email": f"{_unique('unrestricted')}@example.com"}
+    )
+    assert response.status_code == 201
+
+
 async def test_invite_rejects_invalid_email(client, monkeypatch):
     monkeypatch.setattr(settings, "smtp_host", "")
     token = await _login(client, _unique("inviteadminbademail"), is_admin=True)

@@ -13,7 +13,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -54,7 +54,17 @@ from api.ldap_auth import LdapAdminError
 from api.ldap_auth import create_user as ldap_create_user
 from api.ldap_auth import delete_user as ldap_delete_user
 from api.ldap_auth import set_password as ldap_set_password
-from api.models import BugReport, Document, PendingUserPhoneNumber, User
+from api.models import (
+    AiCallLog,
+    AnswerFeedback,
+    BugReport,
+    Document,
+    Invitation,
+    PendingUserPhoneNumber,
+    ReflectionLog,
+    User,
+    UserFact,
+)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -583,6 +593,65 @@ async def admin_deactivate_user(
 
     user.is_active = False
     await db.commit()
+
+
+@router.delete("/users/{user_id}/permanent", status_code=status.HTTP_204_NO_CONTENT)
+async def admin_hard_delete_user(
+    user_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """Permanently remove a user -- their personal data (AI call log,
+    reflection log, answer feedback, extracted facts) and any invitations
+    they sent, then the Postgres row itself. Irreversible, unlike
+    /users/{id} (deactivate), which keeps everything and just blocks login.
+
+    Business records the user still owns (documents, cases, decisions,
+    tasks, ...) are left untouched: those tables have no ON DELETE CASCADE
+    to `users`, so the final delete fails with an IntegrityError rather
+    than silently destroying content other people may depend on -- caught
+    below and turned into a 409 telling the admin to reassign/remove that
+    content first, or fall back to Deactivate.
+
+    The DB delete is attempted before touching LDAP (not after, the way
+    /users/{id} orders it) precisely so a 409 here never leaves an LDAP
+    account deleted out from under a Postgres row we failed to remove.
+    """
+    _require_admin(current_user)
+    if user_id == current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You cannot delete your own account")
+    user = await db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if user.role == "service":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Service accounts cannot be modified")
+
+    for model, column in (
+        (AiCallLog, AiCallLog.user_id),
+        (ReflectionLog, ReflectionLog.user_id),
+        (AnswerFeedback, AnswerFeedback.user_id),
+        (UserFact, UserFact.user_id),
+        (Invitation, Invitation.invited_by_user_id),
+    ):
+        await db.execute(delete(model).where(column == user_id))
+    await db.delete(user)
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Cannot permanently delete: this user still owns content (documents, cases, tasks, or other "
+                "records). Reassign or remove it first, or use Deactivate instead."
+            ),
+        )
+
+    try:
+        ldap_delete_user(username=user.username)
+    except LdapAdminError as exc:
+        if "does not exist" not in str(exc).lower():
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
 
 class AdminUserPhoneUpdate(BaseModel):
