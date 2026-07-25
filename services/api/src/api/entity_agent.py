@@ -8,6 +8,21 @@ Address entities (docs/superpowers/plans/2026-07-11-entity-address-history.md)
 extend this with a second dedup path (structured-field normalization instead
 of name matching) and a side effect: extracting an address from a document
 in `RESIDENCE_CATEGORY_SLUGS` updates the owning user's `Residency` timeline.
+
+`category_slug` gating: `extract_entities` reads `Document.category_id` at
+call time, but entity extraction and classification are independent
+subscribers to the same `EmbeddingsCreated` event (see documents.py) --
+extraction is registered first, so it normally runs *before* classification
+sets `category_id`, and classification can also fail transiently on its own
+(Ollama instability under concurrent load). Either way `category_slug` is
+often `None` when `extract_entities` runs, which trivially fails the
+`RESIDENCE_CATEGORY_SLUGS` check and silently skips residency detection --
+with nothing to retry it later. `reconcile_residency_for_document` below is
+the catch-up path: called once classification succeeds (`DocumentClassified`
+handler in documents.py, or the admin backfill in admin_service.py), it
+re-runs the same residency/contract-linking logic against whatever address
+entities were already extracted for the document, so a late or retried
+classification still results in eventually-consistent residency data.
 """
 import json
 import logging
@@ -450,6 +465,81 @@ async def _maybe_link_contract(db: AsyncSession, *, document_id: UUID, user_id: 
         document.residency_id = residency.id
 
 
+async def _apply_residency_effects(
+    db: AsyncSession,
+    *,
+    document_id: UUID,
+    user_id: UUID,
+    category_slug: str | None,
+    address_entity_ids: list[UUID],
+) -> None:
+    """Run residency detection + contract linking for a document, given its
+    category (which may only just have become known) and whatever address
+    entities are known to be mentioned in it.
+
+    Shared by `extract_entities` (fast path: category already known at
+    extraction time) and `reconcile_residency_for_document` (catch-up path:
+    category becomes known later). Both `_update_residency` and
+    `_maybe_link_contract` are idempotent, so calling this more than once
+    for the same document is safe.
+    """
+    if address_entity_ids:
+        if category_slug in RESIDENCE_CATEGORY_SLUGS:
+            # Ambiguous which address is the user's own if several were found
+            # (e.g. landlord + property on one rental contract) -- take the
+            # first, still `pending_review` so a human can correct it.
+            await _update_residency(db, user_id=user_id, address_entity_id=address_entity_ids[0], document_id=document_id)
+        else:
+            logger.info(
+                "entity_agent: address extracted from document %s (category=%r) did not "
+                "trigger residency detection -- category not in RESIDENCE_CATEGORY_SLUGS",
+                document_id, category_slug,
+            )
+
+    await _maybe_link_contract(db, document_id=document_id, user_id=user_id, category_slug=category_slug)
+
+
+async def reconcile_residency_for_document(db: AsyncSession, *, document_id: UUID) -> None:
+    """Catch-up path for the classification/extraction ordering gap described
+    in the module docstring: re-evaluate residency detection + contract
+    linking for `document_id` using its *current* `category_id` and whatever
+    address entities were already extracted for it.
+
+    No-ops if the document still has no `category_id` (classification hasn't
+    succeeded yet -- nothing to reconcile). Safe to call repeatedly for the
+    same document (see `_apply_residency_effects`), so this can be wired to
+    fire every time classification completes and also driven by an on-demand
+    backfill over already-processed documents.
+    """
+    result = await db.execute(
+        select(Document.owner_id, Category.slug)
+        .join(Category, Document.category_id == Category.id)
+        .where(Document.id == document_id)
+    )
+    row = result.one_or_none()
+    if row is None:
+        return
+    owner_id, category_slug = row
+
+    address_result = await db.execute(
+        select(Entity.id)
+        .join(EntityMention, EntityMention.entity_id == Entity.id)
+        .where(
+            EntityMention.document_id == document_id,
+            Entity.entity_type == "address",
+            Entity.owner_id == owner_id,
+            Entity.status != "rejected",
+        )
+        .order_by(EntityMention.created_at)
+    )
+    address_entity_ids = list(address_result.scalars().all())
+
+    await _apply_residency_effects(
+        db, document_id=document_id, user_id=owner_id, category_slug=category_slug, address_entity_ids=address_entity_ids
+    )
+    await db.commit()
+
+
 async def extract_entities(db: AsyncSession, *, document_id: UUID, text: str, user_id: UUID) -> list[Entity]:
     """Extract entities/relationships from `text` via the AI Gateway and persist them."""
     prompt = EXTRACTION_PROMPT.format(text=text[:8000])
@@ -516,20 +606,9 @@ async def extract_entities(db: AsyncSession, *, document_id: UUID, text: str, us
         db, address_entity_ids=address_entity_ids, persisted=persisted, user_id=user_id
     )
 
-    if address_entity_ids:
-        if category_slug in RESIDENCE_CATEGORY_SLUGS:
-            # Ambiguous which address is the user's own if several were found
-            # (e.g. landlord + property on one rental contract) -- take the
-            # first, still `pending_review` so a human can correct it.
-            await _update_residency(db, user_id=user_id, address_entity_id=address_entity_ids[0], document_id=document_id)
-        else:
-            logger.info(
-                "entity_agent: address extracted from document %s (category=%r) did not "
-                "trigger residency detection -- category not in RESIDENCE_CATEGORY_SLUGS",
-                document_id, category_slug,
-            )
-
-    await _maybe_link_contract(db, document_id=document_id, user_id=user_id, category_slug=category_slug)
+    await _apply_residency_effects(
+        db, document_id=document_id, user_id=user_id, category_slug=category_slug, address_entity_ids=address_entity_ids
+    )
 
     for rel in raw_relationships:
         if not isinstance(rel, dict) or not rel.get("source") or not rel.get("target") or not rel.get("type"):

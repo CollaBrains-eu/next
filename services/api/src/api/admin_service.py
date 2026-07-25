@@ -19,7 +19,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.ai_gateway import chat_completion
 from api.config import settings
 from api.db import async_session
-from api.models import AiCallLog, AnswerFeedback, BugReport, Document, User
+from api.entity_agent import (
+    CONTRACT_CATEGORY_SLUGS,
+    RESIDENCE_CATEGORY_SLUGS,
+    reconcile_residency_for_document,
+)
+from api.models import AiCallLog, AnswerFeedback, BugReport, Category, Document, User
 
 ANALYSIS_PROMPT = (
     "You are triaging a bug report for an AI workspace platform. Given the report below, "
@@ -92,6 +97,34 @@ async def get_admin_stats(db: AsyncSession) -> AdminStats:
         documents_by_status=documents_by_status,
         ai_calls_last_24h=ai_calls_last_24h,
     )
+
+
+async def backfill_residency_detection(db: AsyncSession) -> int:
+    """On-demand reconciliation for documents processed before the
+    classification/extraction ordering gap in entity_agent.py was fixed --
+    `_handle_extract_entities` is registered ahead of `_handle_classify_document`
+    in documents.py, so entity extraction has always run before `category_id`
+    was set (worsened by transient Ollama classification failures on top),
+    silently skipping residency detection for essentially every document with
+    no way to retry it after the fact.
+
+    Finds every successfully-classified, `ready` document whose category
+    could plausibly carry residency/contract-linking data and re-runs
+    `reconcile_residency_for_document` against it. No LLM calls, and both
+    effects it can trigger are idempotent (see entity_agent.py), so this is
+    cheap and safe to run more than once rather than trying to precisely
+    detect which documents are actually missing data.
+    """
+    target_slugs = RESIDENCE_CATEGORY_SLUGS | CONTRACT_CATEGORY_SLUGS
+    result = await db.execute(
+        select(Document.id)
+        .join(Category, Document.category_id == Category.id)
+        .where(Document.status == "ready", Category.slug.in_(target_slugs))
+    )
+    document_ids = list(result.scalars().all())
+    for document_id in document_ids:
+        await reconcile_residency_for_document(db, document_id=document_id)
+    return len(document_ids)
 
 
 async def get_ai_usage_report(
