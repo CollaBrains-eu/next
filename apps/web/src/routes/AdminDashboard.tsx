@@ -21,6 +21,7 @@ import {
   resetUserPassword,
   resendWelcome,
   deactivateUser,
+  hardDeleteUser,
   type AdminStatsOut,
   type AdminUserOut,
   type AiUsageRowOut,
@@ -377,6 +378,9 @@ function UsersTab() {
   const [deactivateTarget, setDeactivateTarget] = useState<AdminUserOut | null>(null);
   const [deactivating, setDeactivating] = useState(false);
   const [deactivateError, setDeactivateError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AdminUserOut | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
 
   async function loadUsers(offset: number) {
@@ -490,6 +494,21 @@ function UsersTab() {
     }
   }
 
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await hardDeleteUser(deleteTarget.id);
+      setUsers((prev) => prev.filter((u) => u.id !== deleteTarget.id));
+      setDeleteTarget(null);
+    } catch (err) {
+      setDeleteError(err instanceof ApiError ? err.message : t("admin.deleteError"));
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   const columns: Column<AdminUserOut>[] = [
     { key: "username", header: t("admin.usernameLabel"), render: (row) => row.username },
     { key: "display_name", header: t("admin.displayNameLabel"), render: (row) => row.display_name },
@@ -514,34 +533,41 @@ function UsersTab() {
       key: "actions",
       header: "",
       render: (row) => {
-        if (row.role === "service" || !row.is_active) return null;
-        const options: DropdownOption[] = [
-          {
-            label: row.role === "admin" ? t("admin.makeMember") : t("admin.makeAdmin"),
-            onSelect: () => handleRoleChange(row, row.role === "admin" ? "member" : "admin"),
-          },
-          {
-            label: t("admin.setPhone"),
-            onSelect: () => {
-              setPhoneModalUser(row);
-              setPhoneInput(row.phone_number ?? "");
-              setPhoneError(null);
-            },
-          },
-          {
-            label: t("admin.resetPassword"),
-            onSelect: () => handleResetPassword(row),
-          },
-          {
-            label: t("admin.resendWelcome"),
-            onSelect: () => handleResendWelcome(row),
-          },
-          {
-            label: t("admin.deactivate"),
-            danger: true,
-            onSelect: () => setDeactivateTarget(row),
-          },
-        ];
+        if (row.role === "service") return null;
+        const options: DropdownOption[] = row.is_active
+          ? [
+              {
+                label: row.role === "admin" ? t("admin.makeMember") : t("admin.makeAdmin"),
+                onSelect: () => handleRoleChange(row, row.role === "admin" ? "member" : "admin"),
+              },
+              {
+                label: t("admin.setPhone"),
+                onSelect: () => {
+                  setPhoneModalUser(row);
+                  setPhoneInput(row.phone_number ?? "");
+                  setPhoneError(null);
+                },
+              },
+              {
+                label: t("admin.resetPassword"),
+                onSelect: () => handleResetPassword(row),
+              },
+              {
+                label: t("admin.resendWelcome"),
+                onSelect: () => handleResendWelcome(row),
+              },
+              {
+                label: t("admin.deactivate"),
+                danger: true,
+                onSelect: () => setDeactivateTarget(row),
+              },
+            ]
+          : [];
+        options.push({
+          label: t("admin.deletePermanently"),
+          danger: true,
+          onSelect: () => setDeleteTarget(row),
+        });
         return (
           <Dropdown
             trigger={
@@ -664,6 +690,38 @@ function UsersTab() {
             </Button>
             <Button type="button" variant="danger" size="sm" disabled={deactivating} onClick={handleDeactivate}>
               {t("admin.deactivate")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={deleteTarget !== null}
+        onClose={() => {
+          setDeleteTarget(null);
+          setDeleteError(null);
+        }}
+        title={t("admin.deleteConfirmTitle")}
+      >
+        <div className="flex flex-col gap-3">
+          {deleteError && <p className="text-sm text-danger">{deleteError}</p>}
+          <p className="text-sm text-ink">
+            {deleteTarget && t("admin.deleteConfirmBody", { displayName: deleteTarget.display_name })}
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setDeleteTarget(null);
+                setDeleteError(null);
+              }}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button type="button" variant="danger" size="sm" disabled={deleting} onClick={handleDelete}>
+              {t("admin.deletePermanently")}
             </Button>
           </div>
         </div>

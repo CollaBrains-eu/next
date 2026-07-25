@@ -17,6 +17,7 @@ vi.mock("../lib/api", async () => {
     resetUserPassword: vi.fn(),
     resendWelcome: vi.fn(),
     deactivateUser: vi.fn(),
+    hardDeleteUser: vi.fn(),
     setUserPhone: vi.fn(),
     listAdminUsers: vi.fn(),
   };
@@ -481,6 +482,78 @@ describe("AdminDashboard Users tab", () => {
 
     await screen.findByText("signal-bot");
     expect(screen.queryByRole("button", { name: "Actions" })).not.toBeInTheDocument();
+  });
+
+  it("permanently deletes a user via the row action menu after confirming", async () => {
+    vi.mocked(api.getAdminStats).mockResolvedValue({
+      total_users: 0, total_documents: 0, documents_by_status: {}, ai_calls_last_24h: 0,
+    });
+    vi.mocked(api.listAdminUsers).mockResolvedValue([
+      {
+        id: "u1", username: "bob", display_name: "Bob", email: "bob@collabrains.eu",
+        role: "member", phone_number: null, created_at: "2026-01-01T00:00:00Z", last_login_at: null,
+        is_active: true,
+      },
+    ]);
+    vi.mocked(api.hardDeleteUser).mockResolvedValue(undefined);
+    render(<AdminDashboard />);
+    fireEvent.click(screen.getByRole("tab", { name: "Users" }));
+
+    await screen.findByText("bob");
+    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete permanently" }));
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Delete permanently" }));
+
+    await waitFor(() => expect(api.hardDeleteUser).toHaveBeenCalledWith("u1"));
+    await waitFor(() => expect(screen.queryByText("bob")).not.toBeInTheDocument());
+  });
+
+  it("shows an inline error inside the dialog when permanent deletion is blocked by owned content", async () => {
+    vi.mocked(api.getAdminStats).mockResolvedValue({
+      total_users: 0, total_documents: 0, documents_by_status: {}, ai_calls_last_24h: 0,
+    });
+    vi.mocked(api.listAdminUsers).mockResolvedValue([
+      {
+        id: "u1", username: "bob", display_name: "Bob", email: "bob@collabrains.eu",
+        role: "member", phone_number: null, created_at: "2026-01-01T00:00:00Z", last_login_at: null,
+        is_active: true,
+      },
+    ]);
+    vi.mocked(api.hardDeleteUser).mockRejectedValue(
+      new api.ApiError(409, "Cannot permanently delete: this user still owns content")
+    );
+    render(<AdminDashboard />);
+    fireEvent.click(screen.getByRole("tab", { name: "Users" }));
+
+    await screen.findByText("bob");
+    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete permanently" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete permanently" }));
+
+    expect(await screen.findByText("Cannot permanently delete: this user still owns content")).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("still offers delete-permanently for an already-deactivated user", async () => {
+    vi.mocked(api.getAdminStats).mockResolvedValue({
+      total_users: 0, total_documents: 0, documents_by_status: {}, ai_calls_last_24h: 0,
+    });
+    vi.mocked(api.listAdminUsers).mockResolvedValue([
+      {
+        id: "u1", username: "bob", display_name: "Bob", email: "bob@collabrains.eu",
+        role: "member", phone_number: null, created_at: "2026-01-01T00:00:00Z", last_login_at: null,
+        is_active: false,
+      },
+    ]);
+    render(<AdminDashboard />);
+    fireEvent.click(screen.getByRole("tab", { name: "Users" }));
+
+    await screen.findByText("bob");
+    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+    expect(screen.getByRole("menuitem", { name: "Delete permanently" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Deactivate" })).not.toBeInTheDocument();
   });
 
 });

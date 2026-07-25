@@ -1091,6 +1091,10 @@ export function deactivateUser(userId: string): Promise<void> {
   return request<void>(`/admin/users/${userId}`, { method: "DELETE" });
 }
 
+export function hardDeleteUser(userId: string): Promise<void> {
+  return request<void>(`/admin/users/${userId}/permanent`, { method: "DELETE" });
+}
+
 export function setUserPhone(userId: string, phoneNumber: string | null): Promise<AdminUserOut> {
   return request<AdminUserOut>(`/admin/users/${userId}/phone`, {
     method: "PUT",

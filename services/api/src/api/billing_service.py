@@ -21,7 +21,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.config import settings
 from api.email_client import send_email
-from api.models import Organization, Subscription, User
+from api.models import DEFAULT_ORGANIZATION_ID, Organization, Subscription, User
+
+# Seat caps per plan (landing page copy, apps/web/src/locales/*.json's
+# planStarterFeature3/planProFeature*): Starter promises "1 user", Pro
+# promises no user-count limit at all ("unlimited documents", no seat
+# claim) -- None means unlimited, matching that copy literally rather than
+# inventing a number the pricing page never advertised.
+SEAT_LIMITS: dict[str, int | None] = {"starter": 1, "pro": None}
 
 
 class BillingNotConfigured(Exception):
@@ -63,6 +70,25 @@ async def get_or_create_subscription_row(db: AsyncSession, *, organization_id: U
 async def _get_subscription_row_by_customer_id(db: AsyncSession, *, customer_id: str) -> Subscription | None:
     result = await db.execute(select(Subscription).where(Subscription.stripe_customer_id == customer_id))
     return result.scalar_one_or_none()
+
+
+async def get_seat_limit(db: AsyncSession, *, organization_id: UUID) -> int | None:
+    """The max org member count (existing members + pending invitations)
+    this organization's subscription allows, or None for unrestricted.
+
+    Unrestricted for DEFAULT_ORGANIZATION_ID (the pre-Phase-14 grandfathered
+    org, ADR 0029 -- predates billing entirely) and for any org with no
+    subscription row, or one that isn't currently active/trialing: seat
+    limits are a consequence of actually being on a paid plan, not a
+    default cap applied before an org has chosen one.
+    """
+    if organization_id == DEFAULT_ORGANIZATION_ID:
+        return None
+    result = await db.execute(select(Subscription).where(Subscription.organization_id == organization_id))
+    subscription = result.scalar_one_or_none()
+    if subscription is None or subscription.status not in ("active", "trialing"):
+        return None
+    return SEAT_LIMITS.get(subscription.plan or "")
 
 
 async def _get_or_create_stripe_customer(db: AsyncSession, *, organization: Organization) -> str:
