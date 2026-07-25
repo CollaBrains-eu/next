@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { ApiError, checkInvitation, registerAccount } from "../lib/api";
+import { markOnboardingPending } from "../lib/onboardingFlag";
 import { BrandMark } from "../components/BrandMark";
 import { Button } from "../components/ui/Button";
 import { TextField } from "../components/ui/form";
@@ -50,6 +51,11 @@ export default function Register() {
         organizationName: invitationToken ? undefined : organizationName || undefined,
         invitationToken: invitationToken ?? undefined,
       });
+      // A brand-new self-service account (not someone joining via an
+      // existing org's invitation) gets the guided workspace-setup wizard
+      // the first time it lands authenticated -- see Onboard.tsx and
+      // App.tsx's RootRoute.
+      if (!invitationToken) markOnboardingPending();
       setEmailSent(result.email_sent);
       setSubmitted(true);
     } catch (err) {
