@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router";
+import { AnimatePresence, motion } from "framer-motion";
 import { AuthProvider, ProtectedRoute, useAuth } from "./lib/auth";
 import { AdminRoute } from "./components/AdminRoute";
 import { ToastProvider } from "./lib/toast";
@@ -8,6 +9,7 @@ import { CommandCenter } from "./components/CommandCenter";
 import { CommandCenterStateProvider } from "./lib/commandCenter";
 import { PhonePromptModal } from "./components/PhonePromptModal";
 import { trackPageview } from "./lib/analytics";
+import { clearOnboardingPending, needsOnboarding } from "./lib/onboardingFlag";
 import Layout from "./components/Layout";
 import Landing from "./routes/Landing";
 import Login from "./routes/Login";
@@ -66,11 +68,45 @@ function RouteChangeLoadingBar() {
 
 function RootRoute() {
   const { user, loading } = useAuth();
+  // A freshly self-registered account (Register.tsx set this flag right
+  // before email verification -- see lib/onboardingFlag.ts) sees the guided
+  // workspace-setup wizard exactly once here, in place of the dashboard, the
+  // first time it lands authenticated at "/". Re-checked on every render so
+  // clearing the flag on completion immediately reveals the real dashboard
+  // with the crossfade below, instead of a second navigation.
+  const [showOnboarding, setShowOnboarding] = useState(() => needsOnboarding());
+
   if (loading) return null;
   if (!user) return <Landing />;
+
+  // Rendered outside Layout (no sidebar/navbar chrome) while the wizard is
+  // showing -- same standalone, full-screen treatment the token-claim variant
+  // of this component already gets. Layout (and its sidebar/navbar) only
+  // wraps the real dashboard.
+  if (showOnboarding) {
+    return (
+      <AnimatePresence mode="wait">
+        <motion.div key="onboard" exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
+          <Onboard
+            onComplete={() => {
+              clearOnboardingPending();
+              setShowOnboarding(false);
+            }}
+          />
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
+
   return (
     <Layout>
-      <Dashboard />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+      >
+        <Dashboard />
+      </motion.div>
     </Layout>
   );
 }
