@@ -287,6 +287,150 @@ function ConnectedGraph({ sources }: { sources: KnowledgeSource[] }) {
   );
 }
 
+// A stylized, abstract preview of the real product (not a literal screenshot)
+// -- a "window" with a mini nav rail, a couple of document rows, and two
+// floating status badges that idle-float independently, plus a subtle
+// pointer-driven 3D tilt on the whole card for the "real product" depth cue
+// from the brief.
+function WorkspacePreview({ navItems }: { navItems: { icon: typeof FileText; label: string }[] }) {
+  const prefersReducedMotion = useReducedMotion();
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [tilt, setTilt] = useState({ rx: 0, ry: 0 });
+
+  function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+    if (prefersReducedMotion) return;
+    const rect = cardRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const px = (e.clientX - rect.left) / rect.width - 0.5;
+    const py = (e.clientY - rect.top) / rect.height - 0.5;
+    setTilt({ rx: py * -6, ry: px * 8 });
+  }
+
+  return (
+    <div className="relative mx-auto max-w-3xl" style={{ perspective: 1200 }}>
+      <motion.div
+        animate={prefersReducedMotion ? undefined : { y: [0, -6, 0] }}
+        transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute -top-5 right-4 z-20 flex items-center gap-2 rounded-full border border-violet-400/40 bg-zinc-900/90 px-3 py-2 text-xs text-violet-200 shadow-lg shadow-violet-900/30 backdrop-blur sm:-right-6"
+      >
+        <Sparkles className="h-3.5 w-3.5 text-violet-400" />
+        {navItems.length > 0 ? navItems[0].label : null}
+      </motion.div>
+
+      <motion.div
+        ref={cardRef}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={() => setTilt({ rx: 0, ry: 0 })}
+        animate={{ rotateX: tilt.rx, rotateY: tilt.ry }}
+        transition={{ type: "spring", stiffness: 120, damping: 14 }}
+        style={{ transformStyle: "preserve-3d" }}
+        className="overflow-hidden rounded-2xl border border-zinc-700/70 bg-zinc-900/90 shadow-2xl shadow-black/40 backdrop-blur"
+      >
+        <div className="flex items-center gap-1.5 border-b border-zinc-800 px-4 py-3">
+          <span className="h-2.5 w-2.5 rounded-full bg-zinc-700" />
+          <span className="h-2.5 w-2.5 rounded-full bg-zinc-700" />
+          <span className="h-2.5 w-2.5 rounded-full bg-zinc-700" />
+        </div>
+        <div className="flex">
+          <div className="flex w-14 flex-col items-center gap-4 border-r border-zinc-800 py-5 sm:w-16">
+            {navItems.map(({ icon: Icon }, i) => (
+              <div
+                key={i}
+                className={`flex h-8 w-8 items-center justify-center rounded-lg ${i === 0 ? "bg-violet-600/30 text-violet-300" : "text-zinc-600"}`}
+              >
+                <Icon className="h-4 w-4" />
+              </div>
+            ))}
+          </div>
+          <div className="flex-1 space-y-2.5 p-5">
+            {[80, 60, 70].map((w, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, x: -12 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.15 * i, duration: 0.4 }}
+                className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-800/40 px-3 py-2.5"
+              >
+                <FileText className="h-4 w-4 flex-shrink-0 text-zinc-500" />
+                <span className="h-2 rounded-full bg-zinc-700" style={{ width: `${w}%` }} />
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </motion.div>
+
+      <motion.div
+        animate={prefersReducedMotion ? undefined : { y: [0, 7, 0] }}
+        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+        className="absolute -bottom-5 left-4 z-20 flex items-center gap-2 rounded-full border border-emerald-400/30 bg-zinc-900/90 px-3 py-2 text-xs text-emerald-300 shadow-lg shadow-black/30 backdrop-blur sm:-left-6"
+      >
+        <Check className="h-3.5 w-3.5" />
+        {navItems.length > 1 ? navItems[1].label : null}
+      </motion.div>
+    </div>
+  );
+}
+
+// Three-dot "typing" indicator shown briefly before the assistant's reply --
+// the beat the brief asks for ("questions becoming insights") needs to feel
+// like it's actually thinking, not just fading text in.
+function TypingDots() {
+  return (
+    <div className="mb-3 flex justify-start">
+      <div className="flex items-center gap-1 rounded-2xl rounded-bl-sm bg-zinc-700 px-4 py-3">
+        {[0, 1, 2].map((i) => (
+          <motion.span
+            key={i}
+            animate={{ opacity: [0.3, 1, 0.3] }}
+            transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.15 }}
+            className="h-1.5 w-1.5 rounded-full bg-zinc-400"
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Overlapping "team" avatars with a dotted line flowing toward a central
+// document/brain icon -- the future-workflow beat's "knowledge flows to the
+// team automatically" idea, kept abstract (initials, no real photos/names).
+function TeamFlow() {
+  const prefersReducedMotion = useReducedMotion();
+  const initials = ["A", "M", "S", "J"];
+  const colors = ["bg-violet-500", "bg-blue-500", "bg-fuchsia-500", "bg-emerald-500"];
+  return (
+    <div className="mb-14 flex items-center justify-center gap-4">
+      <div className="flex -space-x-3">
+        {initials.map((letter, i) => (
+          <motion.div
+            key={letter}
+            initial={{ opacity: 0, scale: 0.6 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ delay: i * 0.08 }}
+            className={`flex h-10 w-10 items-center justify-center rounded-full border-2 border-zinc-950 text-xs font-semibold text-white ${colors[i % colors.length]}`}
+          >
+            {letter}
+          </motion.div>
+        ))}
+      </div>
+      <div className="relative h-px w-16 overflow-hidden bg-zinc-700 sm:w-24">
+        {!prefersReducedMotion && (
+          <motion.span
+            animate={{ x: ["-20%", "120%"] }}
+            transition={{ duration: 1.8, repeat: Infinity, ease: "linear" }}
+            className="absolute inset-y-0 w-3 rounded-full bg-violet-400 shadow-[0_0_8px_2px_rgba(167,139,250,0.6)]"
+          />
+        )}
+      </div>
+      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-violet-500 shadow-lg shadow-violet-600/30">
+        <Brain className="h-4 w-4 text-white" />
+      </div>
+    </div>
+  );
+}
+
 export default function Landing() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -295,6 +439,19 @@ export default function Landing() {
   const heroY = useTransform(scrollYProgress, [0, 1], [0, -80]);
   const heroOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0]);
   const prefersReducedMotion = useReducedMotion();
+
+  // Drives the Intelligence section's typing-indicator -> answer sequence
+  // once the demo scrolls into view (see onViewportEnter below), instead of
+  // just fading static bubbles in -- makes the "questions becoming insights"
+  // beat feel like the assistant is actually thinking.
+  const [intelligenceStarted, setIntelligenceStarted] = useState(false);
+  const [showAiAnswer, setShowAiAnswer] = useState(false);
+
+  useEffect(() => {
+    if (!intelligenceStarted) return;
+    const timer = setTimeout(() => setShowAiAnswer(true), prefersReducedMotion ? 0 : 1100);
+    return () => clearTimeout(timer);
+  }, [intelligenceStarted, prefersReducedMotion]);
 
   useEffect(() => {
     const saved = window.localStorage.getItem(LANDING_LANG_STORAGE_KEY);
@@ -318,6 +475,16 @@ export default function Landing() {
     { icon: CheckSquare, title: t("landing.featureTasksTitle"), desc: t("landing.featureTasksDesc") },
     { icon: FolderOpen, title: t("landing.featureCasesTitle"), desc: t("landing.featureCasesDesc") },
     { icon: Brain, title: t("landing.featureAiTitle"), desc: t("landing.featureAiDesc") },
+  ];
+
+  // Reuses the app's own nav labels (nav.*) for the abstract dashboard
+  // preview's mini sidebar -- and doubles as the two floating status badges'
+  // copy (workspaceBadgeInsight/TaskDone) rather than one-off strings.
+  const WORKSPACE_NAV_ITEMS = [
+    { icon: FileText, label: t("landing.workspaceBadgeInsight") },
+    { icon: CheckSquare, label: t("landing.workspaceBadgeTaskDone") },
+    { icon: FolderOpen, label: t("nav.cases") },
+    { icon: Brain, label: t("nav.aiChat") },
   ];
 
   // Shared by the Problem section (chaos) and the Transformation section
@@ -519,6 +686,9 @@ export default function Landing() {
         <div className="mx-auto max-w-4xl">
           <p className="mb-4 text-center text-xs font-semibold uppercase tracking-widest text-violet-400">{t("landing.solutionEyebrow")}</p>
           <h2 className="mb-12 text-center text-3xl font-bold md:text-4xl">{t("landing.solutionTitle")}</h2>
+          <div className="mb-16 px-2">
+            <WorkspacePreview navItems={WORKSPACE_NAV_ITEMS} />
+          </div>
           <div className="grid gap-6 sm:grid-cols-2">
             {FEATURES.map(({ icon: Icon, title, desc }, i) => (
               <motion.div
@@ -544,36 +714,58 @@ export default function Landing() {
         <div className="mx-auto max-w-3xl">
           <p className="mb-4 text-center text-xs font-semibold uppercase tracking-widest text-violet-400">{t("landing.aiDemoEyebrow")}</p>
           <h2 className="mb-12 text-center text-3xl font-bold md:text-4xl">{t("landing.aiDemoTitle")}</h2>
-          <div className="rounded-2xl border border-zinc-700 bg-zinc-800/50 p-6 backdrop-blur">
-            {[
-              { role: "user", text: t("landing.aiDemoQuestion") },
-              { role: "assistant", text: t("landing.aiDemoAnswer") },
-            ].map((msg, i) => (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            onViewportEnter={() => setIntelligenceStarted(true)}
+            className="rounded-2xl border border-zinc-700 bg-zinc-800/50 p-6 backdrop-blur"
+          >
+            <div className="mb-3 flex justify-end">
+              <div className="max-w-[80%] rounded-2xl rounded-br-sm bg-violet-600 px-4 py-3 text-sm text-white">
+                {t("landing.aiDemoQuestion")}
+              </div>
+            </div>
+
+            {intelligenceStarted && !showAiAnswer && <TypingDots />}
+
+            {showAiAnswer && (
               <motion.div
-                key={msg.role}
-                initial={{ opacity: 0, x: msg.role === "user" ? 20 : -20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.3 }}
-                className={`mb-3 flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="mb-3 flex justify-start"
               >
-                <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm ${
-                    msg.role === "user" ? "rounded-br-sm bg-violet-600 text-white" : "rounded-bl-sm bg-zinc-700 text-zinc-200"
-                  }`}
-                >
-                  {msg.text}
+                <div className="max-w-[80%] rounded-2xl rounded-bl-sm bg-zinc-700 px-4 py-3 text-sm text-zinc-200">
+                  {t("landing.aiDemoAnswer")}
                 </div>
               </motion.div>
-            ))}
-          </div>
+            )}
+
+            {showAiAnswer && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="flex flex-wrap gap-2 pl-1 pt-1"
+              >
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-600/10 px-3 py-1 text-xs text-violet-300">
+                  <CheckSquare className="h-3 w-3" /> {t("landing.intelligenceInsightActions")}
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-600/10 px-3 py-1 text-xs text-violet-300">
+                  <FileText className="h-3 w-3" /> {t("landing.intelligenceInsightSources")}
+                </span>
+              </motion.div>
+            )}
+          </motion.div>
         </div>
       </Section>
 
       <Section className="bg-zinc-900">
         <div className="mx-auto max-w-4xl">
           <p className="mb-4 text-center text-xs font-semibold uppercase tracking-widest text-violet-400">{t("landing.premiumEyebrow")}</p>
-          <h2 className="mb-12 text-center text-3xl font-bold md:text-4xl">{t("landing.premiumTitle")}</h2>
+          <h2 className="mb-3 text-center text-3xl font-bold md:text-4xl">{t("landing.premiumTitle")}</h2>
+          <p className="mx-auto mb-10 max-w-xl text-center text-zinc-400">{t("landing.premiumSubtitle")}</p>
+          <TeamFlow />
           <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
             {PREMIUM_FEATURES.map(({ icon: Icon, title, desc }, i) => (
               <motion.div
