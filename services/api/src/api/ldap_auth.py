@@ -113,7 +113,15 @@ def _add_ldap_person(conn: Connection, *, username: str, display_name: str, emai
         },
     )
     if not added:
-        raise LdapAdminError(conn.result.get("description", "LDAP add failed"))
+        description = conn.result.get("description", "")
+        if description == "entryAlreadyExists":
+            # ldap3's raw description has no space ("entryAlreadyExists"),
+            # but every caller matches the human phrase "already exists"
+            # (same convention set_password/delete_user below already use
+            # for their own hand-written messages) -- normalize here once
+            # rather than patching every caller's string match.
+            raise LdapAdminError(f"user {username!r} already exists")
+        raise LdapAdminError(description or "LDAP add failed")
     return user_dn
 
 
