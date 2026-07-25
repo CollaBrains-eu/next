@@ -131,13 +131,17 @@ describe("Settings", () => {
   });
 
   describe("Organization section", () => {
-    it("shows the org name and member roster read-only for a non-admin, with no edit controls", async () => {
+    it("is not rendered at all for a non-admin (no enterprise tier exists to gate on instead)", async () => {
       renderPage();
-      expect(await screen.findByText("Acme Legal")).toBeInTheDocument();
-      expect(screen.getByText(/A Member/)).toBeInTheDocument();
-      expect(screen.getByText(/B Admin/)).toBeInTheDocument();
-      expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
-      expect(screen.queryByText("Goals requiring approval")).not.toBeInTheDocument();
+      // Wait for some other section to finish loading so we know the page
+      // settled, then assert the org card never mounted.
+      await screen.findByText("No active plan yet.");
+      expect(screen.queryByText("Acme Legal")).not.toBeInTheDocument();
+      expect(screen.queryByText("Organization")).not.toBeInTheDocument();
+      // listOrganizationMembers is only ever called by OrganizationSection
+      // (BillingSection calls getOrganization/getSubscription but not
+      // this), so its absence confirms the section never mounted.
+      expect(api.listOrganizationMembers).not.toHaveBeenCalled();
     });
 
     it("shows an editable name field and policy picker for an admin", async () => {
@@ -174,12 +178,6 @@ describe("Settings", () => {
       await waitFor(() => expect(api.renameOrganization).toHaveBeenCalledWith("Renamed Inc"));
       expect(api.setOrganizationPolicies).toHaveBeenCalledWith({ approval_required_goals: ["draft_legal_document"] });
       expect(await screen.findByText("Organization settings saved.")).toBeInTheDocument();
-    });
-
-    it("does not show the invite-a-teammate form to a non-admin", async () => {
-      renderPage();
-      await screen.findByText("Acme Legal");
-      expect(screen.queryByLabelText("Invite a teammate")).not.toBeInTheDocument();
     });
 
     it("lets an admin send an invitation and see it in the pending list", async () => {
